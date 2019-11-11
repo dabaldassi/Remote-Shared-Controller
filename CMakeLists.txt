@@ -55,7 +55,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
   )
 
 if(INCLUDE_TEST)
-  include_directories(external/catch)
+  include(CTest)
   add_subdirectory(src/tests)
 else()
   message(STATUS "Tests will not be included")

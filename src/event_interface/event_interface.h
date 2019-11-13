@@ -24,7 +24,7 @@ typedef struct ControllerEvent
 }ControllerEvent;
 
 void write_key(unsigned char c);
-unsigned char get_key(void); // block
+bool get_key(unsigned short * key_code, int * value); // non block
 
 int poll(ControllerEvent *);
 void set_state_keyboard(bool t); // Activate or desactivate keyboard

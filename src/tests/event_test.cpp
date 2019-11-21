@@ -64,7 +64,10 @@ TEST_CASE("get keys") {
   REQUIRE((ret && code == KEY_A && val == EV_PRESSED));
 
   ret = get_key(&code, &val);
-  REQUIRE((ret && code == KEY_A && val == EV_RELEASED));
+  
+  REQUIRE(ret);
+  REQUIRE(code == KEY_A);
+  REQUIRE(val == EV_RELEASED);
 
   ret = get_key(&code, &val);
   REQUIRE((ret && code == KEY_Q && val == EV_PRESSED));
@@ -79,6 +82,33 @@ TEST_CASE("get keys") {
   write_key_ev(KEY_LEFTSHIFT, EV_PRESSED);
   write_key(KEY_A);
   write_key_ev(KEY_LEFTSHIFT, EV_RELEASED);
+
+  write_key(KEY_BACKSPACE);
+  
+  exit_controller();
+}
+
+TEST_CASE("test")
+{
+  using namespace std::chrono_literals;
+
+  unsigned short code;
+  int            val;
+
+  REQUIRE_FALSE(init_controller());
+
+  std::this_thread::sleep_for(300ms); // init takes some time (needed for this test)
+
+  bool quit = false;
+  while(!quit) {
+    bool ret = get_key(&code,&val);
+
+    if(ret) {
+      std::cout << code << "\n";
+    }
+
+    quit = code == KEY_TAB;
+  }
   
   exit_controller();
 }

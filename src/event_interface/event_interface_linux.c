@@ -56,8 +56,11 @@ bool get_key(unsigned short * code, int * val)
     if(ie.type == EV_KEY) {
       *code = ie.code;
       *val = ie.value;
-      run = 0;
+      read(event_file_descriptor[i], &ie, sizeof(ie));
+      // run = 0;
+      run = !(ie.code == SYN_REPORT && ie.type == EV_SYN && ie.value == 0);
     }
+    ++i;
   }
   
   return !run;

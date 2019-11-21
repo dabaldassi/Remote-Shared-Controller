@@ -75,6 +75,10 @@ TEST_CASE("get keys") {
   /* Remove key wrote ont the terminal */
   write_key(KEY_BACKSPACE);
   write_key(KEY_BACKSPACE);
+
+  write_key_ev(KEY_LEFTSHIFT, EV_PRESSED);
+  write_key(KEY_A);
+  write_key_ev(KEY_LEFTSHIFT, EV_RELEASED);
   
   exit_controller();
 }

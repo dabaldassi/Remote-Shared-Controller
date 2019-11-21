@@ -38,6 +38,13 @@ void write_key(unsigned char c)
   emit(uinput_file_descriptor, EV_SYN, SYN_REPORT, 0);
 }
 
+void write_key_ev(unsigned char c, int mode)
+{
+  emit(uinput_file_descriptor, EV_KEY, c, mode);
+  emit(uinput_file_descriptor, EV_SYN, SYN_REPORT, 0);
+}
+
+
 bool get_key(unsigned short * code, int * val)
 {
   struct input_event ie;

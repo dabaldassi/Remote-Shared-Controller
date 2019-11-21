@@ -17,20 +17,21 @@ extern "C" {
 #define EV_RELEASED 0
 #define EV_PRESSED  1
 
-typedef struct ControllerEvent
-{
-  u_int8_t      controller_type;
-  unsigned char key; // Key if keyboard
-}ControllerEvent;
+  typedef struct ControllerEvent
+  {
+    u_int8_t      controller_type;
+    unsigned char key; // Key if keyboard
+  }ControllerEvent;
 
-void write_key(unsigned char c);
-bool get_key(unsigned short * key_code, int * value); // non block
+  void write_key(unsigned char c);
+  void write_key_ev(unsigned char c, int mode);
+  bool get_key(unsigned short * key_code, int * value); // non block
 
-int poll(ControllerEvent *);
-void set_state_keyboard(bool t); // Activate or desactivate keyboard
+  int poll(ControllerEvent *);
+  void set_state_keyboard(bool t); // Activate or desactivate keyboard
 
-int init_controller(void);
-void exit_controller(void);
+  int init_controller(void);
+  void exit_controller(void);
 
 #ifdef __cplusplus  
 }

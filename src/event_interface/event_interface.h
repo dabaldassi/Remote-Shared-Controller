@@ -28,7 +28,7 @@ extern "C" {
   bool get_key(unsigned short * key_code, int * value); // non block
 
   int poll(ControllerEvent *);
-  void set_state_keyboard(bool t); // Activate or desactivate keyboard
+  void grab_controller(bool t); // Activate or desactivate keyboard
 
   int init_controller(void);
   void exit_controller(void);

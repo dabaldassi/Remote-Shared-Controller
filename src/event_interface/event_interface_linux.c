@@ -183,9 +183,14 @@ void exit_controller(void)
   }
 }
 
-void set_state_keyboard(bool t)
+void grab_controller(bool t)
 {
+  int i = 1;
   
+  while(event_file_descriptor[i] > 0) {
+    ioctl(event_file_descriptor[i], EVIOCGRAB, t);
+    ++i;
+  }
 }
 
 int poll(ControllerEvent * ce)

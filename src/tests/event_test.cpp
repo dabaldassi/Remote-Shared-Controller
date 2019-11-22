@@ -88,27 +88,39 @@ TEST_CASE("get keys") {
   exit_controller();
 }
 
+#ifdef GRAB_TEST
+
 TEST_CASE("test")
 {
   using namespace std::chrono_literals;
 
   unsigned short code;
   int            val;
+  bool           grab = true;
 
   REQUIRE_FALSE(init_controller());
 
   std::this_thread::sleep_for(300ms); // init takes some time (needed for this test)
 
+  grab_controller(grab);
   bool quit = false;
   while(!quit) {
     bool ret = get_key(&code,&val);
 
     if(ret) {
       std::cout << code << "\n";
+
+      if(val == 0 && code == KEY_SPACE) {
+	grab = !grab;
+	grab_controller(grab);
+      }
     }
 
     quit = code == KEY_TAB;
+    
   }
   
   exit_controller();
 }
+
+#endif

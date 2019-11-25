@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include <fcntl.h>
+#include <poll.h>
 #include <dirent.h>
 #include <unistd.h>
 
@@ -14,7 +15,7 @@
 #define DEV_INPUT_FILE_NAME "/dev/input/"
 
 static int uinput_file_descriptor = -1;
-static int * event_file_descriptor = NULL;
+static struct pollfd * event_poll_file_descriptor = NULL;
 
 static void emit(int fd, int type, unsigned short code, int val)
 {
@@ -32,9 +33,9 @@ static void emit(int fd, int type, unsigned short code, int val)
 
 void write_key(unsigned char c)
 {
-  emit(uinput_file_descriptor, EV_KEY, c, EV_PRESSED);
+  emit(uinput_file_descriptor, EV_KEY, c, KEY_PRESSED);
   emit(uinput_file_descriptor, EV_SYN, SYN_REPORT, 0);
-  emit(uinput_file_descriptor, EV_KEY, c, EV_RELEASED);
+  emit(uinput_file_descriptor, EV_KEY, c, KEY_RELEASED);
   emit(uinput_file_descriptor, EV_SYN, SYN_REPORT, 0);
 }
 
@@ -44,6 +45,12 @@ void write_key_ev(unsigned char c, int mode)
   emit(uinput_file_descriptor, EV_SYN, SYN_REPORT, 0);
 }
 
+void mouse_move(int x, int y)
+{
+  emit(uinput_file_descriptor, EV_REL, REL_X, x);
+  emit(uinput_file_descriptor, EV_REL, REL_Y, y);
+  emit(uinput_file_descriptor, EV_SYN, SYN_REPORT, 0);
+}
 
 bool get_key(unsigned short * code, int * val)
 {
@@ -51,12 +58,12 @@ bool get_key(unsigned short * code, int * val)
 
   int i = 0, run = 1;
 
-  while(run && event_file_descriptor[i] > 0) {
-    read(event_file_descriptor[i], &ie, sizeof(ie));
+  while(run && event_poll_file_descriptor[i].fd > 0) {
+    read(event_poll_file_descriptor[i].fd, &ie, sizeof(ie));
     if(ie.type == EV_KEY) {
       *code = ie.code;
       *val = ie.value;
-      read(event_file_descriptor[i], &ie, sizeof(ie));
+      read(event_poll_file_descriptor[i].fd, &ie, sizeof(ie));
       // run = 0;
       run = !(ie.code == SYN_REPORT && ie.type == EV_SYN && ie.value == 0);
     }
@@ -82,6 +89,11 @@ static int init_uinput(void)
    * created, to pass key events.
    */
   ioctl(uinput_file_descriptor, UI_SET_EVBIT, EV_KEY);
+  ioctl(uinput_file_descriptor, UI_SET_KEYBIT, BTN_LEFT);
+  ioctl(uinput_file_descriptor, UI_SET_KEYBIT, BTN_RIGHT);
+  ioctl(uinput_file_descriptor, UI_SET_EVBIT, EV_REL);
+  ioctl(uinput_file_descriptor, UI_SET_RELBIT, REL_X);
+  ioctl(uinput_file_descriptor, UI_SET_RELBIT, REL_Y);
 
   /*
    * Enable all keyboard keys
@@ -116,20 +128,21 @@ static int init_read(void)
   dev_input_dir = opendir(DEV_INPUT_FILE_NAME);
   if(dev_input_dir == NULL) return 1; // Error opening
 
-  event_file_descriptor = calloc(sizeof(int), base_len);
-  if(event_file_descriptor == NULL) {
+  event_poll_file_descriptor = calloc(sizeof(int), base_len);
+  if(event_poll_file_descriptor == NULL) {
     perror("");
     return 1;
   }
 
   while ((current_ptr_dir = readdir(dev_input_dir))) {
-    if(!strncmp(current_ptr_dir->d_name, event_file_prefix, len_event)) {
+    if(!strncmp(current_ptr_dir->d_name,event_file_prefix,len_event)) {
       char dir_name[256] = DEV_INPUT_FILE_NAME;
       
-      event_file_descriptor[next] = open(strcat(dir_name, current_ptr_dir->d_name),
-					 O_RDONLY | O_NONBLOCK);
+      event_poll_file_descriptor[next].fd = open(strcat(dir_name, current_ptr_dir->d_name),
+						 O_RDONLY | O_NONBLOCK);
+      event_poll_file_descriptor[next].events = POLLIN;
       
-      if(event_file_descriptor[next] < 0) {
+      if(event_poll_file_descriptor[next].fd < 0) {
 	fprintf(stderr, "Failed to open %s: ", dir_name);
 	perror("");
       }
@@ -144,7 +157,7 @@ static int init_read(void)
 
 int init_controller(void)
 {
-  if(uinput_file_descriptor == -1 && event_file_descriptor == NULL) {
+  if(uinput_file_descriptor == -1 && event_poll_file_descriptor == NULL) {
     if(init_uinput()) {
       fprintf(stderr, "Failed to init uinput module\n");
       return 1;
@@ -169,17 +182,17 @@ void exit_controller(void)
     uinput_file_descriptor = -1;
   }
 
-  if(event_file_descriptor) {
+  if(event_poll_file_descriptor) {
     int i = 0;
 
-    while(event_file_descriptor[i] > 0) {
-      close(event_file_descriptor[i]);
-      event_file_descriptor[i] = 0;
+    while(event_poll_file_descriptor[i].fd > 0) {
+      close(event_poll_file_descriptor[i].fd);
+      event_poll_file_descriptor[i].fd = 0;
       ++i;
     }
 
-    free(event_file_descriptor);
-    event_file_descriptor = NULL;
+    free(event_poll_file_descriptor);
+    event_poll_file_descriptor = NULL;
   }
 }
 
@@ -187,14 +200,51 @@ void grab_controller(bool t)
 {
   int i = 1;
   
-  while(event_file_descriptor[i] > 0) {
-    ioctl(event_file_descriptor[i], EVIOCGRAB, t);
+  while(event_poll_file_descriptor[i].fd > 0) {
+    ioctl(event_poll_file_descriptor[i].fd, EVIOCGRAB, t);
     ++i;
   }
 }
 
-int poll(ControllerEvent * ce)
+static inline size_t get_event_len()
 {
+  size_t i = 0;
+  while(event_poll_file_descriptor[i].fd > 0) ++i;
+  return i;
+}
 
-  return 0;
+
+void write_controller(const ControllerEvent * ce)
+{
+  emit(uinput_file_descriptor, ce->ev_type, ce->code, ce->value);
+}
+
+int poll_controller(ControllerEvent * ce)
+{
+  size_t event_len = get_event_len();
+
+  int p = poll(event_poll_file_descriptor, event_len, -1);
+  if(p < 0) return -1; // error
+
+  size_t i = 0;
+  int    quit = 0;
+  struct input_event ie;
+  
+  while(p > 0 && i < event_len && !quit) {
+    if(event_poll_file_descriptor[i].revents == POLLIN) {
+      read(event_poll_file_descriptor[i].fd, &ie, sizeof(ie));
+      
+      if(ie.type == EV_KEY || ie.type == EV_REL || ie.type == EV_ABS) {
+	ce->ev_type = ie.type;
+	ce->code = ie.code;
+	ce->value = ie.value;
+	quit = 1;
+	--p;
+      }
+    }
+
+    ++i;
+  }
+  
+  return !quit;
 }

@@ -61,30 +61,82 @@ TEST_CASE("get keys") {
   write_key(KEY_Q);
 
   bool ret = get_key(&code, &val);
-  REQUIRE((ret && code == KEY_A && val == EV_PRESSED));
+  REQUIRE((ret && code == KEY_A && val == KEY_PRESSED));
 
   ret = get_key(&code, &val);
   
   REQUIRE(ret);
   REQUIRE(code == KEY_A);
-  REQUIRE(val == EV_RELEASED);
+  REQUIRE(val == KEY_RELEASED);
 
   ret = get_key(&code, &val);
-  REQUIRE((ret && code == KEY_Q && val == EV_PRESSED));
+  REQUIRE((ret && code == KEY_Q && val == KEY_PRESSED));
   
   ret = get_key(&code, &val);
-  REQUIRE((ret && code == KEY_Q && val == EV_RELEASED));
+  REQUIRE((ret && code == KEY_Q && val == KEY_RELEASED));
 
   /* Remove key wrote ont the terminal */
   write_key(KEY_BACKSPACE);
   write_key(KEY_BACKSPACE);
 
-  write_key_ev(KEY_LEFTSHIFT, EV_PRESSED);
+  write_key_ev(KEY_LEFTSHIFT, KEY_PRESSED);
   write_key(KEY_A);
-  write_key_ev(KEY_LEFTSHIFT, EV_RELEASED);
+  write_key_ev(KEY_LEFTSHIFT, KEY_RELEASED);
 
   write_key(KEY_BACKSPACE);
   
+  exit_controller();
+}
+
+TEST_CASE("Move Mouse")
+{
+  using namespace std::chrono_literals;
+  
+  REQUIRE_FALSE(init_controller());
+
+  std::this_thread::sleep_for(300ms); // init takes some time (needed for this test)
+
+  int x = 5, y = 5, i = 100;
+
+  while(i--) {
+    mouse_move(x,y);
+    std::this_thread::sleep_for(10ms);
+  }
+
+  exit_controller();
+}
+
+TEST_CASE("controllerevent")
+{
+  using namespace std::chrono_literals;
+
+  ControllerEvent ce;
+  bool grab = false;
+  
+  REQUIRE_FALSE(init_controller());
+
+  std::this_thread::sleep_for(300ms); // init takes some time (needed for this test)
+
+  int quit = 0;
+  while(!quit) {
+    int ret = poll_controller(&ce);
+
+    if(!ret) {
+      
+      if(grab) {
+	write_controller(&ce);
+      }
+      
+      if(ce.controller_type == EV_KEY && ce.value == KEY_RELEASED && ce.code == KEY_SPACE) {
+	grab = !grab;
+	grab_controller(grab);
+      }
+      
+      quit = ce.code == KEY_TAB;
+      std::cout << ce.code << " " << ce.value << "\n";
+    }
+  }
+
   exit_controller();
 }
 
@@ -104,6 +156,7 @@ TEST_CASE("test")
 
   grab_controller(grab);
   bool quit = false;
+
   while(!quit) {
     bool ret = get_key(&code,&val);
 

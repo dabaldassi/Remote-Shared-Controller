@@ -2,6 +2,7 @@
 #define EVENT_INTERFACE_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -9,25 +10,33 @@ extern "C" {
 
 #if defined(__gnu_linux__)
 #include <linux/input-event-codes.h>
+#define TRIGGER ABS_MT_TRACKING_ID
+  
 #endif
 
-#define KEYBOARD_EV 0x01
-#define MOUSE_EV    0x02
+#define KEY 0x01
+#define MOUSE 0x02
 
-#define EV_RELEASED 0
-#define EV_PRESSED  1
-
+#define KEY_RELEASED 0
+#define KEY_PRESSED 1
+#define ABS_ENTER 2
+#define ABS_EXIT  3
+  
   typedef struct ControllerEvent
   {
-    u_int8_t      controller_type;
-    unsigned char key; // Key if keyboard
+    uint8_t       controller_type;
+    uint8_t       ev_type;
+    uint32_t      value;
+    unsigned short code; // Key if keyboard
   }ControllerEvent;
 
+  void write_controller(const ControllerEvent * ce);
   void write_key(unsigned char c);
   void write_key_ev(unsigned char c, int mode);
   bool get_key(unsigned short * key_code, int * value); // non block
+  void mouse_move(int x, int y);
 
-  int poll(ControllerEvent *);
+  int poll_controller(ControllerEvent *);
   void grab_controller(bool t); // Activate or desactivate keyboard
 
   int init_controller(void);

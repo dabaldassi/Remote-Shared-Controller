@@ -1,6 +1,6 @@
 #include "network.h"
 
-const uint8_t broadcast_ll_addr[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
+static const uint8_t broadcast_ll_addr[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
 
 int create_scnp_socket(int if_index) {
   /* create socket */

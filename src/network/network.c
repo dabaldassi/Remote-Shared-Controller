@@ -1,4 +1,16 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netpacket/packet.h>
+#include <net/ethernet.h>
+#include <arpa/inet.h>
+
 #include "network.h"
+
+#define MIN_SCNP_PACKET_LENGTH 1
+#define MAX_SCNP_PACKET_LENGTH 7
 
 static const uint8_t broadcast_ll_addr[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
 
@@ -15,29 +27,51 @@ void create_scnp_socket(struct scnp_socket * sock, int if_index)
   sock->if_index = if_index;
 }
 
-static inline void memcpy_inv(uint8_t * dstpp, const void * srcpp, size_t len)
+void close_scnp_socket(struct scnp_socket * sock)
 {
-  uint64_t * srcp = (uint64_t *) srcpp;
-  for (size_t i = 0; i < len; ++i) {
-    *dstpp++ = *srcp >> (8 * (len - i - 1)) & 0xff;
+  close(sock->packet_socket);
+}
+
+void scnp_request_to_buffer(uint8_t * buffer, struct scnp_req * request)
+{
+  buffer[0] = request->type;
+  uint16_t net_order_short = htons(request->code);
+  memcpy(buffer+1, &net_order_short, sizeof(uint16_t));
+  uint32_t net_order_long;
+  switch (buffer[0]) {
+    case EV_KEY:
+      buffer [3] = request->key_flags;
+      break;
+    case EV_REL:
+    case EV_ABS:
+      net_order_long = htonl(request->value);
+      memcpy(buffer+3, &net_order_long, sizeof(uint32_t));
+      break;
+    default:
+      perror("Unknown SCNP type");
   }
 }
 
-void scnp_request_to_buffer(uint8_t buffer[SCNP_PACKET_LEN], struct scnp_req * request)
-{
-  buffer[0] = request->type;
-  memcpy_inv(buffer+1, &request->value, sizeof(uint32_t));
-  memcpy_inv(buffer+5, &request->code, sizeof(uint16_t));
-}
-
-void buffer_to_scnp_request(uint8_t buffer[SCNP_PACKET_LEN], struct scnp_req * request)
+void buffer_to_scnp_request(uint8_t * buffer, struct scnp_req * request)
 {
   request->type = buffer[0];
-  request->value = buffer[1] << 24 | buffer[2] << 16 | buffer[3] << 8 | buffer[4];
-  request->code = buffer[5] << 8 | buffer[6];
+  memcpy(&request->code, buffer+1, sizeof(uint16_t));
+  request->code = ntohs(request->code);
+  switch (buffer[0]) {
+    case EV_KEY:
+      request->key_flags = buffer[3];
+      break;
+    case EV_REL:
+    case EV_ABS:
+      memcpy(&request->value, buffer+3, sizeof(uint32_t));
+      request->value = ntohl(request->value);
+      break;
+    default:
+      perror("Unknown SCNP type");
+  }
 }
 
-void send_scnp_request(struct scnp_socket * sock, const uint8_t dest_addr[ETHER_ADDR_LEN], struct scnp_req *request)
+void send_scnp_request(struct scnp_socket * sock, const uint8_t * dest_addr, struct scnp_req *request)
 {
   /* init sock_addr */
   struct sockaddr_ll sock_addr;
@@ -48,11 +82,24 @@ void send_scnp_request(struct scnp_socket * sock, const uint8_t dest_addr[ETHER_
   memcpy(sock_addr.sll_addr, dest_addr, ETHER_ADDR_LEN);
 
   /* init request buffer */
-  uint8_t buffer[SCNP_PACKET_LEN];
+  size_t buffer_size = sizeof(request->type) + sizeof(request->code);
+  switch (request->type) {
+    case EV_KEY:
+      buffer_size += sizeof(request->key_flags);
+      break;
+    case EV_REL:
+    case EV_ABS:
+      buffer_size += sizeof(request->value);
+      break;
+    default:
+      perror("Unknown SCNP type");
+  }
+  uint8_t * buffer = (uint8_t *) malloc(buffer_size);
   scnp_request_to_buffer(buffer, request);
 
   /* send request */
   sendto(sock->packet_socket, buffer, sizeof(buffer), 0, (struct sockaddr *) &sock_addr, sizeof(sock_addr));
+  free(buffer);
 }
 
 void recv_scnp_request(struct scnp_socket * sock, struct scnp_req * request)
@@ -63,30 +110,32 @@ void recv_scnp_request(struct scnp_socket * sock, struct scnp_req * request)
   sock_addr.sll_ifindex = sock->if_index;
 
   /* init buffer */
-  uint8_t buffer[SCNP_PACKET_LEN];
-  bzero(buffer, SCNP_PACKET_LEN);
+  uint8_t buffer[MAX_SCNP_PACKET_LENGTH];
+  bzero(buffer, MAX_SCNP_PACKET_LENGTH);
 
   /* receive request */
   socklen_t sock_len = sizeof(sock_addr);
   int rec = recvfrom(sock->packet_socket, buffer, sizeof(buffer), 0, (struct sockaddr *) &sock_addr, &sock_len);
-  if (rec != SCNP_PACKET_LEN) {
-    perror("Cannot receive enough data");
+  if (rec < MIN_SCNP_PACKET_LENGTH) {
+    perror("Cannot create SCNP request: not enough data received.");
   }
   else {
     buffer_to_scnp_request(buffer, request);
   }
 }
 
-void create_scnp_request(struct scnp_req * request, uint8_t type, uint32_t value, uint16_t code)
+void create_scnp_request(struct scnp_req * request, uint8_t type, uint16_t code, uint8_t key_flags, uint32_t value)
 {
   request->type = type;
-  request->value = value;
   request->code = code;
+  request->key_flags = key_flags;
+  request->value = value;
 }
 
-void scnp_send_key(struct scnp_socket * sock, const uint8_t dest_addr[ETHER_ADDR_LEN], uint8_t type, uint32_t value, uint16_t code)
+void scnp_send_key(struct scnp_socket * sock, const uint8_t * dest_addr, uint16_t code, int pressed)
 {
   struct scnp_req request;
-  create_scnp_request(&request, type, value, code);
+  uint8_t key_flags = (pressed != 0) << 7;
+  create_scnp_request(&request, EV_KEY, code, key_flags, 0);
   send_scnp_request(sock, dest_addr, &request);
 }

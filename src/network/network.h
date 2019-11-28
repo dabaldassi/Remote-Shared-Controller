@@ -4,11 +4,16 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-  
+
+#include <stdlib.h>
 #include <stdint.h>
 #include <linux/input-event-codes.h>
 
+
+#define PACKED __attribute((packed))
+
 #define ETH_P_SCNP 0x8888
+#define MAX_SCNP_PACKET_LENGTH 7
 
   struct scnp_socket
   {
@@ -16,29 +21,37 @@ extern "C" {
     int if_index;
   };
 
-  struct scnp_req
+  struct scnp_packet
+  {
+    uint8_t type;
+    uint8_t data[MAX_SCNP_PACKET_LENGTH - 1];
+  };
+
+  struct scnp_key
   {
     uint8_t type;
     uint16_t code;
-    uint8_t key_flags;
+    uint8_t flags;
+  } PACKED;
+
+  struct scnp_movement
+  {
+    uint8_t type;
+    uint16_t code;
     uint32_t value;
-  };
+  } PACKED;
 
-  void create_scnp_socket(struct scnp_socket * sock, int if_index);
+  void scnp_create_socket(struct scnp_socket * sock, int if_index);
 
-  void close_scnp_socket(struct scnp_socket * sock);
+  void scnp_close_socket(struct scnp_socket * sock);
 
-  void scnp_request_to_buffer(uint8_t * buffer, struct scnp_req * request);
+  void scnp_packet_to_buffer(uint8_t * buffer, const struct scnp_packet * packet);
 
-  void buffer_to_scnp_request(uint8_t * buffer, struct scnp_req * request);
+  void scnp_buffer_to_packet(const uint8_t * buffer, struct scnp_packet * packet);
 
-  void send_scnp_request(struct scnp_socket * sock, const uint8_t * dest_addr, struct scnp_req *request);
+  void scnp_send(struct scnp_socket * sock, const uint8_t * dest_addr, struct scnp_packet * packet, size_t packet_length);
 
-  void recv_scnp_request(struct scnp_socket * sock, struct scnp_req * request);
-
-  void create_scnp_request(struct scnp_req * request, uint8_t type, uint16_t code, uint8_t key_flags, uint32_t value);
-
-  void scnp_send_key(struct scnp_socket * sock, const uint8_t * dest_addr, uint16_t code, int pressed);
+  void scnp_recv(struct scnp_socket * sock, struct scnp_packet * packet);
 
 #ifdef __cplusplus
 }

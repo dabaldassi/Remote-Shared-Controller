@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -9,12 +8,9 @@
 
 #include "network.h"
 
-#define MIN_SCNP_PACKET_LENGTH 1
-#define MAX_SCNP_PACKET_LENGTH 7
-
 static const uint8_t broadcast_ll_addr[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
 
-void create_scnp_socket(struct scnp_socket * sock, int if_index)
+void scnp_create_socket(struct scnp_socket * sock, int if_index)
 {
   /* create socket */
   int fd = socket(AF_PACKET, SOCK_DGRAM, ETH_P_SCNP);
@@ -27,51 +23,67 @@ void create_scnp_socket(struct scnp_socket * sock, int if_index)
   sock->if_index = if_index;
 }
 
-void close_scnp_socket(struct scnp_socket * sock)
+void scnp_close_socket(struct scnp_socket * sock)
 {
-  close(sock->packet_socket);
+  if (close(sock->packet_socket) != 0) {
+    perror("Cannot close socket");
+    exit(EXIT_FAILURE);
+  }
 }
 
-void scnp_request_to_buffer(uint8_t * buffer, struct scnp_req * request)
+void scnp_packet_to_buffer(uint8_t * buffer, const struct scnp_packet * packet)
 {
-  buffer[0] = request->type;
-  uint16_t net_order_short = htons(request->code);
-  memcpy(buffer+1, &net_order_short, sizeof(uint16_t));
+  buffer[0] = packet->type;
+  uint16_t net_order_short;
   uint32_t net_order_long;
   switch (buffer[0]) {
     case EV_KEY:
-      buffer [3] = request->key_flags;
+      memcpy(&net_order_short, packet->data, sizeof(uint16_t));
+      net_order_short = htons(net_order_short);
+      memcpy(buffer+1, &net_order_short, sizeof(uint16_t));
+      buffer[3] = packet->data[2];
       break;
     case EV_REL:
     case EV_ABS:
-      net_order_long = htonl(request->value);
+      memcpy(&net_order_short, packet->data, sizeof(uint16_t));
+      net_order_short = htons(net_order_short);
+      memcpy(buffer+1, &net_order_short, sizeof(uint16_t));
+      memcpy(&net_order_long, packet->data+2, sizeof(uint32_t));
+      net_order_long = htonl(net_order_long);
       memcpy(buffer+3, &net_order_long, sizeof(uint32_t));
       break;
     default:
-      perror("Unknown SCNP type");
+      memcpy(buffer+1, packet->data, sizeof(packet->data));
   }
 }
 
-void buffer_to_scnp_request(uint8_t * buffer, struct scnp_req * request)
+void scnp_buffer_to_packet(const uint8_t * buffer, struct scnp_packet * packet)
 {
-  request->type = buffer[0];
-  memcpy(&request->code, buffer+1, sizeof(uint16_t));
-  request->code = ntohs(request->code);
+  packet->type = buffer[0];
+  uint16_t host_order_short;
+  uint32_t host_order_long;
   switch (buffer[0]) {
     case EV_KEY:
-      request->key_flags = buffer[3];
+      memcpy(&host_order_short, buffer+1, sizeof(uint16_t));
+      host_order_short = ntohs(host_order_short);
+      memcpy(packet->data, &host_order_short, sizeof(uint16_t));
+      packet->data[2] = buffer[3];
       break;
     case EV_REL:
     case EV_ABS:
-      memcpy(&request->value, buffer+3, sizeof(uint32_t));
-      request->value = ntohl(request->value);
+      memcpy(&host_order_short, buffer+1, sizeof(uint16_t));
+      host_order_short = ntohs(host_order_short);
+      memcpy(packet->data, &host_order_short, sizeof(uint16_t));
+      memcpy(&host_order_long, buffer+3, sizeof(uint32_t));
+      host_order_long = ntohl(host_order_long);
+      memcpy(packet->data+2, &host_order_long, sizeof(uint32_t));
       break;
     default:
-      perror("Unknown SCNP type");
+      memcpy(packet->data, buffer+1, MAX_SCNP_PACKET_LENGTH - 1);
   }
 }
 
-void send_scnp_request(struct scnp_socket * sock, const uint8_t * dest_addr, struct scnp_req *request)
+void scnp_send(struct scnp_socket * sock, const uint8_t * dest_addr, struct scnp_packet * packet, size_t packet_length)
 {
   /* init sock_addr */
   struct sockaddr_ll sock_addr;
@@ -81,28 +93,16 @@ void send_scnp_request(struct scnp_socket * sock, const uint8_t * dest_addr, str
   sock_addr.sll_protocol = ETH_P_SCNP;
   memcpy(sock_addr.sll_addr, dest_addr, ETHER_ADDR_LEN);
 
-  /* init request buffer */
-  size_t buffer_size = sizeof(request->type) + sizeof(request->code);
-  switch (request->type) {
-    case EV_KEY:
-      buffer_size += sizeof(request->key_flags);
-      break;
-    case EV_REL:
-    case EV_ABS:
-      buffer_size += sizeof(request->value);
-      break;
-    default:
-      perror("Unknown SCNP type");
-  }
-  uint8_t * buffer = (uint8_t *) malloc(buffer_size);
-  scnp_request_to_buffer(buffer, request);
+  /* init packet buffer */
+  uint8_t * buffer = (uint8_t *) malloc(packet_length);
+  scnp_packet_to_buffer(buffer, packet);
 
-  /* send request */
-  sendto(sock->packet_socket, buffer, sizeof(buffer), 0, (struct sockaddr *) &sock_addr, sizeof(sock_addr));
+  /* send packet */
+  sendto(sock->packet_socket, buffer, packet_length, 0, (struct sockaddr *) &sock_addr, sizeof(sock_addr));
   free(buffer);
 }
 
-void recv_scnp_request(struct scnp_socket * sock, struct scnp_req * request)
+void scnp_recv(struct scnp_socket * sock, struct scnp_packet * packet)
 {
   /* init sock_addr */
   struct sockaddr_ll sock_addr;
@@ -113,29 +113,12 @@ void recv_scnp_request(struct scnp_socket * sock, struct scnp_req * request)
   uint8_t buffer[MAX_SCNP_PACKET_LENGTH];
   bzero(buffer, MAX_SCNP_PACKET_LENGTH);
 
-  /* receive request */
+  /* receive packet */
   socklen_t sock_len = sizeof(sock_addr);
-  int rec = recvfrom(sock->packet_socket, buffer, sizeof(buffer), 0, (struct sockaddr *) &sock_addr, &sock_len);
-  if (rec < MIN_SCNP_PACKET_LENGTH) {
-    perror("Cannot create SCNP request: not enough data received.");
+  if  (recvfrom(sock->packet_socket, buffer, sizeof(buffer), 0, (struct sockaddr *) &sock_addr, &sock_len) == -1) {
+    perror("Cannot receive scnp packet");
   }
   else {
-    buffer_to_scnp_request(buffer, request);
+    scnp_buffer_to_packet(buffer, packet);
   }
-}
-
-void create_scnp_request(struct scnp_req * request, uint8_t type, uint16_t code, uint8_t key_flags, uint32_t value)
-{
-  request->type = type;
-  request->code = code;
-  request->key_flags = key_flags;
-  request->value = value;
-}
-
-void scnp_send_key(struct scnp_socket * sock, const uint8_t * dest_addr, uint16_t code, int pressed)
-{
-  struct scnp_req request;
-  uint8_t key_flags = (pressed != 0) << 7;
-  create_scnp_request(&request, EV_KEY, code, key_flags, 0);
-  send_scnp_request(sock, dest_addr, &request);
 }

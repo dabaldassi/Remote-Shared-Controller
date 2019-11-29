@@ -10,25 +10,21 @@
 
 static const uint8_t broadcast_ll_addr[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
 
-void scnp_create_socket(struct scnp_socket * sock, int if_index)
+int scnp_create_socket(struct scnp_socket * sock, int if_index)
 {
   /* create socket */
   int fd = socket(AF_PACKET, SOCK_DGRAM, ETH_P_SCNP);
-  if (fd == -1) {
-    perror("Cannot create socket");
-    exit(EXIT_FAILURE);
-  }
+  if (fd == -1) return -1;
 
   sock->packet_socket = fd;
   sock->if_index = if_index;
+  return 0;
 }
 
-void scnp_close_socket(struct scnp_socket * sock)
+int scnp_close_socket(struct scnp_socket * sock)
 {
-  if (close(sock->packet_socket) != 0) {
-    perror("Cannot close socket");
-    exit(EXIT_FAILURE);
-  }
+  if (close(sock->packet_socket) == -1) return -1;
+  return 0;
 }
 
 void scnp_packet_to_buffer(uint8_t * buffer, const struct scnp_packet * packet)
@@ -83,7 +79,7 @@ void scnp_buffer_to_packet(const uint8_t * buffer, struct scnp_packet * packet)
   }
 }
 
-void scnp_send(struct scnp_socket * sock, const uint8_t * dest_addr, struct scnp_packet * packet, size_t packet_length)
+int scnp_send(struct scnp_socket * sock, const uint8_t * dest_addr, struct scnp_packet * packet, size_t packet_length)
 {
   /* init sock_addr */
   struct sockaddr_ll sock_addr;
@@ -98,11 +94,14 @@ void scnp_send(struct scnp_socket * sock, const uint8_t * dest_addr, struct scnp
   scnp_packet_to_buffer(buffer, packet);
 
   /* send packet */
-  sendto(sock->packet_socket, buffer, packet_length, 0, (struct sockaddr *) &sock_addr, sizeof(sock_addr));
+  int bytes_sent = sendto(sock->packet_socket, buffer, packet_length, 0, (struct sockaddr *) &sock_addr, sizeof(sock_addr));
   free(buffer);
+
+  if (bytes_sent == -1) return -1;
+  return bytes_sent;
 }
 
-void scnp_recv(struct scnp_socket * sock, struct scnp_packet * packet)
+int scnp_recv(struct scnp_socket * sock, struct scnp_packet * packet)
 {
   /* init sock_addr */
   struct sockaddr_ll sock_addr;
@@ -115,10 +114,9 @@ void scnp_recv(struct scnp_socket * sock, struct scnp_packet * packet)
 
   /* receive packet */
   socklen_t sock_len = sizeof(sock_addr);
-  if  (recvfrom(sock->packet_socket, buffer, sizeof(buffer), 0, (struct sockaddr *) &sock_addr, &sock_len) == -1) {
-    perror("Cannot receive scnp packet");
-  }
-  else {
-    scnp_buffer_to_packet(buffer, packet);
-  }
+  int bytes_received = recvfrom(sock->packet_socket, buffer, sizeof(buffer), 0, (struct sockaddr *) &sock_addr, &sock_len);
+
+  if (bytes_received == -1) return -1;
+  scnp_buffer_to_packet(buffer, packet);
+  return bytes_received;
 }

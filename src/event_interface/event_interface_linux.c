@@ -89,18 +89,24 @@ static int init_uinput(void)
    * created, to pass key events.
    */
   ioctl(uinput_file_descriptor, UI_SET_EVBIT, EV_KEY);
-  ioctl(uinput_file_descriptor, UI_SET_KEYBIT, BTN_LEFT);
-  ioctl(uinput_file_descriptor, UI_SET_KEYBIT, BTN_RIGHT);
+
+  /*
+   * Enable all keyboard keys
+   */
+  for(int i = 0; i < KEY_CNT; ++i) {
+    ioctl(uinput_file_descriptor, UI_SET_KEYBIT, i);
+  }
+
   ioctl(uinput_file_descriptor, UI_SET_EVBIT, EV_REL);
   ioctl(uinput_file_descriptor, UI_SET_RELBIT, REL_X);
   ioctl(uinput_file_descriptor, UI_SET_RELBIT, REL_Y);
 
   /*
-   * Enable all keyboard keys
-   */
-  for(int i = 0; i < 255; ++i) {
-    ioctl(uinput_file_descriptor, UI_SET_KEYBIT, i);
-  }
+   * [BUG] Setting abs bit prevent writing key
+  ioctl(uinput_file_descriptor, UI_SET_EVBIT, EV_ABS);
+  ioctl(uinput_file_descriptor, UI_SET_ABSBIT, ABS_X);
+  ioctl(uinput_file_descriptor, UI_SET_ABSBIT, ABS_Y);
+  */
 
   memset(&usetup, 0, sizeof(usetup));
   usetup.id.bustype = BUS_USB;
@@ -158,13 +164,14 @@ static int init_read(void)
 int init_controller(void)
 {
   if(uinput_file_descriptor == -1 && event_poll_file_descriptor == NULL) {
-    if(init_uinput()) {
-      fprintf(stderr, "Failed to init uinput module\n");
+    
+    if(init_read()) {
+      fprintf(stderr, "Failed to read event files\n");
       return 1;
     }
 
-    if(init_read()) {
-      fprintf(stderr, "Failed to read event files\n");
+    if(init_uinput()) {
+      fprintf(stderr, "Failed to init uinput module\n");
       return 1;
     }
     
@@ -198,7 +205,7 @@ void exit_controller(void)
 
 void grab_controller(bool t)
 {
-  int i = 1;
+  int i = 0;
   
   while(event_poll_file_descriptor[i].fd > 0) {
     ioctl(event_poll_file_descriptor[i].fd, EVIOCGRAB, t);
@@ -217,6 +224,7 @@ static inline size_t get_event_len()
 void write_controller(const ControllerEvent * ce)
 {
   emit(uinput_file_descriptor, ce->ev_type, ce->code, ce->value);
+  emit(uinput_file_descriptor, EV_SYN, SYN_REPORT, 0);
 }
 
 int poll_controller(ControllerEvent * ce)
@@ -235,6 +243,7 @@ int poll_controller(ControllerEvent * ce)
       read(event_poll_file_descriptor[i].fd, &ie, sizeof(ie));
       
       if(ie.type == EV_KEY || ie.type == EV_REL || ie.type == EV_ABS) {
+	ce->controller_type = (ie.type == EV_KEY)?KEY:MOUSE;
 	ce->ev_type = ie.type;
 	ce->code = ie.code;
 	ce->value = ie.value;

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0xs)
 
 project(remote-shared-controller)
 
-# set(CMAKE_BUILD_TYPE Debug)
+find_package(Threads REQUIRED)
 
 include_directories(
   src/network
@@ -13,7 +13,7 @@ include_directories(
 option(INCLUDE_TEST OFF)
 option(COVERAGE OFF)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 99)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -55,6 +55,7 @@ add_executable(${CMAKE_PROJECT_NAME} ${core_sources} ${core_headers})
 target_link_libraries(${CMAKE_PROJECT_NAME}
   event_interface
   network
+  Threads::Threads
   )
 
 if(INCLUDE_TEST)

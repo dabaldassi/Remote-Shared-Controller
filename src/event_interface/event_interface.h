@@ -17,16 +17,14 @@ extern "C" {
 #define KEY 0x01
 #define MOUSE 0x02
 
-#define KEY_RELEASED 0
-#define KEY_PRESSED 1
-#define ABS_ENTER 2
-#define ABS_EXIT  3
+#define KEY_RELEASED 0x00
+#define KEY_PRESSED 0x80
   
   typedef struct ControllerEvent
   {
     uint8_t       controller_type;
     uint8_t       ev_type;
-    uint32_t      value;
+    int32_t       value;
     unsigned short code; // Key if keyboard
   }ControllerEvent;
 

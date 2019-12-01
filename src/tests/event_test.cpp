@@ -26,6 +26,7 @@ TEST_CASE("put keys") {
   
   write_key(KEY_SPACE);
   write_key(KEY_ENTER);
+  
   char a = getchar();
   getchar();
 
@@ -43,47 +44,6 @@ TEST_CASE("put keys") {
   hello[6] = 0;
   
   REQUIRE_FALSE(strcmp(hello,"hello"));
-  
-  exit_controller();
-}
-
-TEST_CASE("get keys") {
-  using namespace std::chrono_literals;
-
-  unsigned short code;
-  int            val;
-
-  REQUIRE_FALSE(init_controller());
-
-  std::this_thread::sleep_for(300ms); // init takes some time (needed for this test)
-  
-  write_key(KEY_A);
-  write_key(KEY_Q);
-
-  bool ret = get_key(&code, &val);
-  REQUIRE((ret && code == KEY_A && val == KEY_PRESSED));
-
-  ret = get_key(&code, &val);
-  
-  REQUIRE(ret);
-  REQUIRE(code == KEY_A);
-  REQUIRE(val == KEY_RELEASED);
-
-  ret = get_key(&code, &val);
-  REQUIRE((ret && code == KEY_Q && val == KEY_PRESSED));
-  
-  ret = get_key(&code, &val);
-  REQUIRE((ret && code == KEY_Q && val == KEY_RELEASED));
-
-  /* Remove key wrote ont the terminal */
-  write_key(KEY_BACKSPACE);
-  write_key(KEY_BACKSPACE);
-
-  write_key_ev(KEY_LEFTSHIFT, KEY_PRESSED);
-  write_key(KEY_A);
-  write_key_ev(KEY_LEFTSHIFT, KEY_RELEASED);
-
-  write_key(KEY_BACKSPACE);
   
   exit_controller();
 }

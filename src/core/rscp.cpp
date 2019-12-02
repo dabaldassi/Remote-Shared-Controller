@@ -77,7 +77,9 @@ void RSCP::_receive()
 
 void RSCP::_send(const ControllerEvent &ev)
 {
-  const uint8_t dest_addr[] = { 0, 0, 0, 0, 0, 0 };
+  // const uint8_t dest_addr[] = { 0x84, 0x16, 0xf9, 0x3a, 0x3a, 0xad };
+  // const uint8_t dest_addr[] = { 0x08, 0x00, 0x27, 0x37, 0x69, 0xa6 };
+  const uint8_t dest_addr[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
   switch(ev.controller_type) {
   case MOUSE:

@@ -12,7 +12,7 @@ class RSCP
 {
   using socket_t = struct scnp_socket;
 
-  static constexpr int IF = 1;
+  static constexpr int IF = 16;
   
   // SwapScreen::ptr  _swap;
   // PCList           _pc_list;

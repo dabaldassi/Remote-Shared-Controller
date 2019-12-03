@@ -231,11 +231,11 @@ int poll_controller(ControllerEvent * ce)
 {
   size_t event_len = get_event_len();
 
-  int p = poll(event_poll_file_descriptor, event_len, -1);
+  int p = poll(event_poll_file_descriptor, event_len, -1); // Passive waiting
   if(p < 0) return -1; // error
 
-  size_t i = 0;
-  int    quit = 0;
+  size_t             i = 0;
+  int                quit = 0;
   struct input_event ie;
   
   while(p > 0 && i < event_len && !quit) {
@@ -255,5 +255,5 @@ int poll_controller(ControllerEvent * ce)
     ++i;
   }
   
-  return !quit;
+  return quit;
 }

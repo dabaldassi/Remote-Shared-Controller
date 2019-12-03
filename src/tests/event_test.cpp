@@ -81,7 +81,7 @@ TEST_CASE("controllerevent")
   while(!quit) {
     int ret = poll_controller(&ce);
 
-    if(!ret) {
+    if(ret == 1) {
       
       if(grab) {
 	write_controller(&ce);

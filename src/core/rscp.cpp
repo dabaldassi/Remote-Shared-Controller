@@ -5,7 +5,6 @@
 #include <rscp.hpp>
 #include <event_interface.h>
 #include <convkey.hpp>
-#include <chrono>
 
 void error(const char * s)
 {
@@ -79,7 +78,8 @@ void RSCP::_send(const ControllerEvent &ev)
 {
   // const uint8_t dest_addr[] = { 0x84, 0x16, 0xf9, 0x3a, 0x3a, 0xad };
   // const uint8_t dest_addr[] = { 0x08, 0x00, 0x27, 0x37, 0x69, 0xa6 };
-  const uint8_t dest_addr[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+  const uint8_t dest_addr[] = { 0x00, 0x26, 0x18, 0xf0, 0xdd, 0xb5 };
+  // const uint8_t dest_addr[] = { 0x08, 0x00, 0x27, 0xd8, 0x89, 0x21 };
 
   switch(ev.controller_type) {
   case MOUSE:
@@ -108,7 +108,7 @@ void RSCP::run()
   
   while(_run) {
     int ret = poll_controller(&c);
-    if(ret) continue;
+    if(!ret) continue;
 
     if(c.code == KEY_TAB && c.value == KEY_RELEASED) _transition = true;
     

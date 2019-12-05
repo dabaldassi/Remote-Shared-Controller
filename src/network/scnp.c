@@ -1,14 +1,19 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/time.h>
 #include <sys/socket.h>
 #include <netpacket/packet.h>
 #include <net/ethernet.h>
 #include <arpa/inet.h>
 
-#include "network.h"
+#include "scnp.h"
 
-static const uint8_t broadcast_ll_addr[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
+#define ACK_TIMEOUT_S 0
+#define ACK_TIMEOUT_US 1000
+#define ACK_MAX_TRIES 3
+
+static const uint8_t broadcast_ll_addr[] = {0xff,0xff,0xff,0xff,0xff,0xff};
 
 int scnp_create_socket(struct scnp_socket * sock, int if_index)
 {
@@ -23,8 +28,7 @@ int scnp_create_socket(struct scnp_socket * sock, int if_index)
 
 int scnp_close_socket(struct scnp_socket * sock)
 {
-  if (close(sock->packet_socket) == -1) return -1;
-  return 0;
+  return close(sock->packet_socket);
 }
 
 void scnp_packet_to_buffer(uint8_t * buffer, const struct scnp_packet * packet)
@@ -47,6 +51,8 @@ void scnp_packet_to_buffer(uint8_t * buffer, const struct scnp_packet * packet)
       memcpy(&net_order_long, packet->data+2, sizeof(uint32_t));
       net_order_long = htonl(net_order_long);
       memcpy(buffer+3, &net_order_long, sizeof(uint32_t));
+      break;
+    case SCNP_ACK:
       break;
     default:
       memcpy(buffer+1, packet->data, sizeof(packet->data));
@@ -74,9 +80,33 @@ void scnp_buffer_to_packet(const uint8_t * buffer, struct scnp_packet * packet)
       host_order_long = ntohl(host_order_long);
       memcpy(packet->data+2, &host_order_long, sizeof(uint32_t));
       break;
+    case SCNP_ACK:
+      memset(packet->data, 0, MAX_SCNP_PACKET_LENGTH - 1);
+      break;
     default:
       memcpy(packet->data, buffer+1, MAX_SCNP_PACKET_LENGTH - 1);
   }
+}
+
+int scnp_recv_ackless(struct scnp_socket * sock, struct scnp_packet * packet, uint8_t * src_addr)
+{
+  /* init sock_addr */
+  struct sockaddr_ll sock_addr;
+  sock_addr.sll_protocol = ETH_P_SCNP;
+  sock_addr.sll_ifindex = sock->if_index;
+
+  /* init buffer */
+  uint8_t buffer[MAX_SCNP_PACKET_LENGTH];
+  memset(buffer, 0, MAX_SCNP_PACKET_LENGTH);
+
+  /* receive packet */
+  socklen_t sock_len = sizeof(sock_addr);
+  int bytes_received = recvfrom(sock->packet_socket, buffer, sizeof(buffer), 0, (struct sockaddr *) &sock_addr, &sock_len);
+  if (bytes_received == -1) return -1;
+  memcpy(src_addr, sock_addr.sll_addr, ETHER_ADDR_LEN);
+  scnp_buffer_to_packet(buffer, packet);
+
+  return bytes_received;
 }
 
 int scnp_send(struct scnp_socket * sock, const uint8_t * dest_addr, struct scnp_packet * packet, size_t packet_length)
@@ -94,7 +124,36 @@ int scnp_send(struct scnp_socket * sock, const uint8_t * dest_addr, struct scnp_
   scnp_packet_to_buffer(buffer, packet);
 
   /* send packet */
-  int bytes_sent = sendto(sock->packet_socket, buffer, packet_length, 0, (struct sockaddr *) &sock_addr, sizeof(sock_addr));
+  int bytes_sent = -1;
+  if (packet->type != SCNP_ACK) {
+    /* create socket to receive aknowledgment */
+    struct scnp_socket ack_sock;
+    if (scnp_create_socket(&ack_sock, sock->if_index) == -1) return -1;
+
+    /* set acknowledgment timeout */
+    struct timeval ack_timeout;
+    ack_timeout.tv_sec = ACK_TIMEOUT_S;
+    ack_timeout.tv_usec = ACK_TIMEOUT_US;
+    if (setsockopt(ack_sock.packet_socket, SOL_SOCKET, SO_RCVTIMEO, &ack_timeout, sizeof(ack_timeout)) == -1) return -1;
+
+    /* send packet and wait for acknowledgment */
+    struct scnp_packet ack;
+    ack.type = 0;
+    memset(ack.data, 0, MAX_SCNP_PACKET_LENGTH - 1);
+    uint8_t ack_src[ETHER_ADDR_LEN];
+    int i = 0;
+    while (i++ < ACK_MAX_TRIES && (ack.type != SCNP_ACK || memcmp(ack_src, dest_addr, ETHER_ADDR_LEN) != 0)) {
+      bytes_sent = sendto(sock->packet_socket, buffer, packet_length, 0, (struct sockaddr *) &sock_addr, sizeof(sock_addr));
+      int bytes_received = 0;
+      while (bytes_received != -1 && (ack.type != SCNP_ACK || memcmp(ack_src, dest_addr, ETHER_ADDR_LEN) != 0)) {
+        bytes_received = scnp_recv_ackless(&ack_sock, &ack, ack_src);
+      }
+    }
+    if (scnp_close_socket(&ack_sock) == -1 || ack.type != SCNP_ACK || memcmp(ack_src, dest_addr, ETHER_ADDR_LEN) != 0) bytes_sent = -1;
+  }
+  else {
+    bytes_sent = sendto(sock->packet_socket, buffer, packet_length, 0, (struct sockaddr *) &sock_addr, sizeof(sock_addr));
+  }
   free(buffer);
 
   if (bytes_sent == -1) return -1;
@@ -110,13 +169,20 @@ int scnp_recv(struct scnp_socket * sock, struct scnp_packet * packet)
 
   /* init buffer */
   uint8_t buffer[MAX_SCNP_PACKET_LENGTH];
-  bzero(buffer, MAX_SCNP_PACKET_LENGTH);
+  memset(buffer, 0, MAX_SCNP_PACKET_LENGTH);
 
   /* receive packet */
   socklen_t sock_len = sizeof(sock_addr);
   int bytes_received = recvfrom(sock->packet_socket, buffer, sizeof(buffer), 0, (struct sockaddr *) &sock_addr, &sock_len);
-
   if (bytes_received == -1) return -1;
   scnp_buffer_to_packet(buffer, packet);
+
+  /* send ack */
+  if (packet->type != SCNP_ACK) {
+    struct scnp_ack ack;
+    ack.type = SCNP_ACK;
+    scnp_send(sock, sock_addr.sll_addr, (struct scnp_packet *) &ack, sizeof(ack));
+  }
+
   return bytes_received;
 }

@@ -1,5 +1,5 @@
-#ifndef NETWORK_H
-#define NETWORK_H
+#ifndef SCNP_H
+#define SCNP_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,6 +14,7 @@ extern "C" {
 
 #define ETH_P_SCNP 0x8888
 #define MAX_SCNP_PACKET_LENGTH 7
+#define SCNP_ACK 254
 
   struct scnp_socket
   {
@@ -67,5 +68,5 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-  
-#endif /* NETWORK_H */
+
+#endif /* SCNP_H */

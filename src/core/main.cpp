@@ -1,7 +1,7 @@
 #include <iostream>
 
 #include <event_interface.h>
-#include <network.h>
+#include <scnp.h>
 #include <rscp.hpp>
 
 int main(int argc, char *argv[])

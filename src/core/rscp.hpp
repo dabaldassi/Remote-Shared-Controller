@@ -3,7 +3,7 @@
 
 // #include <swap_screen.hpp>
 // #include <pc_list.hpp>
-#include <network.h>
+#include <scnp.h>
 #include <atomic>
 
 struct ControllerEvent;
@@ -12,7 +12,7 @@ class RSCP
 {
   using socket_t = struct scnp_socket;
 
-  static constexpr int IF = 16;
+  static constexpr int IF = 1;
   
   // SwapScreen::ptr  _swap;
   // PCList           _pc_list;

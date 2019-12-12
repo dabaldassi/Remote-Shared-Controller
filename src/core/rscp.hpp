@@ -1,7 +1,7 @@
 #ifndef RSCP_H
 #define RSCP_H
 
-// #include <swap_screen.hpp>
+#include <combo.hpp>
 // #include <pc_list.hpp>
 #include <scnp.h>
 #include <atomic>
@@ -12,13 +12,14 @@ class RSCP
 {
   using socket_t = struct scnp_socket;
 
-  static constexpr int IF = 1;
+  static constexpr int IF = 2;
   
-  // SwapScreen::ptr  _swap;
+  Combo::ptr         _swap;
+  ComboShortcut      _quit_shortcut;
   // PCList           _pc_list;
-  socket_t         _sock;
-  std::atomic_bool _run;
-  bool             _transition;
+  socket_t           _sock;
+  std::atomic_bool   _run;
+  bool               _transition;
   
   void _receive();
   void _send(const ControllerEvent& ev);

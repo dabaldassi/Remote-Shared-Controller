@@ -14,6 +14,21 @@ void error(const char * s)
 
 RSCP::RSCP(): _state(State::HERE)
 {
+  auto sh_ptr = ComboShortcut::make_ptr();
+
+  sh_ptr->add_shortcut(KEY_LEFTCTRL, KEY_PRESSED);
+  sh_ptr->add_shortcut(KEY_R, KEY_PRESSED);
+  sh_ptr->add_shortcut(KEY_RIGHT, KEY_PRESSED);  
+  sh_ptr->release_for_all();
+  
+  _swap = std::move(sh_ptr);
+
+  _quit_shortcut.add_shortcut(KEY_ESC, KEY_PRESSED, 200);
+  _quit_shortcut.add_shortcut(KEY_ESC, KEY_RELEASED, 200);
+  _quit_shortcut.add_shortcut(KEY_ESC, KEY_PRESSED, 200);
+  _quit_shortcut.add_shortcut(KEY_ESC, KEY_RELEASED, 200);
+  _quit_shortcut.add_shortcut(KEY_ESC, KEY_PRESSED, 200);
+  _quit_shortcut.add_shortcut(KEY_ESC, KEY_RELEASED, 200);
 
 }
 
@@ -61,26 +76,24 @@ void RSCP::_receive()
     scnp_recv(&_sock, &packet);
 
     switch(packet.type) {
-    case EV_KEY: ev = ConvKey<ControllerEvent,KEY>::get(packet); break;
+    case EV_KEY: ev = ConvKey<ControllerEvent,KEY>::get(packet);   break;
     case EV_ABS: // [BUG] Can't move mouse in ABS for now
-    case EV_REL: ev = ConvKey<ControllerEvent,MOUSE>::get(packet);
-      break;
-    default:
-      break;
+    case EV_REL: ev = ConvKey<ControllerEvent,MOUSE>::get(packet); break;
+    default:     ev = NULL;                                        break;
     }
     
-    write_controller(ev);
+    if(ev) write_controller(ev);
   }
 }
 
 
 void RSCP::_send(const ControllerEvent &ev)
 {
-  // const uint8_t dest_addr[] = { 0x84, 0x16, 0xf9, 0x3a, 0x3a, 0xad };
+  const uint8_t dest_addr[] = { 0x84, 0x16, 0xf9, 0x3a, 0x3a, 0xad };
   // const uint8_t dest_addr[] = { 0x08, 0x00, 0x27, 0x37, 0x69, 0xa6 };
   // const uint8_t dest_addr[] = { 0x00, 0x26, 0x18, 0xf0, 0xdd, 0xb5 };
   // const uint8_t dest_addr[] = { 0x08, 0x00, 0x27, 0xd8, 0x89, 0x21 };
-  const uint8_t dest_addr[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  // const uint8_t dest_addr[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
   switch(ev.controller_type) {
   case MOUSE:
@@ -111,12 +124,10 @@ void RSCP::run()
     int ret = poll_controller(&c);
     if(!ret) continue;
 
-    if(c.code == KEY_TAB && c.value == KEY_RELEASED) _transition = true;
+    _run = !_quit_shortcut.update(c.code, c.value);
+    if(!_run) continue;
     
-    if(c.code == KEY_BACKSPACE) {
-      _run = false;
-      continue;
-    }
+    _transition = _swap->update(c.code, c.value);
     
     switch(_state) {
     case State::HERE:

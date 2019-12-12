@@ -24,7 +24,7 @@ extern "C" {
    */
   
 #define KEY_RELEASED 0x00
-#define KEY_PRESSED 0x80
+#define KEY_PRESSED 0x01
   
   typedef struct ControllerEvent
   {

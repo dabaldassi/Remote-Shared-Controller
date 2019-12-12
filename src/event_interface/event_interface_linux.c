@@ -100,6 +100,7 @@ static int init_uinput(void)
   ioctl(uinput_file_descriptor, UI_SET_EVBIT, EV_REL);
   ioctl(uinput_file_descriptor, UI_SET_RELBIT, REL_X);
   ioctl(uinput_file_descriptor, UI_SET_RELBIT, REL_Y);
+  ioctl(uinput_file_descriptor, UI_SET_RELBIT, REL_WHEEL);
 
   /*
    * [BUG] Setting abs bit prevent writing key

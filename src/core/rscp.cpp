@@ -12,7 +12,7 @@ void error(const char * s)
   std::exit(EXIT_FAILURE);
 }
 
-RSCP::RSCP(): _state(State::HERE)
+RSCP::RSCP(): _if(DEFAULT_IF), _state(State::HERE)
 {
   auto sh_ptr = ComboShortcut::make_ptr();
 
@@ -30,11 +30,18 @@ RSCP::RSCP(): _state(State::HERE)
   _quit_shortcut.add_shortcut(KEY_ESC, KEY_PRESSED, 200);
   _quit_shortcut.add_shortcut(KEY_ESC, KEY_RELEASED, 200);
 
+  PC local_pc;
+
+  local_pc.local = true;
+  local_pc.id = 0;
+  local_pc.name = "localhost";
+  
+  _pc_list.add(local_pc);
 }
 
 int RSCP::init()
 {
-  int err = scnp_create_socket(&_sock, IF);
+  int err = scnp_create_socket(&_sock, _if);
 
   if(err) error("Can't create socket");
 
@@ -55,15 +62,12 @@ void RSCP::exit()
 
 void RSCP::_transit()
 {
-  if (_state == State::HERE) {
-      grab_controller(true);
-      _state = State::AWAY;
-  }
-  else {
-    grab_controller(false);
-    _state = State::HERE;
-  }
+  if(_swap->get_way() == Combo::Way::LEFT) _pc_list.previous_pc();
+  else                                     _pc_list.next_pc();
 
+  std::cout << _pc_list.get_current().name << "\n";
+  grab_controller(!_pc_list.get_current().local);
+  _state = (_pc_list.get_current().local)? State::HERE : State::AWAY;
   _transition = false;
 }
 
@@ -88,23 +92,17 @@ void RSCP::_receive()
 
 
 void RSCP::_send(const ControllerEvent &ev)
-{
-  const uint8_t dest_addr[] = { 0x84, 0x16, 0xf9, 0x3a, 0x3a, 0xad };
-  // const uint8_t dest_addr[] = { 0x08, 0x00, 0x27, 0x37, 0x69, 0xa6 };
-  // const uint8_t dest_addr[] = { 0x00, 0x26, 0x18, 0xf0, 0xdd, 0xb5 };
-  // const uint8_t dest_addr[] = { 0x08, 0x00, 0x27, 0xd8, 0x89, 0x21 };
-  // const uint8_t dest_addr[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
+{  
   switch(ev.controller_type) {
   case MOUSE:
     scnp_send(&_sock,
-	      dest_addr,
+	      _pc_list.get_current().adress,
 	      ConvKey<struct scnp_packet, MOUSE>::get(ev),
 	      ConvKey<struct scnp_packet, MOUSE>::SIZE);
     break;
   case KEY:
     scnp_send(&_sock,
-	      dest_addr,
+	      _pc_list.get_current().adress,
 	      ConvKey<struct scnp_packet, KEY>::get(ev),
 	      ConvKey<struct scnp_packet, KEY>::SIZE);
     break;
@@ -115,9 +113,9 @@ void RSCP::_send(const ControllerEvent &ev)
 
 void RSCP::run()
 {
-  // always read in a thread
   ControllerEvent c;
-  
+
+  // always read in a thread
   std::thread(std::bind(&RSCP::_receive, this)).detach();
   
   while(_run) {

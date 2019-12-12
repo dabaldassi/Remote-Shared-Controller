@@ -125,7 +125,7 @@ int scnp_send(struct scnp_socket * sock, const uint8_t * dest_addr, struct scnp_
 
   /* send packet */
   int bytes_sent = -1;
-  if (packet->type != SCNP_ACK) {
+  if (packet->type != SCNP_ACK && packet->type != EV_REL && packet->type != EV_ABS) {
     /* create socket to receive aknowledgment */
     struct scnp_socket ack_sock;
     if (scnp_create_socket(&ack_sock, sock->if_index) == -1) return -1;
@@ -178,7 +178,7 @@ int scnp_recv(struct scnp_socket * sock, struct scnp_packet * packet)
   scnp_buffer_to_packet(buffer, packet);
 
   /* send ack */
-  if (packet->type != SCNP_ACK) {
+  if (packet->type != SCNP_ACK && packet->type != EV_REL && packet->type != EV_ABS) {
     struct scnp_ack ack;
     ack.type = SCNP_ACK;
     scnp_send(sock, sock_addr.sll_addr, (struct scnp_packet *) &ack, sizeof(ack));

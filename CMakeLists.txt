@@ -40,11 +40,14 @@ if(CMAKE_SYSTEM_NAME STREQUAL Windows)
   file(GLOB_RECURSE controller_sources src/controller/*_win.c)
 elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
   file(GLOB_RECURSE controller_sources src/controller/*_linux.c)
+  set(controller_libs X11)
 else()
   message(FATAL_ERROR "${CMAKE_SYSTEM_NAME} is not handled")
 endif()
 
 add_library(controller ${controller_sources})
+target_link_libraries(controller ${controller_libs})
+
 
 file(GLOB_RECURSE network_sources src/network/*.c)
 add_library(network ${network_sources})

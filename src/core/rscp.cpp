@@ -3,7 +3,10 @@
 #include <iostream>
 
 #include <rscp.hpp>
+
 #include <controller.h>
+#include <cursor.h>
+
 #include <convkey.hpp>
 
 void error(const char * s)
@@ -114,6 +117,7 @@ void RSCP::_send(const ControllerEvent &ev)
 void RSCP::run()
 {
   ControllerEvent c;
+  CursorInfo cursor;
 
   // always read in a thread
   std::thread(std::bind(&RSCP::_receive, this)).detach();
@@ -126,6 +130,8 @@ void RSCP::run()
     if(!_run) continue;
     
     _transition = _swap->update(c.code, c.value);
+
+    get_cursor_info(&cursor);
     
     switch(_state) {
     case State::HERE:

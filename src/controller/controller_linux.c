@@ -10,7 +10,7 @@
 #include <linux/input.h>
 #include <linux/uinput.h>
 
-#include "event_interface.h"
+#include "controller.h"
 
 #define DEV_INPUT_FILE_NAME "/dev/input/"
 

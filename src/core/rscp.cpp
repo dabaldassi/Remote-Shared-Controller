@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include <rscp.hpp>
-#include <event_interface.h>
+#include <controller.h>
 #include <convkey.hpp>
 
 void error(const char * s)

@@ -4,7 +4,7 @@
 #include <chrono>
 #include <thread>
 
-#include <event_interface.h>
+#include <controller.h>
 
 TEST_CASE("init/exit") {
   REQUIRE_FALSE(init_controller());

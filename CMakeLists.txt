@@ -6,7 +6,7 @@ find_package(Threads REQUIRED)
 
 include_directories(
   src/network
-  src/event_interface
+  src/controller
   src/core
   ) 
  
@@ -37,14 +37,14 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL Windows)
-  file(GLOB_RECURSE event_interface_sources src/event_interface/*_win.c)
+  file(GLOB_RECURSE controller_sources src/controller/*_win.c)
 elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
-  file(GLOB_RECURSE event_interface_sources src/event_interface/*_linux.c)
+  file(GLOB_RECURSE controller_sources src/controller/*_linux.c)
 else()
   message(FATAL_ERROR "${CMAKE_SYSTEM_NAME} is not handled")
 endif()
 
-add_library(event_interface ${event_interface_sources})
+add_library(controller ${controller_sources})
 
 file(GLOB_RECURSE network_sources src/network/*.c)
 add_library(network ${network_sources})
@@ -53,7 +53,7 @@ file(GLOB_RECURSE core_sources src/core/*.cpp)
 file(GLOB_RECURSE core_headers src/core/*.hpp)
 add_executable(${CMAKE_PROJECT_NAME} ${core_sources} ${core_headers})
 target_link_libraries(${CMAKE_PROJECT_NAME}
-  event_interface
+  controller
   network
   Threads::Threads
   )

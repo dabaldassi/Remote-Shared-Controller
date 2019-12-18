@@ -18,28 +18,28 @@ extern "C" {
 
   struct scnp_socket
   {
-    int packet_socket;
-    int if_index;
+    int packet_socket;  // Socket used to send or receive SCNP packets
+    int if_index;       // Index of the interface used
   };
 
   struct scnp_packet
   {
-    uint8_t type;
-    uint8_t data[MAX_SCNP_PACKET_LENGTH - 1];
+    uint8_t type;                               // Type of the SCNP packet
+    uint8_t data[MAX_SCNP_PACKET_LENGTH - 1];   // Data in the SCNP packet
   } PACKED;
 
   struct scnp_key
   {
-    uint8_t type;
-    uint16_t code;
-    uint8_t flags;
+    uint8_t type;   // Type of the SCNP packet = EV_KEY
+    uint16_t code;  // Code associated to the key event
+    uint8_t flags;  // Flags of EV_KEY type SCNP packet
   } PACKED;
 
   struct scnp_movement
   {
-    uint8_t type;
-    uint16_t code;
-    uint32_t value;
+    uint8_t type;     // Type of the SCNP packet = EV_REL || EV_ABS
+    uint16_t code;    // Code associated to the movement event
+    uint32_t value;   // Value of the movement
   } PACKED;
 
   struct scnp_management
@@ -50,18 +50,59 @@ extern "C" {
 
   struct scnp_ack
   {
-    uint8_t type;
+    uint8_t type;   // Type of the SCNP packet = SCNP_ACK
   } PACKED;
+
+  /**
+   * @brief Create a new SCNP socket to send or receive SCNP packet.
+   * @param sock New SCNP socket.
+   * @param if_index Integer that identify the interface which will be used by the new socket.
+   * @return On success, returns 0. On error, returns -1.
+   */
 
   int scnp_create_socket(struct scnp_socket * sock, int if_index);
 
+  /**
+   * @brief Close a SCNP socket.
+   * @param sock SCNP socket to close.
+   * @return On success, returns 0. On error, returns -1.
+   */
+
   int scnp_close_socket(struct scnp_socket * sock);
+
+  /**
+   * @brief Transform a SCNP packet to a buffer used to send SCNP data.
+   * @param buffer Buffer that will contain SCNP data.
+   * @param packet SCNP packet that will fill the buffer.
+   */
 
   void scnp_packet_to_buffer(uint8_t * buffer, const struct scnp_packet * packet);
 
+  /**
+   * @brief Transform a buffer which contain SCNP data to a SCNP packet.
+   * @param buffer Buffer that will fill the SCNP packet.
+   * @param packet SCNP packet that will contain the SCNP data of the buffer.
+   */
+
   void scnp_buffer_to_packet(const uint8_t * buffer, struct scnp_packet * packet);
 
+  /**
+   * @brief Send a SCNP packet.
+   * @param sock SCNP socket used to send the SCNP packet.
+   * @param dest_addr Destination address.
+   * @param packet SCNP packet to be sent.
+   * @param packet_length Size of the SCNP packet.
+   * @return On success, returns 0. On error, returns -1.
+   */
+
   int scnp_send(struct scnp_socket * sock, const uint8_t * dest_addr, struct scnp_packet * packet, size_t packet_length);
+
+  /**
+   * @brief Receive a SCNP packet.
+   * @param sock SCNP socket used to receive the SCNP packet.
+   * @param packet SCNP packet that will be fill with SCNP data.
+   * @return On success, returns 0. On error, returns -1.
+   */
 
   int scnp_recv(struct scnp_socket * sock, struct scnp_packet * packet);
 

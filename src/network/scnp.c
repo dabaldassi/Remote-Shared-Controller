@@ -10,7 +10,7 @@
 #include "scnp.h"
 
 #define ACK_TIMEOUT_S 0
-#define ACK_TIMEOUT_US 1000
+#define ACK_TIMEOUT_US 1000 // 5 us should be enough
 #define ACK_MAX_TRIES 3
 
 static const uint8_t broadcast_ll_addr[] = {0xff,0xff,0xff,0xff,0xff,0xff};
@@ -21,6 +21,7 @@ int scnp_create_socket(struct scnp_socket * sock, int if_index)
   int fd = socket(AF_PACKET, SOCK_DGRAM, ETH_P_SCNP);
   if (fd == -1) return -1;
 
+  /* provide information in socket structure */
   sock->packet_socket = fd;
   sock->if_index = if_index;
   return 0;
@@ -33,16 +34,22 @@ int scnp_close_socket(struct scnp_socket * sock)
 
 void scnp_packet_to_buffer(uint8_t * buffer, const struct scnp_packet * packet)
 {
+  /* write packet type */
   buffer[0] = packet->type;
+
   uint16_t net_order_short;
   uint32_t net_order_long;
   switch (buffer[0]) {
+
+    /* SCNP key */
     case EV_KEY:
       memcpy(&net_order_short, packet->data, sizeof(uint16_t));
       net_order_short = htons(net_order_short);
       memcpy(buffer+1, &net_order_short, sizeof(uint16_t));
       buffer[3] = packet->data[2];
       break;
+
+    /* SCNP movement */
     case EV_REL:
     case EV_ABS:
       memcpy(&net_order_short, packet->data, sizeof(uint16_t));
@@ -52,8 +59,12 @@ void scnp_packet_to_buffer(uint8_t * buffer, const struct scnp_packet * packet)
       net_order_long = htonl(net_order_long);
       memcpy(buffer+3, &net_order_long, sizeof(uint32_t));
       break;
+
+    /* SCNP acknowledgement */
     case SCNP_ACK:
       break;
+
+    /* unknown type */
     default:
       memcpy(buffer+1, packet->data, sizeof(packet->data));
   }
@@ -61,16 +72,22 @@ void scnp_packet_to_buffer(uint8_t * buffer, const struct scnp_packet * packet)
 
 void scnp_buffer_to_packet(const uint8_t * buffer, struct scnp_packet * packet)
 {
+  /* write packet type */
   packet->type = buffer[0];
+
   uint16_t host_order_short;
   uint32_t host_order_long;
   switch (buffer[0]) {
+
+    /* SCNP key */
     case EV_KEY:
       memcpy(&host_order_short, buffer+1, sizeof(uint16_t));
       host_order_short = ntohs(host_order_short);
       memcpy(packet->data, &host_order_short, sizeof(uint16_t));
       packet->data[2] = buffer[3];
       break;
+
+    /* SCNP movement */
     case EV_REL:
     case EV_ABS:
       memcpy(&host_order_short, buffer+1, sizeof(uint16_t));
@@ -80,12 +97,21 @@ void scnp_buffer_to_packet(const uint8_t * buffer, struct scnp_packet * packet)
       host_order_long = ntohl(host_order_long);
       memcpy(packet->data+2, &host_order_long, sizeof(uint32_t));
       break;
+
+    /* SCNP acknowledgement */
     case SCNP_ACK:
       memset(packet->data, 0, MAX_SCNP_PACKET_LENGTH - 1);
       break;
+
+    /* unknown type */
     default:
       memcpy(packet->data, buffer+1, MAX_SCNP_PACKET_LENGTH - 1);
   }
+}
+
+int scnp_is_ack_needed(struct scnp_packet * packet)
+{
+  return packet->type != SCNP_ACK && packet->type != EV_REL && packet->type != EV_ABS;
 }
 
 int scnp_recv_ackless(struct scnp_socket * sock, struct scnp_packet * packet, uint8_t * src_addr)
@@ -94,16 +120,20 @@ int scnp_recv_ackless(struct scnp_socket * sock, struct scnp_packet * packet, ui
   struct sockaddr_ll sock_addr;
   sock_addr.sll_protocol = ETH_P_SCNP;
   sock_addr.sll_ifindex = sock->if_index;
+  socklen_t sock_len = sizeof(sock_addr);
 
   /* init buffer */
   uint8_t buffer[MAX_SCNP_PACKET_LENGTH];
   memset(buffer, 0, MAX_SCNP_PACKET_LENGTH);
 
   /* receive packet */
-  socklen_t sock_len = sizeof(sock_addr);
   int bytes_received = recvfrom(sock->packet_socket, buffer, sizeof(buffer), 0, (struct sockaddr *) &sock_addr, &sock_len);
   if (bytes_received == -1) return -1;
+
+  /* copy source address into parameter address */
   memcpy(src_addr, sock_addr.sll_addr, ETHER_ADDR_LEN);
+
+  /* copy buffer into packet */
   scnp_buffer_to_packet(buffer, packet);
 
   return bytes_received;
@@ -119,13 +149,15 @@ int scnp_send(struct scnp_socket * sock, const uint8_t * dest_addr, struct scnp_
   sock_addr.sll_protocol = ETH_P_SCNP;
   memcpy(sock_addr.sll_addr, dest_addr, ETHER_ADDR_LEN);
 
-  /* init packet buffer */
+  /* init buffer */
   uint8_t * buffer = (uint8_t *) malloc(packet_length);
+
+  /* copy packet into buffer */
   scnp_packet_to_buffer(buffer, packet);
 
   /* send packet */
   int bytes_sent = -1;
-  if (packet->type != SCNP_ACK && packet->type != EV_REL && packet->type != EV_ABS) {
+  if (scnp_is_ack_needed(packet)) {
     /* create socket to receive aknowledgment */
     struct scnp_socket ack_sock;
     if (scnp_create_socket(&ack_sock, sock->if_index) == -1) return -1;
@@ -160,28 +192,38 @@ int scnp_send(struct scnp_socket * sock, const uint8_t * dest_addr, struct scnp_
   return bytes_sent;
 }
 
+int scnp_send_ack(struct scnp_socket * sock, const uint8_t * dest_addr)
+{
+  /* init acknowledgement */
+  struct scnp_ack ack;
+  ack.type = SCNP_ACK;
+
+  /* send acknowledgement */
+  return scnp_send(sock, dest_addr, (struct scnp_packet *) &ack, sizeof(ack));
+}
+
 int scnp_recv(struct scnp_socket * sock, struct scnp_packet * packet)
 {
   /* init sock_addr */
   struct sockaddr_ll sock_addr;
   sock_addr.sll_protocol = ETH_P_SCNP;
   sock_addr.sll_ifindex = sock->if_index;
+  socklen_t sock_len = sizeof(sock_addr);
 
   /* init buffer */
   uint8_t buffer[MAX_SCNP_PACKET_LENGTH];
   memset(buffer, 0, MAX_SCNP_PACKET_LENGTH);
 
   /* receive packet */
-  socklen_t sock_len = sizeof(sock_addr);
   int bytes_received = recvfrom(sock->packet_socket, buffer, sizeof(buffer), 0, (struct sockaddr *) &sock_addr, &sock_len);
   if (bytes_received == -1) return -1;
+
+  /* copy buffer into packet */
   scnp_buffer_to_packet(buffer, packet);
 
   /* send ack */
-  if (packet->type != SCNP_ACK && packet->type != EV_REL && packet->type != EV_ABS) {
-    struct scnp_ack ack;
-    ack.type = SCNP_ACK;
-    scnp_send(sock, sock_addr.sll_addr, (struct scnp_packet *) &ack, sizeof(ack));
+  if (scnp_is_ack_needed(packet)) {
+    scnp_send_ack(sock, sock_addr.sll_addr);
   }
 
   return bytes_received;
@@ -203,17 +245,15 @@ int scnp_recv_from(struct scnp_socket * sock, struct scnp_packet * packet, uint8
   int bytes_received = recvfrom(sock->packet_socket, buffer, sizeof(buffer), 0, (struct sockaddr *) &sock_addr, &sock_len);
   if (bytes_received == -1) return -1;
 
-  /* copy buffer into packet */
-  scnp_buffer_to_packet(buffer, packet);
-
   /* copy source address into parameter address */
   memcpy(src_addr, sock_addr.sll_addr, ETHER_ADDR_LEN);
 
+  /* copy buffer into packet */
+  scnp_buffer_to_packet(buffer, packet);
+
   /* send ack */
-  if (packet->type != SCNP_ACK && packet->type != EV_REL && packet->type != EV_ABS) {
-    struct scnp_ack ack;
-    ack.type = SCNP_ACK;
-    scnp_send(sock, sock_addr.sll_addr, (struct scnp_packet *) &ack, sizeof(ack));
+  if (scnp_is_ack_needed(packet)) {
+    scnp_send_ack(sock, sock_addr.sll_addr);
   }
 
   return bytes_received;

@@ -71,7 +71,7 @@ extern "C" {
   int scnp_close_socket(struct scnp_socket * sock);
 
   /**
-   * @brief Transform a SCNP packet to a buffer used to send SCNP data.
+   * @brief Transform a SCNP packet to a buffer used to send SCNP data. Also change bytes order to match network order.
    * @param buffer Buffer that will contain SCNP data.
    * @param packet SCNP packet that will fill the buffer.
    */
@@ -79,7 +79,7 @@ extern "C" {
   void scnp_packet_to_buffer(uint8_t * buffer, const struct scnp_packet * packet);
 
   /**
-   * @brief Transform a buffer which contain SCNP data to a SCNP packet.
+   * @brief Transform a buffer which contain SCNP data to a SCNP packet. Also change bytes order to match system order.
    * @param buffer Buffer that will fill the SCNP packet.
    * @param packet SCNP packet that will contain the SCNP data of the buffer.
    */
@@ -98,6 +98,7 @@ extern "C" {
   int scnp_send(struct scnp_socket * sock, const uint8_t * dest_addr, struct scnp_packet * packet, size_t packet_length);
 
   /**
+   * @deprecated Use scnp_recv_from"()" instead.
    * @brief Receive a SCNP packet.
    * @param sock SCNP socket used to receive the SCNP packet.
    * @param packet SCNP packet that will be fill with SCNP data.

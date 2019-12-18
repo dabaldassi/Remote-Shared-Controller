@@ -101,10 +101,20 @@ extern "C" {
    * @brief Receive a SCNP packet.
    * @param sock SCNP socket used to receive the SCNP packet.
    * @param packet SCNP packet that will be fill with SCNP data.
-   * @return On success, returns 0. On error, returns -1.
+   * @return On success, returns the number of bytes received. On error, returns -1.
    */
 
   int scnp_recv(struct scnp_socket * sock, struct scnp_packet * packet);
+
+  /**
+   * @brief Receive a SCNP packet and provide the source address of the message.
+   * @param sock SCNP socket used to receive the SCNP packet.
+   * @param packet  SCNP packet that will be fill with SCNP data.
+   * @param src_addr Source address of the SCNP packet.
+   * @return On success, returns the number of bytes received. On error, returns -1.
+   */
+
+  int scnp_recv_from(struct scnp_socket * sock, struct scnp_packet * packet, uint8_t * src_addr);
 
 #ifdef __cplusplus
 }

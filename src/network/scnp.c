@@ -186,3 +186,35 @@ int scnp_recv(struct scnp_socket * sock, struct scnp_packet * packet)
 
   return bytes_received;
 }
+
+int scnp_recv_from(struct scnp_socket * sock, struct scnp_packet * packet, uint8_t * src_addr)
+{
+  /* init sock_addr */
+  struct sockaddr_ll sock_addr;
+  sock_addr.sll_protocol = ETH_P_SCNP;
+  sock_addr.sll_ifindex = sock->if_index;
+  socklen_t sock_len = sizeof(sock_addr);
+
+  /* init buffer */
+  uint8_t buffer[MAX_SCNP_PACKET_LENGTH];
+  memset(buffer, 0, MAX_SCNP_PACKET_LENGTH);
+
+  /* receive packet */
+  int bytes_received = recvfrom(sock->packet_socket, buffer, sizeof(buffer), 0, (struct sockaddr *) &sock_addr, &sock_len);
+  if (bytes_received == -1) return -1;
+
+  /* copy buffer into packet */
+  scnp_buffer_to_packet(buffer, packet);
+
+  /* copy source address into parameter address */
+  memcpy(src_addr, sock_addr.sll_addr, ETHER_ADDR_LEN);
+
+  /* send ack */
+  if (packet->type != SCNP_ACK && packet->type != EV_REL && packet->type != EV_ABS) {
+    struct scnp_ack ack;
+    ack.type = SCNP_ACK;
+    scnp_send(sock, sock_addr.sll_addr, (struct scnp_packet *) &ack, sizeof(ack));
+  }
+
+  return bytes_received;
+}

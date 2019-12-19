@@ -1,6 +1,8 @@
 #include <thread>
+#include <future>
 #include <functional>
 #include <iostream>
+#include <csignal>
 
 #include <rscp.hpp>
 
@@ -17,29 +19,57 @@ void error(const char * s)
 
 RSCP::RSCP(): _if(DEFAULT_IF), _state(State::HERE)
 {
+  _cursor = open_cursor_info();
+  
   auto sh_ptr = ComboShortcut::make_ptr();
 
   sh_ptr->add_shortcut(KEY_LEFTCTRL, KEY_PRESSED);
   sh_ptr->add_shortcut(KEY_R, KEY_PRESSED);
   sh_ptr->add_shortcut(KEY_RIGHT, KEY_PRESSED);  
   sh_ptr->release_for_all();
+  sh_ptr->set_action([this](Combo * combo) {
+		       _transit(combo->get_way());
+		     });
   
-  _swap = std::move(sh_ptr);
+  _shortcut.push_back(std::move(sh_ptr));
+  
+  auto quit_shortcut = ComboShortcut::make_ptr();
 
-  _quit_shortcut.add_shortcut(KEY_ESC, KEY_PRESSED, 200);
-  _quit_shortcut.add_shortcut(KEY_ESC, KEY_RELEASED, 200);
-  _quit_shortcut.add_shortcut(KEY_ESC, KEY_PRESSED, 200);
-  _quit_shortcut.add_shortcut(KEY_ESC, KEY_RELEASED, 200);
-  _quit_shortcut.add_shortcut(KEY_ESC, KEY_PRESSED, 200);
-  _quit_shortcut.add_shortcut(KEY_ESC, KEY_RELEASED, 200);
-
+  for(int i = 0; i < 3; i++) {
+    quit_shortcut->add_shortcut(KEY_ESC, KEY_PRESSED, 200);
+    quit_shortcut->add_shortcut(KEY_ESC, KEY_RELEASED, 200);
+  }
+  
+  quit_shortcut->set_action([this](Combo*) { _run = false; });
+  
+  _shortcut.push_back(std::move(quit_shortcut));
+    
   PC local_pc;
 
   local_pc.local = true;
   local_pc.id = 0;
   local_pc.name = "localhost";
+  local_pc.resolution.w = 1920;
+  local_pc.resolution.h = 1080;
   
   _pc_list.add(local_pc);
+
+  if(_cursor) {
+    _shortcut.push_back(ComboMouse::make_ptr(local_pc.resolution.w,
+					     local_pc.resolution.h,
+					     _cursor));
+    _shortcut.back()->set_action([this](Combo* combo) {
+				   int s = (combo->get_way() == Combo::Way::LEFT)?1:-1;
+				   mouse_move(s * 5, 0);
+				   _transit(combo->get_way());
+				 });
+  }
+  
+}
+
+RSCP::~RSCP()
+{
+  if(_cursor) close_cursor_info(_cursor);
 }
 
 int RSCP::init()
@@ -47,12 +77,11 @@ int RSCP::init()
   int err = scnp_create_socket(&_sock, _if);
 
   if(err) error("Can't create socket");
-
+  
   err = init_controller();
   if(err) error("Can't init controller");
 
   _run = true;
-  _transition = false;
   
   return 0;
 }
@@ -63,39 +92,62 @@ void RSCP::exit()
   scnp_close_socket(&_sock);
 }
 
-void RSCP::_transit()
-{
-  if(_swap->get_way() == Combo::Way::LEFT) _pc_list.previous_pc();
-  else                                     _pc_list.next_pc();
+void RSCP::_transit(Combo::Way way)
+{  
+  if(way == Combo::Way::LEFT) _pc_list.previous_pc();
+  else                        _pc_list.next_pc();
 
-  std::cout << _pc_list.get_current().name << "\n";
   grab_controller(!_pc_list.get_current().local);
+ 
   _state = (_pc_list.get_current().local)? State::HERE : State::AWAY;
-  _transition = false;
+
+  if(_state == State::AWAY) hide_cursor(_cursor);
+  else                      show_cursor(_cursor);
 }
 
 void RSCP::_receive()
 {
+  constexpr int OUT_LEFT  = 5;
+  constexpr int OUT_RIGHT = 6;
+  
   struct scnp_packet   packet;
   ControllerEvent    * ev = nullptr;
+  uint8_t              addr_src[PC::LEN_ADDR];
+  const PC&            local_pc = _pc_list.get_local();
+  ComboMouse           mouse(local_pc.resolution.w, local_pc.resolution.h,_cursor);
   
-  while(_run) {
-    scnp_recv(&_sock, &packet);
+  mouse.set_action([&](Combo* combo) {
+		     auto way = combo->get_way();
+		     int sens = (way == Combo::Way::LEFT)?1:-1;
+		     mouse_move(sens * 5, 0);
+		     
+		     struct scnp_packet pack;
+		     pack.type = (Combo::Way::LEFT == way) ? OUT_LEFT : OUT_RIGHT;
+		     scnp_send(&_sock,addr_src,&pack,sizeof(pack));
+		   });
 
+  while(_run) {
+    scnp_recv_from(&_sock, &packet, addr_src);
+    
     switch(packet.type) {
-    case EV_KEY: ev = ConvKey<ControllerEvent,KEY>::get(packet);   break;
-    case EV_ABS: // [BUG] Can't move mouse in ABS for now
-    case EV_REL: ev = ConvKey<ControllerEvent,MOUSE>::get(packet); break;
-    default:     ev = NULL;                                        break;
+    case EV_KEY:    ev = ConvKey<ControllerEvent,KEY>::get(packet);   break;
+    case EV_ABS:    // [BUG] Can't move mouse in ABS for now
+    case EV_REL:    ev = ConvKey<ControllerEvent,MOUSE>::get(packet); break;
+    case OUT_LEFT:  _transit(Combo::Way::LEFT); ev = nullptr;         break;
+    case OUT_RIGHT: _transit(Combo::Way::RIGHT); ev = nullptr;        break;
+    default:        ev = nullptr;                                     break;
     }
     
-    if(ev) write_controller(ev);
+    if(ev) {
+      write_controller(ev);
+      if(ev->controller_type == MOUSE) mouse.update(ev->code, ev->value);
+    }
   }
 }
 
 
 void RSCP::_send(const ControllerEvent &ev)
-{  
+{
   switch(ev.controller_type) {
   case MOUSE:
     scnp_send(&_sock,
@@ -117,30 +169,19 @@ void RSCP::_send(const ControllerEvent &ev)
 void RSCP::run()
 {
   ControllerEvent c;
-  CursorInfo cursor;
 
   // always read in a thread
-  std::thread(std::bind(&RSCP::_receive, this)).detach();
+  std::thread(std::bind(&RSCP::_receive, this)).detach(); // [BUG] : Memory leak
   
   while(_run) {
     int ret = poll_controller(&c);
     if(!ret) continue;
 
-    _run = !_quit_shortcut.update(c.code, c.value);
-    if(!_run) continue;
-    
-    _transition = _swap->update(c.code, c.value);
-
-    get_cursor_info(&cursor);
+    for(auto&& s : _shortcut) s->update(c.code, c.value);
     
     switch(_state) {
-    case State::HERE:
-      if(_transition) _transit();
-      break;
-    case State::AWAY:
-      if(_transition) _transit();
-      else            _send(c);
-      break;
+    case State::HERE:           break;
+    case State::AWAY: _send(c); break;
     }
   }
 }

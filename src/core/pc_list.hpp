@@ -28,7 +28,7 @@ public:
   void save(const std::string & file_name) const;
   
   const PC& get_current() const;
-
+  const PC& get_local() const;
 };
 
 

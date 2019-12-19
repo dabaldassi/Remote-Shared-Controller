@@ -3,8 +3,11 @@
 
 #include <list>
 #include <tuple>
+#include <functional>
 
 #include <ptr.hpp>
+
+struct CursorInfo;
 
 class Combo
 {
@@ -12,16 +15,21 @@ public:
   enum class Way { NONE, LEFT, RIGHT };
       
 protected:
-  Way _way;
- 
+  Way                         _way;
+  std::function<void(Combo*)> _action;
+  
 public:
   using ptr = Ptr<Combo>::ptr;
   
   Combo(Way way = Way::NONE)
-    : _way(way) {}
+    : _way(way),_action(nullptr) {}
   virtual ~Combo() = default;
 
   Way get_way() { return _way; }
+
+  template<typename Callable>
+  void set_action(Callable&& c) { _action = c; }
+  
   virtual bool update(int code, int value) = 0;  
 };
 
@@ -52,20 +60,22 @@ public:
   
   void release_for_all();
   
-  virtual ~ComboShortcut() = default;
+  ~ComboShortcut() = default;
   
   bool update(int code, int value) override;
 };
 
 class ComboMouse : public Combo, public Ptr<ComboMouse>
 {
-  int _width, _height;
+  int          _width, _height;
+  CursorInfo * _cursor;
+
 public:
   using Ptr<ComboMouse>::ptr;
   
-  ComboMouse(int width, int height)
-    : _width(width), _height(height) {}
-  virtual ~ComboMouse() = default;
+  ComboMouse(int width, int height, CursorInfo * cursor)
+    : _width(width), _height(height), _cursor(cursor) {}
+  ~ComboMouse() = default;
   
   bool update(int code, int value) override;
 };

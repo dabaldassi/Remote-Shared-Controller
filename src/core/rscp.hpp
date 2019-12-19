@@ -1,12 +1,14 @@
 #ifndef RSCP_H
 #define RSCP_H
 
+#include <atomic>
+
 #include <combo.hpp>
 #include <pc_list.hpp>
 #include <scnp.h>
-#include <atomic>
 
 struct ControllerEvent;
+struct CursorInfo;
 
 class RSCP
 {
@@ -14,24 +16,23 @@ class RSCP
 
   static constexpr int DEFAULT_IF = 2;
   
-  Combo::ptr         _swap;
-  ComboShortcut      _quit_shortcut;
-  PCList             _pc_list;
-  socket_t           _sock;
-  std::atomic_bool   _run;
-  bool               _transition;
-  int                _if;
+  std::list<Combo::ptr> _shortcut;
+  PCList                _pc_list;
+  socket_t              _sock;
+  std::atomic_bool      _run;
+  int                   _if;
+  CursorInfo *          _cursor;
   
   void _receive();
   void _send(const ControllerEvent& ev);
-  void _transit();
+  void _transit(Combo::Way way);
 
 public:
 
   enum class State { HERE, AWAY };
   
   RSCP();
-  virtual ~RSCP() = default;
+  ~RSCP();
 
   void run();
   int  init();

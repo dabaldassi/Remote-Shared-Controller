@@ -33,6 +33,7 @@ struct ConvKeyBase
       
     return reinterpret_cast<scnp_packet *>(&key);
   }
+
 };
 
 template<typename T, int N>

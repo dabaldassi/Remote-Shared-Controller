@@ -6,12 +6,15 @@
 #include <netpacket/packet.h>
 #include <net/ethernet.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 
 #include "scnp.h"
 
 #define ACK_TIMEOUT_S 0
 #define ACK_TIMEOUT_US 1000 // 5 us should be enough
 #define ACK_MAX_TRIES 3
+
+#define SESSION_TIMEOUT 1
 
 static const uint8_t broadcast_ll_addr[] = {0xff,0xff,0xff,0xff,0xff,0xff};
 
@@ -24,6 +27,7 @@ int scnp_create_socket(struct scnp_socket * sock, int if_index)
   /* provide information in socket structure */
   sock->packet_socket = fd;
   sock->if_index = if_index;
+
   return 0;
 }
 
@@ -58,6 +62,11 @@ void scnp_packet_to_buffer(uint8_t * buffer, const struct scnp_packet * packet)
       memcpy(&net_order_long, packet->data+2, sizeof(uint32_t));
       net_order_long = htonl(net_order_long);
       memcpy(buffer+3, &net_order_long, sizeof(uint32_t));
+      break;
+
+    /* SCNP management */
+    case SCNP_MNGT:
+      buffer[1] = packet->data[0];
       break;
 
     /* SCNP acknowledgement */
@@ -98,6 +107,11 @@ void scnp_buffer_to_packet(const uint8_t * buffer, struct scnp_packet * packet)
       memcpy(packet->data+2, &host_order_long, sizeof(uint32_t));
       break;
 
+    /* SCNP management */
+    case SCNP_MNGT:
+      packet->data[0] = buffer[1];
+      break;
+
     /* SCNP acknowledgement */
     case SCNP_ACK:
       memset(packet->data, 0, MAX_SCNP_PACKET_LENGTH - 1);
@@ -111,7 +125,7 @@ void scnp_buffer_to_packet(const uint8_t * buffer, struct scnp_packet * packet)
 
 int scnp_is_ack_needed(struct scnp_packet * packet)
 {
-  return packet->type != SCNP_ACK && packet->type != EV_REL && packet->type != EV_ABS;
+  return packet->type != SCNP_ACK && packet->type != SCNP_MNGT && packet->type != EV_REL && packet->type != EV_ABS;
 }
 
 int scnp_recv_ackless(struct scnp_socket * sock, struct scnp_packet * packet, uint8_t * src_addr)
@@ -189,6 +203,7 @@ int scnp_send(struct scnp_socket * sock, const uint8_t * dest_addr, struct scnp_
   free(buffer);
 
   if (bytes_sent == -1) return -1;
+
   return bytes_sent;
 }
 
@@ -257,4 +272,115 @@ int scnp_recv_from(struct scnp_socket * sock, struct scnp_packet * packet, uint8
   }
 
   return bytes_received;
+}
+
+struct scnp_session                     // Doubly linked list containing SCNP session threads
+{
+  int if_index;                         // Index of the interface used to send SCNP packets
+  pthread_t session_thread;             // Pthread used to send SCNP management packets
+  int is_session_running;               // Boolean which tells the thread it has to be stopped
+  struct scnp_session * next_session;   // Pointer to the next session in the list
+  struct scnp_session * prev_session;   // Pointer to the previous session in the list
+};
+
+void insert_session(struct scnp_session ** head, struct scnp_session * new_session)
+{
+  new_session->prev_session = NULL;
+  new_session->next_session = *head;
+  if (*head != NULL)
+    (*head)->prev_session = new_session;
+  *head = new_session;
+}
+
+void remove_session(struct scnp_session ** head, struct scnp_session * to_remove)
+{
+  if (to_remove->next_session != NULL)
+    to_remove->next_session->prev_session = to_remove->prev_session;
+  if (to_remove->prev_session != NULL)
+    to_remove->prev_session->next_session = to_remove->next_session;
+  else
+    *head = to_remove->next_session;
+}
+
+struct scnp_session * get_session(struct scnp_session * head, int if_index)
+{
+  struct scnp_session * current_session = head;
+
+  while (current_session != NULL && current_session->if_index != if_index) {
+    current_session = current_session->next_session;
+  }
+
+  return current_session;
+}
+
+struct scnp_session * session = NULL;  // Head of the session list
+
+void * session_run(void * session_data)
+{
+  /* get the session */
+  struct scnp_session * current_session = (struct scnp_session *) session_data;
+
+  /* init socket */
+  struct scnp_socket session_sock;
+  if (scnp_create_socket(&session_sock, current_session->if_index) == 0) { // TODO return error by a pipe to the main thread
+
+    /* init data to send */
+    struct scnp_management packet;
+    packet.type = SCNP_MNGT;
+    packet.flags = 0x80;
+    size_t packet_length = sizeof(packet);
+
+    /* send I'm alive packet every SESSION_TIMEOUT */
+    while (current_session->is_session_running) {
+      scnp_send(&session_sock, broadcast_ll_addr, (struct scnp_packet *) &packet, packet_length);
+      sleep(SESSION_TIMEOUT);
+    }
+
+    /* close socket */
+    scnp_close_socket(&session_sock);
+  }
+
+  return NULL;
+}
+
+int scnp_start_session(int if_index)
+{
+  /* init the new session */
+  struct scnp_session * new_session;
+
+  /* allocate new session if it does not already exist */
+  if (get_session(session, if_index) != NULL) return -1;
+  new_session = (struct scnp_session *) malloc(sizeof(struct scnp_session));
+
+  /* fill session structure */
+  new_session->if_index = if_index;
+  new_session->is_session_running = 1;
+
+  /* add the new session in the list */
+  insert_session(&session, new_session);
+
+  /* run session thread */
+  if (pthread_create(&(new_session->session_thread), NULL, session_run, (void *) new_session) == -1) return -1;
+
+  return 0;
+}
+
+int scnp_stop_session(int if_index)
+{
+  /* get the session to stop */
+  struct scnp_session * running_session = get_session(session, if_index);
+
+  if (running_session == NULL) return -1;
+
+  /* stop the session */
+  running_session->is_session_running = 0;
+  pthread_join(running_session->session_thread, NULL);
+
+  /* remove the session from the list */
+  remove_session(&session, running_session);
+
+  /* free the session */
+  free(running_session);
+
+  return 0;
 }

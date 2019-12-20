@@ -15,6 +15,7 @@ extern "C" {
 #define ETH_P_SCNP 0x8888
 #define MAX_SCNP_PACKET_LENGTH 7
 #define SCNP_ACK 254
+#define SCNP_MNGT 255
 
   struct scnp_socket
   {
@@ -32,7 +33,7 @@ extern "C" {
   {
     uint8_t type;   // Type of the SCNP packet = EV_KEY
     uint16_t code;  // Code associated to the key event
-    uint8_t flags;  // Flags of EV_KEY type SCNP packet
+    uint8_t flags;  // Flags of SCNP key packet
   } PACKED;
 
   struct scnp_movement
@@ -44,8 +45,8 @@ extern "C" {
 
   struct scnp_management
   {
-    uint8_t type;
-    uint8_t flags;
+    uint8_t type;   // Type of the SCNP packet = SCNP_MNGT
+    uint8_t flags;  // Flags of SCNP management packet
   } PACKED;
 
   struct scnp_ack
@@ -71,7 +72,8 @@ extern "C" {
   int scnp_close_socket(struct scnp_socket * sock);
 
   /**
-   * @brief Transform a SCNP packet to a buffer used to send SCNP data. Also change bytes order to match network order.
+   * @brief Transform a SCNP packet to a buffer used to send SCNP data.
+   * Also change bytes order to match network order.
    * @param buffer Buffer that will contain SCNP data.
    * @param packet SCNP packet that will fill the buffer.
    */
@@ -79,7 +81,8 @@ extern "C" {
   void scnp_packet_to_buffer(uint8_t * buffer, const struct scnp_packet * packet);
 
   /**
-   * @brief Transform a buffer which contain SCNP data to a SCNP packet. Also change bytes order to match system order.
+   * @brief Transform a buffer which contain SCNP data to a SCNP packet.
+   * Also change bytes order to match system order.
    * @param buffer Buffer that will fill the SCNP packet.
    * @param packet SCNP packet that will contain the SCNP data of the buffer.
    */
@@ -116,6 +119,25 @@ extern "C" {
    */
 
   int scnp_recv_from(struct scnp_socket * sock, struct scnp_packet * packet, uint8_t * src_addr);
+
+  /**
+   * @brief Start a new SCNP session.
+   * Start sending SCNP management packets every second to advertise the broadcast domain about the existence of an SCNP
+   * session.
+   * @param if_index Integer that identify the interface on which the session will be started.
+   * @return On success, returns 0. On error, returns -1.
+   */
+
+  int scnp_start_session(int if_index);
+
+  /**
+   * @brief Stop a running SCNP session.
+   * Stop sending SCNP management packets every second.
+   * @param if_index Integer that identify the interface on which the session is running.
+   * @return On success, returns 0. On error, returns -1.
+   */
+
+  int scnp_stop_session(int if_index);
 
 #ifdef __cplusplus
 }

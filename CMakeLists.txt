@@ -9,6 +9,7 @@ include_directories(
   src/controller
   src/core
   src/rsclocal_com
+  src/rsccli
   ) 
  
 option(INCLUDE_TEST OFF)
@@ -22,11 +23,11 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang
 	if(CMAKE_BUILD_TYPE MATCHES Release)
 	  message(STATUS "Release")
 	  set(CMAKE_CXX_FLAGS "-O2 -O3 ${CMAKE_CXX_FLAGS}")
-	  set(CMAKE_C_FLAGS "-O2 -O3 ${CMAKE_CXX_FLAGS}")
+	  set(CMAKE_C_FLAGS "-O2 -O3 ${CMAKE_C_FLAGS}")
 	else()
 	  message(STATUS "Debug")
 	  set(CMAKE_CXX_FLAGS "-g -O0 -Wall -Wextra ${CMAKE_CXX_FLAGS}")
-	  set(CMAKE_C_FLAGS "-g -O0 -Wall -Wextra ${CMAKE_CXX_FLAGS}")
+	  set(CMAKE_C_FLAGS "-g -O0 -Wall -Wextra ${CMAKE_C_FLAGS}")
 	endif()
 
 	if(COVERAGE)
@@ -67,6 +68,10 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
   network
   Threads::Threads
   )
+
+file(GLOB_RECURSE rsccli_sources src/rsccli/*.cpp)
+file(GLOB_RECURSE rsccli_headers src/rsccli/*.hpp)
+add_executable(rsccli ${rsccli_sources} ${rsccli_headers})
 
 if(INCLUDE_TEST)
   include(CTest)

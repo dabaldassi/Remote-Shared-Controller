@@ -8,6 +8,7 @@ include_directories(
   src/network
   src/controller
   src/core
+  src/rsclocal_com
   ) 
  
 option(INCLUDE_TEST OFF)
@@ -40,6 +41,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL Windows)
   file(GLOB_RECURSE controller_sources src/controller/*_win.c)
 elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
   file(GLOB_RECURSE controller_sources src/controller/*_linux.c)
+  file(GLOB_RECURSE rsclocal_com_sources src/rsclocal_com/linux/*.cpp)
   set(controller_libs X11 Xfixes)
 else()
   message(FATAL_ERROR "${CMAKE_SYSTEM_NAME} is not handled")
@@ -48,6 +50,11 @@ endif()
 add_library(controller ${controller_sources})
 target_link_libraries(controller ${controller_libs})
 
+file(GLOB_RECURSE rsclocal_com_header src/rsclocal_com/*.hpp)
+file(GLOB rsclocal_com_src src/rsclocal_com/*.cpp)
+list(APPEND rsclocal_com_sources ${rsclocal_com_src})
+add_library(rsclocal_com ${rsclocal_com_sources} ${rsclocal_com_header})
+target_link_libraries(rsclocal_com)
 
 file(GLOB_RECURSE network_sources src/network/*.c)
 add_library(network ${network_sources})

@@ -2,9 +2,16 @@
 #define RSCCLI_H
 
 #include <iosfwd>
+#include <rsclocal_com.hpp>
+
+class PCList;
 
 class RSCCli
 {
+  rsclocalcom::RSCLocalCom _com;
+  
+  int _send_cmd(const rsclocalcom::Message& msg);
+  void _getlist(PCList& list, const std::string& file_name);
   
 public:
   RSCCli() = default;

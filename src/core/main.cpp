@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
   PC   remote,remote2;
 
   remote.local /* = remote2.local*/ = false;
-  memcpy(remote.adress, dest_addr, PC::LEN_ADDR);
+  memcpy(remote.address, dest_addr, PC::LEN_ADDR);
   // memcpy(remote2.adress, dest_addr2, PC::LEN_ADDR);
   remote.id = 12;
   // remote2.id = 13;

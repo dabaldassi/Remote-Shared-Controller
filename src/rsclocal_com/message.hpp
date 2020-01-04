@@ -27,7 +27,9 @@ namespace rsclocalcom {
     
     Message(Command c = NA);
 
+    Command get_cmd() const { return _cmd; }
     void get(std::stringstream& ss) const;
+    const std::string& get_arg(size_t i) const { return _args[i]; }
     void set(std::stringstream& ss);
     void reset(Command c = NA);
 

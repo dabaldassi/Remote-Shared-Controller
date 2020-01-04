@@ -6,6 +6,28 @@
 #include <config-cli.hpp>
 
 #include <interface.h>
+#include <pc_list.hpp>
+
+int RSCCli::_send_cmd(const rsclocalcom::Message& msg)
+{
+  using namespace rsclocalcom;
+  Message m;
+  
+  _com.send_to(RSCLocalCom::Contact::CORE, msg);
+  m.reset();
+  _com.read_from(RSCLocalCom::Contact::CORE, m);
+	      
+  return 0;
+}
+
+void RSCCli::_getlist(PCList& list, const std::string& file_name)
+{
+  rsclocalcom::Message msg(rsclocalcom::Message::GETLIST);
+
+  _send_cmd(msg);
+
+  list.load(file_name);
+}
 
 int RSCCli::run(int argc, char **argv)
 {
@@ -25,19 +47,48 @@ int RSCCli::run(int argc, char **argv)
 
 int RSCCli::listall()
 {
-  std::cout << "listall" << "\n";
+  PCList list;
+  _getlist(list, CURRENT_PC_LIST);
+
+  std::cout << "List of current PC :" << "\n";
+  
+  for(size_t i = 0; i < list.size(); i++) {
+    std::cout << list.get_current() << "\n";
+    list.next_pc();
+  }
+  
   return 0;
 }
 
 int RSCCli::listcurrent()
 {
-  std::cout << "listcurrent" << "\n";
+  PCList list;
+  _getlist(list, CURRENT_PC_LIST);
+
+  std::cout << "List of current PC :" << "\n";
+  
+  for(size_t i = 0; i < list.size(); i++) {
+    const PC& pc = list.get_current();
+    std::cout << pc.name << "\t" << pc.id << "\n";
+    list.next_pc();
+  }
+  
   return 0;
 }
 
 int RSCCli::listrefresh()
 {
-  std::cout << "listrefresh" << "\n";
+  PCList list;
+  _getlist(list, ALL_PC_LIST);
+
+  std::cout << "Available PC :" << "\n";
+  
+  for(size_t i = 0; i < list.size(); i++) {
+    const PC& pc = list.get_current();
+    std::cout << pc.name << "\t" << pc.id << "\n";
+    list.next_pc();
+  }
+  
   return 0;
 }
 

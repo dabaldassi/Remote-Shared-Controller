@@ -20,12 +20,21 @@ public:
   template<typename P>
   void add(P&& pc) { _pc_list.push_back(std::forward<P>(pc)); }
 
+  /**
+   *\ brief Add pc before the pc with id.
+   */
+  
+  void add(const PC& pc, int id);
+
   void set_circular(bool c) { _circular = c; }
   bool is_circular() { return _circular; }
 
   void next_pc();
   void previous_pc();
+  size_t size() const { return _pc_list.size(); }
+  
   void save(const std::string & file_name) const;
+  void load(const std::string & file_name);
   
   const PC& get_current() const;
   const PC& get_local() const;

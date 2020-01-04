@@ -18,12 +18,14 @@ class RSCP
   
   std::list<Combo::ptr> _shortcut;
   PCList                _pc_list;
+  PCList                _all_pc_list;
   socket_t              _sock;
   std::atomic_bool      _run;
   int                   _if;
   CursorInfo *          _cursor;
   
   void _receive();
+  void _local_cmd();
   void _send(const ControllerEvent& ev);
   void _transit(Combo::Way way);
 

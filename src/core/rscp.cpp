@@ -3,13 +3,18 @@
 #include <functional>
 #include <iostream>
 #include <csignal>
+#include <map>
+#include <string>
 
-#include <rscp.hpp>
-
+#include <rsclocal_com.hpp>
 #include <controller.h>
 #include <cursor.h>
 
+#include <rscp.hpp>
 #include <convkey.hpp>
+
+#define CURRENT_PC_LIST "/tmp/current_pc"
+#define ALL_PC_LIST "/tmp/all_pc"
 
 void error(const char * s)
 {
@@ -151,18 +156,39 @@ void RSCP::_send(const ControllerEvent &ev)
   switch(ev.controller_type) {
   case MOUSE:
     scnp_send(&_sock,
-	      _pc_list.get_current().adress,
+	      _pc_list.get_current().address,
 	      ConvKey<struct scnp_packet, MOUSE>::get(ev),
 	      ConvKey<struct scnp_packet, MOUSE>::SIZE);
     break;
   case KEY:
     scnp_send(&_sock,
-	      _pc_list.get_current().adress,
+	      _pc_list.get_current().address,
 	      ConvKey<struct scnp_packet, KEY>::get(ev),
 	      ConvKey<struct scnp_packet, KEY>::SIZE);
     break;
   default:
     break;
+  }
+}
+
+void RSCP::_local_cmd()
+{
+  using namespace rsclocalcom;
+  Message     msg, ack(Message::ACK);
+  RSCLocalCom com;
+
+  std::map<Message::Command, std::function<void(const Message&)>> on_msg {
+    { Message::IF, [this](const Message& m) { set_interface(std::stoi(m.get_arg(0))); }},
+    { Message::GETLIST, [this](const Message& ) { _pc_list.save(CURRENT_PC_LIST);
+	                                          _all_pc_list.save(ALL_PC_LIST); } },
+    { Message::GETLIST, [this](const Message& ) { _pc_list.load(CURRENT_PC_LIST);
+	                                          _all_pc_list.load(ALL_PC_LIST); } },
+  };
+
+  while(_run) {
+    com.read_from(RSCLocalCom::Contact::CLIENT, msg);
+    on_msg[msg.get_cmd()](msg);
+    com.send_to(RSCLocalCom::Contact::CLIENT, ack);
   }
 }
 
@@ -172,6 +198,7 @@ void RSCP::run()
 
   // always read in a thread
   std::thread(std::bind(&RSCP::_receive, this)).detach(); // [BUG] : Memory leak
+  std::thread(std::bind(&RSCP::_local_cmd, this)).detach();
   
   while(_run) {
     int ret = poll_controller(&c);

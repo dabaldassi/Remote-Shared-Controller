@@ -94,13 +94,46 @@ int RSCCli::listrefresh()
 
 int RSCCli::add(const std::string & id)
 {
-  std::cout << "add " << id << " at the end" << "\n";
+  PCList all_list, current_list;
+
+  _getlist(all_list, ALL_PC_LIST);
+  current_list.load(CURRENT_PC_LIST);
+
+  try {
+    const PC& pc = all_list.get(std::stoi(id));
+    current_list.add(pc);
+  }catch(std::runtime_error& e) {
+    std::cout << e.what() << "\n";
+    return 1;
+  }
+
+  current_list.save(CURRENT_PC_LIST);
+  
+  rsclocalcom::Message msg(rsclocalcom::Message::SETLIST);
+  _send_cmd(msg);
+  
   return 0;
 }
 
 int RSCCli::add(const std::string & id1, const std::string & id2)
 {
-  std::cout << "add " << id1 << " before " << id2 << "\n";
+   PCList all_list, current_list;
+
+  _getlist(all_list, ALL_PC_LIST);
+  current_list.load(CURRENT_PC_LIST);
+
+  try {
+    const PC& pc = all_list.get(std::stoi(id1));
+    current_list.add(pc,std::stoi(id2));
+  }catch(std::runtime_error& e) {
+    std::cout << e.what() << "\n";
+    return 1;
+  }
+
+  current_list.save(CURRENT_PC_LIST);
+  rsclocalcom::Message msg(rsclocalcom::Message::SETLIST);
+  _send_cmd(msg);
+  
   return 0;
 }
 
@@ -132,7 +165,11 @@ int RSCCli::help()
 
 int RSCCli::setif(const std::string & id)
 {
-  std::cout << "set the interface : " << id << "\n";
+  rsclocalcom::Message msg(rsclocalcom::Message::IF);
+  msg.add_arg(id);
+
+  _send_cmd(msg);
+  
   return 0;
 }
 

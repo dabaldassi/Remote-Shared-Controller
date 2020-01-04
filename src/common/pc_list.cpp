@@ -35,6 +35,16 @@ const PC& PCList::get_local() const
 							 });
 }
 
+const PC& PCList::get(int id) const
+{
+  auto it = std::find_if(_pc_list.begin(), _pc_list.end(), [&id](const PC& a) {
+      return a.id == id;
+    });
+
+  if(it != _pc_list.end()) return *it;
+  else throw std::runtime_error("PC with id " + std::to_string(id) + " not found");
+}
+
 void PCList::add(const PC &pc, int id)
 {
   auto it = std::find_if(_pc_list.begin(), _pc_list.end(), [&id](const PC& a) {

@@ -69,7 +69,6 @@ RSCP::RSCP(): _if(DEFAULT_IF), _state(State::HERE)
 				   _transit(combo->get_way());
 				 });
   }
-  
 }
 
 RSCP::~RSCP()
@@ -181,7 +180,7 @@ void RSCP::_local_cmd()
     { Message::IF, [this](const Message& m) { set_interface(std::stoi(m.get_arg(0))); }},
     { Message::GETLIST, [this](const Message& ) { _pc_list.save(CURRENT_PC_LIST);
 	                                          _all_pc_list.save(ALL_PC_LIST); } },
-    { Message::GETLIST, [this](const Message& ) { _pc_list.load(CURRENT_PC_LIST);
+    { Message::SETLIST, [this](const Message& ) { _pc_list.load(CURRENT_PC_LIST);
 	                                          _all_pc_list.load(ALL_PC_LIST); } },
   };
 

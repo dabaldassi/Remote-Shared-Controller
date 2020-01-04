@@ -38,6 +38,7 @@ public:
   
   const PC& get_current() const;
   const PC& get_local() const;
+  const PC& get(int id) const;
 };
 
 

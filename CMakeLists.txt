@@ -10,6 +10,7 @@ include_directories(
   src/core
   src/rsclocal_com
   src/rsccli
+  src/common
   ) 
  
 option(INCLUDE_TEST OFF)
@@ -41,7 +42,7 @@ endif()
 if(CMAKE_SYSTEM_NAME STREQUAL Windows)
   file(GLOB_RECURSE controller_sources src/controller/*_win.c)
 elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
-  file(GLOB_RECURSE controller_sources src/controller/*_linux.c)
+  file(GLOB_RECURSE controller_sources src/controller/linux/*.c)
   file(GLOB_RECURSE rsclocal_com_sources src/rsclocal_com/linux/*.cpp)
   set(controller_libs X11 Xfixes)
 else()
@@ -55,10 +56,13 @@ file(GLOB_RECURSE rsclocal_com_header src/rsclocal_com/*.hpp)
 file(GLOB rsclocal_com_src src/rsclocal_com/*.cpp)
 list(APPEND rsclocal_com_sources ${rsclocal_com_src})
 add_library(rsclocal_com ${rsclocal_com_sources} ${rsclocal_com_header})
-target_link_libraries(rsclocal_com)
 
 file(GLOB_RECURSE network_sources src/network/*.c)
 add_library(network ${network_sources})
+
+file(GLOB_RECURSE common_sources src/common/*.cpp)
+file(GLOB_RECURSE common_headers src/common/*.hpp)
+add_library(common ${common_sources} ${common_headers})
 
 file(GLOB_RECURSE core_sources src/core/*.cpp)
 file(GLOB_RECURSE core_headers src/core/*.hpp)
@@ -66,12 +70,19 @@ add_executable(${CMAKE_PROJECT_NAME} ${core_sources} ${core_headers})
 target_link_libraries(${CMAKE_PROJECT_NAME}
   controller
   network
+  common
+  rsclocal_com
   Threads::Threads
   )
 
 file(GLOB_RECURSE rsccli_sources src/rsccli/*.cpp)
 file(GLOB_RECURSE rsccli_headers src/rsccli/*.hpp)
 add_executable(rsccli ${rsccli_sources} ${rsccli_headers})
+target_link_libraries(rsccli
+  common
+  network
+  rsclocal_com
+  )
 
 if(INCLUDE_TEST)
   include(CTest)

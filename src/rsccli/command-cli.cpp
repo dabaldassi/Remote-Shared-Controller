@@ -3,6 +3,7 @@
 
 #include <config-cli.hpp>
 #include <command-cli.hpp>
+#include <rsccli.hpp>
 
 ///////////////////////////////////////////////////////////////////////////////
 //                              Static variable                              //
@@ -61,34 +62,19 @@ void HelpCommand::print_help()
   std::cout << "\n";
 }
 
-int HelpCommand::execute()
+int HelpCommand::execute(RSCCli * cli)
 {
-  std::cout << RSCCLI << " help : " << "\n\n";
-
-  Command::print_default_usage();
-
-  std::cout << "\n";
-  std::cout << "List of available commands : " << "\n\n";
-  
-  HelpCommand::print_help();
-  ListCommand::print_help();
-  AddCommand::print_help();
-  VersionCommand::print_help();
-  IfCommand::print_help();
-
-  std::cout << "\n";
-  
-  return 0;
+  return cli->help();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 //                                ListCommand                                //
 ///////////////////////////////////////////////////////////////////////////////
 
-std::map<char, std::function<int(ListCommand*)>> ListCommand::_on_opt = {
-  { 'c', [] (ListCommand * cmd) -> int { return cmd->listcurrent(); } },
-  { 'a', [] (ListCommand * cmd) -> int { return cmd->listall(); } },
-  { 'r', [] (ListCommand * cmd) -> int { return cmd->listrefresh(); } },
+std::map<char, std::function<int(ListCommand*,RSCCli*)>> ListCommand::_on_opt = {
+  { 'c', [] (ListCommand * cmd, RSCCli* cli) -> int { return cmd->listcurrent(cli); } },
+  { 'a', [] (ListCommand * cmd, RSCCli* cli) -> int { return cmd->listall(cli); } },
+  { 'r', [] (ListCommand * cmd, RSCCli* cli) -> int { return cmd->listrefresh(cli); } },
 };
 
 void ListCommand::print_usage() const
@@ -131,12 +117,12 @@ void ListCommand::print_help()
   std::cout << "\n";
 }
 
-int ListCommand::execute() 
+int ListCommand::execute(RSCCli * cli) 
 {
   if(_opts.empty()) _opts.push_back('c');
   
   for(char c : _opts) {
-    int err = _on_opt[c](this);
+    int err = _on_opt[c](this, cli);
 
     if(err) return err;
   }
@@ -144,22 +130,19 @@ int ListCommand::execute()
   return 0;
 }
 
-int ListCommand::listall()
+int ListCommand::listall(RSCCli* cli)
 {
-  std::cout << "listall" << "\n";
-  return 0;
+  return cli->listall();
 }
 
-int ListCommand::listrefresh()
+int ListCommand::listrefresh(RSCCli* cli)
 {
-  std::cout << "listrefresh" << "\n";
-  return 0;
+  return cli->listrefresh();
 }
 
-int ListCommand::listcurrent()
+int ListCommand::listcurrent(RSCCli* cli)
 {
-  std::cout << "listcurrent" << "\n";
-  return 0;
+  return cli->listcurrent();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -190,7 +173,7 @@ void AddCommand::print_help()
   std::cout << "\n";
 }
 
-int AddCommand::execute()
+int AddCommand::execute(RSCCli * cli)
 {
   if(_args.empty()) {
     std::cerr << _NAME << " need at least one argument\n";
@@ -198,14 +181,8 @@ int AddCommand::execute()
     return 1;
   }
 
-  if(_args.size() == 1) {
-    std::cout << "add " << _args.front() <<  " at the end" << "\n";
-  }
-  else {
-    std::cout << "add " << _args.front() << " before " << _args.back() << "\n";
-  }
-  
-  return 0;
+  if(_args.size() == 1) return cli->add(_args.front());
+  else                  return cli->add(_args.front(), _args.back());
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -233,19 +210,18 @@ void VersionCommand::print_help()
   std::cout << "\n";
 }
 
-int VersionCommand::execute()
+int VersionCommand::execute(RSCCli * cli)
 {
-  std::cout << "Current version : " << VERSION << "\n\n";
-  return 0;
+  return cli->version();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 //                                 IfCommand                                 //
 ///////////////////////////////////////////////////////////////////////////////
 
-std::map<char, std::function<int(IfCommand*)>> IfCommand::_on_opt = {
-  { char{SET}, [] (IfCommand * cmd) -> int { return cmd->set(); } },
-  { char{LIST}, [] (IfCommand * cmd) -> int { return cmd->list(); } },
+std::map<char, std::function<int(IfCommand*,RSCCli*)>> IfCommand::_on_opt = {
+  { char{SET}, [] (IfCommand * cmd, RSCCli* cli) -> int { return cmd->set(cli); } },
+  { char{LIST}, [] (IfCommand * cmd, RSCCli* cli) -> int { return cmd->list(cli); } },
 };
 
 void IfCommand::print_usage() const
@@ -289,7 +265,7 @@ void IfCommand::print_help()
   std::cout << "\n";
 }
 
-int IfCommand::execute() 
+int IfCommand::execute(RSCCli * cli) 
 {
   if(_opts.empty()) {
     std::cerr << _NAME << " need at least one option.\n";
@@ -304,7 +280,7 @@ int IfCommand::execute()
   }
   
   for(char c : _opts) {
-    int err = _on_opt[c](this);
+    int err = _on_opt[c](this,cli);
 
     if(err) return err;
   }
@@ -312,15 +288,12 @@ int IfCommand::execute()
   return 0;
 }
 
-int IfCommand::set()
+int IfCommand::set(RSCCli * cli)
 {
-  std::cout << "set the interface : " << _args.front() << "\n";
-  return 0;
+  return cli->setif(_args.front());
 }
 
-int IfCommand::list()
+int IfCommand::list(RSCCli * cli)
 {
-  std::cout << "list network interface" << "\n";
-  return 0;
+  return cli->listif();
 }
-

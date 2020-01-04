@@ -6,6 +6,8 @@
 #include <map>
 #include <functional>
 
+class RSCCli;
+
 class Command
 {
   static constexpr char _NAME[] = "NA";
@@ -28,7 +30,7 @@ public:
   Command& operator=(const Command &other) = default;
   Command& operator=(Command &&other) = default;
 
-  virtual int execute() = 0;
+  virtual int execute(RSCCli * cli) = 0;
   virtual void add_opt(const std::string& opt) = 0;
   virtual void add_arg(const std::string& arg) = 0;
   virtual void print_usage() const = 0;
@@ -52,7 +54,7 @@ public:
   void print_usage() const override;
   void add_arg(const std::string& arg) override;
   void add_opt(const std::string& opt) override;
-  int  execute() override;
+  int  execute(RSCCli * cli) override;
 
   static void print_help();
   static std::string get_name() { return _NAME; }
@@ -63,7 +65,7 @@ public:
 class ListCommand : public Command
 {
   static constexpr char _NAME[] = "list";
-  static std::map<char, std::function<int(ListCommand*)>> _on_opt;
+  static std::map<char, std::function<int(ListCommand*,RSCCli*)>> _on_opt;
   
 public:
   ListCommand()
@@ -72,11 +74,11 @@ public:
   void print_usage() const override;
   void add_arg(const std::string& arg) override;
   void add_opt(const std::string& opt) override;
-  int  execute() override;
+  int  execute(RSCCli * cli) override;
 
-  int listall();
-  int listrefresh();
-  int listcurrent();
+  int listall(RSCCli*);
+  int listrefresh(RSCCli*);
+  int listcurrent(RSCCli*);
 
   static void print_help();
   static std::string get_name() { return _NAME; }
@@ -95,7 +97,7 @@ public:
   void print_usage() const override;
   void add_arg(const std::string& arg) override;
   void add_opt(const std::string& opt) override;
-  int  execute() override;
+  int  execute(RSCCli * cli) override;
 
   static void print_help();
   static std::string get_name() { return _NAME; }
@@ -113,7 +115,7 @@ public:
   void print_usage() const override;
   void add_arg(const std::string& arg) override;
   void add_opt(const std::string& opt) override;
-  int  execute() override;
+  int  execute(RSCCli * cli) override;
 
   static void print_help();
   static std::string get_name() { return _NAME; }
@@ -124,7 +126,7 @@ public:
 class IfCommand : public Command
 {
   static constexpr char _NAME[] = "if";
-  static std::map<char, std::function<int(IfCommand*)>> _on_opt;
+  static std::map<char, std::function<int(IfCommand*,RSCCli*)>> _on_opt;
 
   static constexpr char SET = 's';
   static constexpr char LIST = 'l';
@@ -136,10 +138,10 @@ public:
   void print_usage() const override;
   void add_arg(const std::string& arg) override;
   void add_opt(const std::string& opt) override;
-  int  execute() override;
+  int  execute(RSCCli * cli) override;
 
-  int set();
-  int list();
+  int set(RSCCli*);
+  int list(RSCCli*);
 
   static void print_help();
   static std::string get_name() { return _NAME; }

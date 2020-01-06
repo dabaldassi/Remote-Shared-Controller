@@ -22,6 +22,7 @@ class RSCP
   socket_t              _sock;
   std::atomic_bool      _run;
   int                   _if;
+  int                   _next_pc_id;
   CursorInfo *          _cursor;
   
   void _receive();
@@ -39,6 +40,7 @@ public:
   void run();
   int  init();
   void exit();
+  void add_pc(const uint8_t addr[]);
 
   const PCList&  get_config() const { return _pc_list; }
   PCList&        get_config() { return _pc_list; }

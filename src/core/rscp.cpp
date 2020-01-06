@@ -5,6 +5,7 @@
 #include <csignal>
 #include <map>
 #include <string>
+#include <cstring>
 
 #include <rsclocal_com.hpp>
 #include <controller.h>
@@ -49,13 +50,7 @@ RSCP::RSCP(): _if(DEFAULT_IF), _state(State::HERE)
   
   _shortcut.push_back(std::move(quit_shortcut));
     
-  PC local_pc;
-
-  local_pc.local = true;
-  local_pc.id = 0;
-  local_pc.name = "localhost";
-  local_pc.resolution.w = 1920;
-  local_pc.resolution.h = 1080;
+  PC local_pc { _next_pc_id++, true, "localhost", {0}, {1920,1080}, {0,0}};
   
   _pc_list.add(local_pc);
 
@@ -86,6 +81,8 @@ int RSCP::init()
   if(err) error("Can't init controller");
 
   _run = true;
+
+  scnp_start_session(_if);
   
   return 0;
 }
@@ -94,6 +91,7 @@ void RSCP::exit()
 {
   exit_controller();
   scnp_close_socket(&_sock);
+  scnp_stop_session(_if);
 }
 
 void RSCP::_transit(Combo::Way way)
@@ -107,6 +105,20 @@ void RSCP::_transit(Combo::Way way)
 
   if(_state == State::AWAY) hide_cursor(_cursor);
   else                      show_cursor(_cursor);
+}
+
+void RSCP::add_pc(const uint8_t *addr)
+{
+  bool exist = _all_pc_list.exist([&addr](const PC& pc) -> bool {
+				    return !memcmp(addr, pc.address, PC::LEN_ADDR);
+				  });
+  if(!exist) {
+    PC pc{ _next_pc_id++, false, "PC " + std::to_string(_next_pc_id), {0}, { 0,0 }, { 0,0 }}; 
+
+    memcpy(pc.address, addr, PC::LEN_ADDR);
+    
+    _all_pc_list.add(pc);
+  }
 }
 
 void RSCP::_receive()
@@ -139,6 +151,7 @@ void RSCP::_receive()
     case EV_REL:    ev = ConvKey<ControllerEvent,MOUSE>::get(packet); break;
     case OUT_LEFT:  _transit(Combo::Way::LEFT); ev = nullptr;         break;
     case OUT_RIGHT: _transit(Combo::Way::RIGHT); ev = nullptr;        break;
+    case SCNP_MNGT: add_pc(addr_src);                                 break;
     default:        ev = nullptr;                                     break;
     }
     

@@ -23,6 +23,13 @@ void PCList::previous_pc()
   }
 }
 
+bool PCList::exist(const PC &pc) const
+{
+  auto it = std::find(_pc_list.begin(), _pc_list.end(), pc);
+
+  return it != _pc_list.end();
+}
+
 const PC& PCList::get_current() const
 {
   return _pc_list[_current];

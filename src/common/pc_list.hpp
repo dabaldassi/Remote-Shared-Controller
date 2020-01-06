@@ -1,6 +1,7 @@
 #ifndef PC_LIST_H
 #define PC_LIST_H
 
+#include <algorithm>
 #include <vector>
 
 #include <pc.hpp>
@@ -28,7 +29,11 @@ public:
 
   void set_circular(bool c) { _circular = c; }
   bool is_circular() { return _circular; }
+  bool exist(const PC& pc) const;
 
+  template<typename Pred>
+  bool exist(Pred&& p) const;
+  
   void next_pc();
   void previous_pc();
   size_t size() const { return _pc_list.size(); }
@@ -41,5 +46,12 @@ public:
   const PC& get(int id) const;
 };
 
+
+template<typename Pred>
+bool PCList::exist(Pred &&p) const
+{
+  auto it = std::find_if(_pc_list.begin(), _pc_list.end(), std::forward<Pred>(p));
+  return it != _pc_list.end();
+}
 
 #endif /* PC_LIST_H */

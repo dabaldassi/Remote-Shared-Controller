@@ -103,6 +103,25 @@ public:
   static std::string get_name() { return _NAME; }
 };
 
+// Remove ///////////////////////////////////////////////////////////////////////
+
+class RemoveCommand : public Command
+{
+  static constexpr char _NAME[] = "remove";
+  
+public:
+  RemoveCommand()
+    : Command(1,0) {}
+
+  void print_usage() const override;
+  void add_arg(const std::string& arg) override;
+  void add_opt(const std::string& opt) override;
+  int  execute(RSCCli * cli) override;
+
+  static void print_help();
+  static std::string get_name() { return _NAME; }
+};
+
 // Version ///////////////////////////////////////////////////////////////////////
 
 class VersionCommand : public Command

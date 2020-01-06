@@ -155,6 +155,7 @@ int RSCCli::help()
   HelpCommand::print_help();
   ListCommand::print_help();
   AddCommand::print_help();
+  RemoveCommand::print_help();
   VersionCommand::print_help();
   IfCommand::print_help();
 
@@ -188,5 +189,22 @@ int RSCCli::listif()
     free_interfaces(interface);
   }
     
+  return 0;
+}
+
+int RSCCli::remove(const std::string &id)
+{
+   PCList current_list;
+
+  _getlist(current_list, CURRENT_PC_LIST);
+
+  std::cout << current_list.size() << "\n";
+  current_list.remove(std::stoi(id));
+  std::cout << current_list.size() << "\n";
+  
+  current_list.save(CURRENT_PC_LIST);
+  rsclocalcom::Message msg(rsclocalcom::Message::SETLIST);
+  _send_cmd(msg);
+
   return 0;
 }

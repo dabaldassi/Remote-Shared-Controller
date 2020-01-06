@@ -25,6 +25,8 @@ public:
   int add(const std::string& id);
   int add(const std::string& id1, const std::string& id2);
 
+  int remove(const std::string& id);
+
   int version();
 
   int help();

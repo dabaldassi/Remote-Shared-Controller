@@ -12,6 +12,7 @@
 constexpr char HelpCommand::_NAME[];
 constexpr char ListCommand::_NAME[];
 constexpr char AddCommand::_NAME[];
+constexpr char RemoveCommand::_NAME[];
 constexpr char VersionCommand::_NAME[];
 constexpr char IfCommand::_NAME[];
 constexpr char Command::_NAME[];
@@ -28,6 +29,7 @@ Command::Ptr Command::get_command(const std::string &name)
   else if(name == ListCommand::get_name())    return std::make_unique<ListCommand>();
   else if(name == AddCommand::get_name())     return std::make_unique<AddCommand>();
   else if(name == VersionCommand::get_name()) return std::make_unique<VersionCommand>();
+  else if(name == RemoveCommand::get_name()) return std::make_unique<RemoveCommand>();
   else if(name == IfCommand::get_name())      return std::make_unique<IfCommand>();
   else                                        return nullptr;
 }
@@ -183,6 +185,44 @@ int AddCommand::execute(RSCCli * cli)
 
   if(_args.size() == 1) return cli->add(_args.front());
   else                  return cli->add(_args.front(), _args.back());
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//                               RemoveCommand                               //
+///////////////////////////////////////////////////////////////////////////////
+
+void RemoveCommand::print_usage() const
+{
+  std::cout << "Usage : " << RSCCLI << " " << _NAME << " id\n";
+}
+
+void RemoveCommand::add_arg(const std::string& arg)
+{
+  if(_args.size() < _nb_arg) _args.push_back(arg);
+  else throw std::range_error("Too many arguments");
+}
+
+void RemoveCommand::add_opt(const std::string&)
+{
+  throw std::runtime_error(_NAME + std::string(" doesn't take option"));
+}
+
+void RemoveCommand::print_help()
+{
+  std::cout << "\t" << _NAME << "\tRemove a computer to the current list by its id.\n";
+  std::cout << "\t\t" << _NAME << " id" << "\t\tRemove a computer at the end of the list.\n";
+  std::cout << "\n";
+}
+
+int RemoveCommand::execute(RSCCli * cli)
+{
+  if(_args.empty()) {
+    std::cerr << _NAME << " need one argument\n";
+    print_usage();
+    return 1;
+  }
+
+  return cli->remove(_args.front());
 }
 
 ///////////////////////////////////////////////////////////////////////////////

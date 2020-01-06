@@ -19,13 +19,14 @@ public:
   virtual ~PCList() = default;
 
   template<typename P>
-  void add(P&& pc) { _pc_list.push_back(std::forward<P>(pc)); }
+  void add(P&& pc);
 
   /**
    *\ brief Add pc before the pc with id.
    */
   
   void add(const PC& pc, int id);
+  void remove(int id);
 
   void set_circular(bool c) { _circular = c; }
   bool is_circular() { return _circular; }
@@ -52,6 +53,15 @@ bool PCList::exist(Pred &&p) const
 {
   auto it = std::find_if(_pc_list.begin(), _pc_list.end(), std::forward<Pred>(p));
   return it != _pc_list.end();
+}
+
+template<typename P>
+void PCList::add(P&& pc) {
+  auto it = std::find_if(_pc_list.begin(), _pc_list.end(), [&pc] (const PC& p) {
+							     return pc.id == p.id;
+							   });
+  if(it == _pc_list.end()) _pc_list.push_back(std::forward<P>(pc));
+  else throw std::runtime_error("id exists already");
 }
 
 #endif /* PC_LIST_H */

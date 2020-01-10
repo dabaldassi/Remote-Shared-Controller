@@ -59,6 +59,7 @@ add_library(rsclocal_com ${rsclocal_com_sources} ${rsclocal_com_header})
 
 file(GLOB_RECURSE network_sources src/network/*.c)
 add_library(network ${network_sources})
+target_link_libraries(network pthread)
 
 file(GLOB_RECURSE common_sources src/common/*.cpp)
 file(GLOB_RECURSE common_headers src/common/*.hpp)

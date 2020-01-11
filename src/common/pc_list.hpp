@@ -45,6 +45,9 @@ public:
   const PC& get_current() const;
   const PC& get_local() const;
   const PC& get(int id) const;
+
+  template<typename Pred>
+  const PC& get(Pred&& pred) const;
 };
 
 
@@ -53,6 +56,13 @@ bool PCList::exist(Pred &&p) const
 {
   auto it = std::find_if(_pc_list.begin(), _pc_list.end(), std::forward<Pred>(p));
   return it != _pc_list.end();
+}
+
+template<typename Pred>
+const PC& PCList::get(Pred &&pred) const
+{
+  auto it = std::find_if(_pc_list.begin(), _pc_list.end(), std::forward<Pred>(pred));
+  return *it;
 }
 
 template<typename P>

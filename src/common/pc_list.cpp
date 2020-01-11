@@ -32,12 +32,10 @@ bool PCList::exist(const PC &pc) const
 
 void PCList::remove(int id)
 {
-  auto it = std::find_if(_pc_list.begin(), _pc_list.end(), [&id](const PC& pc) {
-							     return pc.id == id
-							       && !pc.local;
-						   });
-
-  if(it != _pc_list.end()) _pc_list.erase(it);
+  _pc_list.erase(std::remove_if(_pc_list.begin(),
+				_pc_list.end(),
+				[&id](const PC& pc) { return pc.id == id; }),
+		 _pc_list.end());
 }
 
 const PC& PCList::get_current() const

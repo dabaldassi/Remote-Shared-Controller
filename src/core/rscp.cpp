@@ -6,6 +6,7 @@
 #include <map>
 #include <string>
 #include <cstring>
+#include <algorithm>
 
 #include <rsclocal_com.hpp>
 #include <controller.h>
@@ -23,7 +24,14 @@ void error(const char * s)
   std::exit(EXIT_FAILURE);
 }
 
-RSCP::RSCP(): _if(DEFAULT_IF), _state(State::HERE)
+template<typename Mutex, typename Lambda>
+void RSCP::_th_safe_op(Mutex &m, Lambda &&l)
+{
+  std::unique_lock<Mutex> lock(m);
+  l();
+}
+
+RSCP::RSCP(): _if(DEFAULT_IF), _next_pc_id{0}, _state(State::HERE)
 {
   _cursor = open_cursor_info();
   
@@ -117,7 +125,14 @@ void RSCP::add_pc(const uint8_t *addr)
 
     memcpy(pc.address, addr, PC::LEN_ADDR);
     
-    _all_pc_list.add(pc);
+    _th_safe_op(_all_pc_list_mutex, [this,&pc]() {_all_pc_list.add(pc); });
+    _th_safe_op(_alive_mutex, [this, &pc]() { _alive[pc.id] = clock_t::now(); });
+  }
+  else {
+    int id = _all_pc_list.get([&addr](const PC& pc) -> bool {
+				    return !memcmp(addr, pc.address, PC::LEN_ADDR);
+			      }).id;
+    _th_safe_op(_alive_mutex, [&id,this]() { _alive[id] = clock_t::now(); } );
   }
 }
 
@@ -193,14 +208,42 @@ void RSCP::_local_cmd()
     { Message::IF, [this](const Message& m) { set_interface(std::stoi(m.get_arg(0))); }},
     { Message::GETLIST, [this](const Message& ) { _pc_list.save(CURRENT_PC_LIST);
 	                                          _all_pc_list.save(ALL_PC_LIST); } },
-    { Message::SETLIST, [this](const Message& ) { _pc_list.load(CURRENT_PC_LIST);
-	                                          _all_pc_list.load(ALL_PC_LIST); } },
+    { Message::SETLIST, [this](const Message& ) {
+			 _th_safe_op(_pc_list_mutex, [this]() {_pc_list.load(CURRENT_PC_LIST);});
+			 _th_safe_op(_all_pc_list_mutex,[this](){_all_pc_list.load(ALL_PC_LIST);});
+			}},
   };
 
   while(_run) {
     com.read_from(RSCLocalCom::Contact::CLIENT, msg);
     on_msg[msg.get_cmd()](msg);
     com.send_to(RSCLocalCom::Contact::CLIENT, ack);
+  }
+}
+
+void RSCP::_keep_alive()
+{
+  decltype(_alive)::iterator it;
+  
+  while(_run) {
+
+    do {
+      it = std::find_if(_alive.begin(), _alive.end(), [](const auto& a) {
+							auto now = RSCP::clock_t::now();
+							std::chrono::duration<double> elapsed;
+							elapsed = now - a.second;
+							return elapsed.count() > ALIVE_TIMEOUT;
+						      });
+
+      if(it != _alive.end()) {
+	_th_safe_op(_pc_list_mutex, [&it,this]() {_pc_list.remove(it->first); });
+	_th_safe_op(_all_pc_list_mutex, [&it, this]() { _all_pc_list.remove(it->first); });
+	_th_safe_op(_alive_mutex, [&it, this]() { _alive.erase(it); } );
+      }
+      
+    } while(it != _alive.end());
+
+    std::this_thread::sleep_for(std::chrono::seconds(int{ALIVE_TIMEOUT}));
   }
 }
 
@@ -211,6 +254,7 @@ void RSCP::run()
   // always read in a thread
   std::thread(std::bind(&RSCP::_receive, this)).detach(); // [BUG] : Memory leak
   std::thread(std::bind(&RSCP::_local_cmd, this)).detach();
+  std::thread(std::bind(&RSCP::_keep_alive, this)).detach();
   
   while(_run) {
     int ret = poll_controller(&c);

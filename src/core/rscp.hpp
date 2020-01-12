@@ -38,13 +38,44 @@ class RSCP
   std::mutex _all_pc_list_mutex;
   std::mutex _alive_mutex;
 
+  /**
+   *\brief Lock a mutex to execute safely an operation
+   *\param m The mutex to lock/unlock
+   *\param l The operation to execute in a lambda.
+   */
+  
   template<typename Mutex, typename Lambda>
   void _th_safe_op(Mutex& m, Lambda && l);
+
+  /**
+   *\brief Listening thread to sncp_packet
+   */
   
   void _receive();
+
+  /**
+   *\biref Listening thread to local command
+   */
+  
   void _local_cmd();
+
+  /**
+   *\brief Thread to erase all pc that have tiemout
+   */
+  
   void _keep_alive();
+
+  /**
+   *\brief Listening thread to event. Then forward them through sncp packet
+   */
+  
   void _send(const ControllerEvent& ev);
+
+  /**
+   *\brief Get the next pc in the list.
+   *\param way If this is the next or previous pc.
+   */
+  
   void _transit(Combo::Way way);
 
 public:
@@ -54,13 +85,31 @@ public:
   RSCP();
   ~RSCP();
 
+  /**
+   *\brief run an rsc instance
+   */
+  
   void run();
-  int  init();
-  void exit();
-  void add_pc(const uint8_t addr[]);
 
-  const PCList&  get_config() const { return _pc_list; }
-  PCList&        get_config() { return _pc_list; }
+  /**
+   *\brief Init the object.
+   *\return 1 if there was an error. 0 otherwise.
+   */
+  
+  int  init();
+
+  /**
+   *\brief Release everything that need to be in the object
+   */
+  
+  void exit();
+
+  /**
+   *\brief Add a PC to the list (all_pc) by its mac address
+   *\param addr The mac address of the pc
+   */
+  
+  void add_pc(const uint8_t addr[]);
   
   void set_interface(int index) { _if = index; }
   

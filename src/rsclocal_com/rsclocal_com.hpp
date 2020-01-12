@@ -27,7 +27,20 @@ namespace rsclocalcom {
   
     RSCLocalComImpl() { _com_impl.open(); }
 
+    /**
+     *\brief Send a message to specified contact
+     *\param c The contact who will receive the message
+     *\param msg The message to send
+     */
+    
     void send_to(Contact c, const Message& msg);
+
+    /**
+     *\brief Receive a message from a contact.
+     *\param c The contact who send the message
+     *\param buffer The buffer in which the message will be stored
+     */
+    
     void read_from(Contact c, Message& buffer);
   
     ~RSCLocalComImpl() { _com_impl.close(); }
@@ -54,6 +67,13 @@ namespace rsclocalcom {
     msg.set(ss);
   }
 
+  /**
+   *\class RSClocalcom
+   *\brief The aim of this class is to set a communication between the core and the
+   * interface through an intern process communication. This class is a wrapper of
+   * an IPC specific to the operating system.
+   */
+  
   using RSCLocalCom = RSCLocalComImpl<IPC>;
 
 }  // rsclocalcom

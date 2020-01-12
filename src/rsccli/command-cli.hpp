@@ -8,6 +8,11 @@
 
 class RSCCli;
 
+/**
+ *\class Command
+ *\brief Build and execute an rsccli command.
+ */
+
 class Command
 {
   static constexpr char _NAME[] = "NA";
@@ -30,19 +35,68 @@ public:
   Command& operator=(const Command &other) = default;
   Command& operator=(Command &&other) = default;
 
+  /**
+   *\brief Execute the command
+   *\param cli The command line interface object to call the corresponding command
+   *\return The value returned by the command
+   *\todo Check for every subclasses if the cli object implement the method 
+   *      with SFINAE
+   */
+  
   virtual int execute(RSCCli * cli) = 0;
+
+  /**
+   *\brief Add an option to the command.
+   * An option starts with the delimiter '-'
+   *\param opt The option to add
+   */
+  
   virtual void add_opt(const std::string& opt) = 0;
+
+  /**
+   *\brief Add an argument to the command
+   * Argument do not have delimiter
+   *\param arg The argument to add. 
+   */
+  
   virtual void add_arg(const std::string& arg) = 0;
+
+  /**
+   *\brief Print the syntax on how to use the command
+   */
+  
   virtual void print_usage() const = 0;
+
+  /**
+   *\brief Return a new instance of a command corresponding to its name.
+   *\param name The name of the command
+   *\return A pointer on the command
+   */
   
   static Command::Ptr get_command(const std::string& name);
+
+  /**
+   *\brief Get the name of the command
+   *\return The name of the command
+   */
+  
   static std::string get_name() { return _NAME; }
+
+  /**
+   *\brief Print the default usage for the command
+   */
+  
   static void print_default_usage();
 
   virtual ~Command() noexcept = default;
 };
 
 // Help ///////////////////////////////////////////////////////////////////////
+
+/**
+ *\class HelpCommand
+ *\brief Display of rsccli
+ */
 
 class HelpCommand : public Command
 {
@@ -61,6 +115,11 @@ public:
 };
 
 // List ///////////////////////////////////////////////////////////////////////
+
+/**
+ *\class ListCommand
+ *\brief List the different PC according to the option
+ */
 
 class ListCommand : public Command
 {

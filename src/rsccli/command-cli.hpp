@@ -125,6 +125,10 @@ class ListCommand : public Command
 {
   static constexpr char _NAME[] = "list";
   static std::map<char, std::function<int(ListCommand*,RSCCli*)>> _on_opt;
+
+  static constexpr char ALL = 'a';
+  static constexpr char REFRESH = 'r';
+  static constexpr char CURRENT = 'c';
   
 public:
   ListCommand()

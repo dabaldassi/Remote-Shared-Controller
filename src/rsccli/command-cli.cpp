@@ -73,10 +73,11 @@ int HelpCommand::execute(RSCCli * cli)
 //                                ListCommand                                //
 ///////////////////////////////////////////////////////////////////////////////
 
-std::map<char, std::function<int(ListCommand*,RSCCli*)>> ListCommand::_on_opt = {
-  { 'c', [] (ListCommand * cmd, RSCCli* cli) -> int { return cmd->listcurrent(cli); } },
-  { 'a', [] (ListCommand * cmd, RSCCli* cli) -> int { return cmd->listall(cli); } },
-  { 'r', [] (ListCommand * cmd, RSCCli* cli) -> int { return cmd->listrefresh(cli); } },
+std::map<char, std::function<int(ListCommand*,RSCCli*)>> ListCommand::_on_opt =
+  {
+   { char{CURRENT}, [] (ListCommand * cmd, RSCCli* cli) -> int { return cmd->listcurrent(cli); } },
+   { char{ALL}, [] (ListCommand * cmd, RSCCli* cli) -> int { return cmd->listall(cli); } },
+   { char{REFRESH}, [] (ListCommand * cmd, RSCCli* cli) -> int { return cmd->listrefresh(cli); } },
 };
 
 void ListCommand::print_usage() const
@@ -92,6 +93,10 @@ void ListCommand::add_arg(const std::string&)
 void ListCommand::add_opt(const std::string& opt)
 {
   const char * c = opt.c_str();
+
+  if(opt.empty()) throw std::runtime_error("Option is empty !");
+  if(opt.substr(0, 1) != OPT_DELIM)
+    throw std::runtime_error("Option must start with !" + OPT_DELIM);
 
   for(size_t i = 1; i < opt.size(); i++) {
     if(_opts.size() >= _nb_opt)
@@ -111,21 +116,23 @@ void ListCommand::add_opt(const std::string& opt)
 void ListCommand::print_help()
 {
   std::cout << "\t" << _NAME << "\tPrint the list of computers.\n";
-  std::cout << "\t\t" << "-c" << "\tList the current list of computers." << "\n";
-  std::cout << "\t\t" << "-a"
+  std::cout << "\t\t" << "-" << CURRENT << "\tList the current list of computers." << "\n";
+  std::cout << "\t\t" << "-" << ALL
 	    << "\tList all the informations about the current computers."
 	    << "\n";
-  std::cout << "\t\t" << "-r" << "\tRefresh and list every computer available." << "\n";
+  std::cout << "\t\t" << "-" << REFRESH << "\tRefresh and list every computer available." << "\n";
   std::cout << "\n";
 }
 
 int ListCommand::execute(RSCCli * cli) 
 {
-  if(_opts.empty()) _opts.push_back('c');
+  if(_opts.empty()) {
+    int err = _on_opt[char{CURRENT}](this,cli);
+    if(err) return err;
+  }
   
   for(char c : _opts) {
     int err = _on_opt[c](this, cli);
-
     if(err) return err;
   }
   

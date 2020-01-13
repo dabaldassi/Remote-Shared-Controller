@@ -204,17 +204,25 @@ void RSCP::_local_cmd()
   Message     msg, ack(Message::ACK);
   RSCLocalCom com;
 
-  std::map<Message::Command, std::function<void(const Message&)>> on_msg {
-    { Message::IF, [this](const Message& m) { set_interface(std::stoi(m.get_arg(0))); }},
-    { Message::GETLIST, [this](const Message& ) { _pc_list.save(CURRENT_PC_LIST);
-	                                          _all_pc_list.save(ALL_PC_LIST); } },
-    { Message::SETLIST, [this](const Message& ) {
+  std::map<Message::Command, std::function<void(const Message&)>> on_msg
+    {
+     { Message::IF, [this,&ack](const Message& m) {
+		      set_interface(std::stoi(m.get_arg(0)));
+		      ack.add_arg(Message::FUTURE);  }},
+     { Message::GETLIST, [this, &ack](const Message& ) {
+			   _pc_list.save(CURRENT_PC_LIST);
+			   _all_pc_list.save(ALL_PC_LIST);
+			   ack.add_arg(Message::OK); } },
+     { Message::SETLIST, [this, &ack](const Message& ) {
 			 _th_safe_op(_pc_list_mutex, [this]() {_pc_list.load(CURRENT_PC_LIST);});
 			 _th_safe_op(_all_pc_list_mutex,[this](){_all_pc_list.load(ALL_PC_LIST);});
+			 ack.add_arg(Message::OK);
 			}},
-  };
+    };
 
   while(_run) {
+    ack.reset(Message::ACK);
+   
     com.read_from(RSCLocalCom::Contact::CLIENT, msg);
     on_msg[msg.get_cmd()](msg);
     com.send_to(RSCLocalCom::Contact::CLIENT, ack);

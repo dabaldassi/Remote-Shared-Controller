@@ -11,6 +11,7 @@ namespace rsclocalcom {
   {
   public:
     enum Command{ IF, GETLIST, SETLIST, ACK, NA};
+    enum Ack { OK, ERROR, FUTURE };
     
   private:
     Command                  _cmd;

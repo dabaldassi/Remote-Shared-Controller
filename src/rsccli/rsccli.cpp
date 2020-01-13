@@ -8,6 +8,12 @@
 #include <interface.h>
 #include <pc_list.hpp>
 
+std::map<rsclocalcom::Message::Ack, std::function<void(void)>> RSCCli::_err_msg =
+  { 
+   { rsclocalcom::Message::ERROR, []() { std::cerr << "An error occured\n"; } },
+   { rsclocalcom::Message::FUTURE, []() { std::cerr << "Not Implemented yet\n"; } },
+  };
+
 int RSCCli::_send_cmd(const rsclocalcom::Message& msg)
 {
   using namespace rsclocalcom;
@@ -16,17 +22,33 @@ int RSCCli::_send_cmd(const rsclocalcom::Message& msg)
   _com.send_to(RSCLocalCom::Contact::CORE, msg);
   m.reset();
   _com.read_from(RSCLocalCom::Contact::CORE, m);
+
+  if(m.get_cmd() == Message::ACK) {
+    auto err = (Message::Ack)std::stoi(m.get_arg(0));
+
+    if(err != Message::Ack::OK) {
+      _err_msg[err]();
+      return 1;
+    }
+    
+    return 0;
+  }
+  else {
+    std::cerr << "An error occured\n";
+  }
 	      
-  return 0;
+  return 1;
 }
 
-void RSCCli::_getlist(PCList& list, const std::string& file_name)
+int RSCCli::_getlist(PCList& list, const std::string& file_name)
 {
   rsclocalcom::Message msg(rsclocalcom::Message::GETLIST);
 
-  _send_cmd(msg);
+  int err = _send_cmd(msg);
 
-  list.load(file_name);
+  if(!err) list.load(file_name);
+
+  return err;
 }
 
 int RSCCli::run(int argc, char **argv)
@@ -110,9 +132,7 @@ int RSCCli::add(const std::string & id)
   current_list.save(CURRENT_PC_LIST);
   
   rsclocalcom::Message msg(rsclocalcom::Message::SETLIST);
-  _send_cmd(msg);
-  
-  return 0;
+  return _send_cmd(msg);
 }
 
 int RSCCli::add(const std::string & id1, const std::string & id2)
@@ -132,9 +152,7 @@ int RSCCli::add(const std::string & id1, const std::string & id2)
 
   current_list.save(CURRENT_PC_LIST);
   rsclocalcom::Message msg(rsclocalcom::Message::SETLIST);
-  _send_cmd(msg);
-  
-  return 0;
+  return _send_cmd(msg);  
 }
 
 int RSCCli::version()
@@ -169,9 +187,7 @@ int RSCCli::setif(const std::string & id)
   rsclocalcom::Message msg(rsclocalcom::Message::IF);
   msg.add_arg(id);
 
-  _send_cmd(msg);
-  
-  return 0;
+  return _send_cmd(msg);
 }
 
 int RSCCli::listif()
@@ -204,7 +220,5 @@ int RSCCli::remove(const std::string &id)
   
   current_list.save(CURRENT_PC_LIST);
   rsclocalcom::Message msg(rsclocalcom::Message::SETLIST);
-  _send_cmd(msg);
-
-  return 0;
+  return _send_cmd(msg);
 }

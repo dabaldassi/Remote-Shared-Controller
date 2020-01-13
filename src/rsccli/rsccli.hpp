@@ -2,12 +2,17 @@
 #define RSCCLI_H
 
 #include <iosfwd>
+#include <map>
+#include <functional>
+
 #include <rsclocal_com.hpp>
 
 class PCList;
 
 class RSCCli
 {
+  static std::map<rsclocalcom::Message::Ack, std::function<void(void)>> _err_msg;
+  
   rsclocalcom::RSCLocalCom _com;
 
   /**
@@ -24,7 +29,7 @@ class RSCCli
    *\param The file name where the list has been serialized
    */
   
-  void _getlist(PCList& list, const std::string& file_name);
+  int _getlist(PCList& list, const std::string& file_name);
   
 public:
   RSCCli() = default;

@@ -1,6 +1,5 @@
 #include <chrono>
 #include <combo.hpp>
-#include <cursor.h>
 
 void ComboShortcut::add_shortcut(int code, int value, int time_ms)
 {
@@ -50,6 +49,10 @@ bool ComboShortcut::update(int code, int value)
   return _current == _shortcut_list.end();
 }
 
+
+#ifndef NO_CURSOR
+#include <cursor.h>
+
 bool ComboMouse::update(int /* code */, int /* value */)
 {
   get_cursor_position(_cursor);
@@ -62,3 +65,5 @@ bool ComboMouse::update(int /* code */, int /* value */)
   
   return _way != Way::NONE;
 }
+
+#endif

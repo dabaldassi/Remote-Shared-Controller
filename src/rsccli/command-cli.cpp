@@ -1,7 +1,7 @@
 #include <iostream>
 #include <algorithm>
 
-#include <config-cli.hpp>
+#include <config.hpp>
 #include <command-cli.hpp>
 #include <rsccli.hpp>
 
@@ -36,7 +36,7 @@ Command::Ptr Command::get_command(const std::string &name)
 
 void Command::print_default_usage()
 {
-  std::cout << "Usage : " << RSCCLI << " command [opts] [args]" << "\n";
+  std::cout << "Usage : " << RSCCLI_NAME << " command [opts] [args]" << "\n";
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -45,7 +45,7 @@ void Command::print_default_usage()
 
 void HelpCommand::print_usage() const
 {
-  std::cout << "Usage : " << RSCCLI << " " << _NAME << "\n";
+  std::cout << "Usage : " << RSCCLI_NAME << " " << _NAME << "\n";
 }
 
 void HelpCommand::add_arg(const std::string&)
@@ -60,7 +60,7 @@ void HelpCommand::add_opt(const std::string&)
 
 void HelpCommand::print_help()
 {
-  std::cout << "\t" << _NAME << "\tPrint " << RSCCLI << " help.\n";
+  std::cout << "\t" << _NAME << "\tPrint " << RSCCLI_NAME << " help.\n";
   std::cout << "\n";
 }
 
@@ -82,7 +82,7 @@ std::map<char, std::function<int(ListCommand*,RSCCli*)>> ListCommand::_on_opt =
 
 void ListCommand::print_usage() const
 {
-  std::cout << "Usage : " << RSCCLI << " " << _NAME << " [ -c | -a | -r ]\n";
+  std::cout << "Usage : " << RSCCLI_NAME << " " << _NAME << " [ -c | -a | -r ]\n";
 }
 
 void ListCommand::add_arg(const std::string&)
@@ -160,7 +160,7 @@ int ListCommand::listcurrent(RSCCli* cli)
 
 void AddCommand::print_usage() const
 {
-  std::cout << "Usage : " << RSCCLI << " " << _NAME << " id [id2]\n";
+  std::cout << "Usage : " << RSCCLI_NAME << " " << _NAME << " id [id2]\n";
 }
 
 void AddCommand::add_arg(const std::string& arg)
@@ -200,7 +200,7 @@ int AddCommand::execute(RSCCli * cli)
 
 void RemoveCommand::print_usage() const
 {
-  std::cout << "Usage : " << RSCCLI << " " << _NAME << " id\n";
+  std::cout << "Usage : " << RSCCLI_NAME << " " << _NAME << " id\n";
 }
 
 void RemoveCommand::add_arg(const std::string& arg)
@@ -238,7 +238,7 @@ int RemoveCommand::execute(RSCCli * cli)
 
 void VersionCommand::print_usage() const
 {
-  std::cout << "Usage : " << RSCCLI << " " << _NAME << "\n";
+  std::cout << "Usage : " << RSCCLI_NAME << " " << _NAME << "\n";
 }
 
 void VersionCommand::add_arg(const std::string&)
@@ -253,7 +253,7 @@ void VersionCommand::add_opt(const std::string&)
 
 void VersionCommand::print_help()
 {
-  std::cout << "\t" << _NAME << "\tPrint the current version of " << RSCCLI << ".\n";
+  std::cout << "\t" << _NAME << "\tPrint the current version of " << RSCCLI_NAME << ".\n";
   std::cout << "\n";
 }
 
@@ -273,7 +273,7 @@ std::map<char, std::function<int(IfCommand*,RSCCli*)>> IfCommand::_on_opt = {
 
 void IfCommand::print_usage() const
 {
-  std::cout << "Usage : " << RSCCLI << " " << _NAME
+  std::cout << "Usage : " << RSCCLI_NAME << " " << _NAME
 	    << " {-" << SET << " id | -" << LIST << " }\n";
 }
 

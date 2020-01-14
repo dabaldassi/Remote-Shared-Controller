@@ -10,13 +10,11 @@
 
 #include <rsclocal_com.hpp>
 #include <controller.h>
-#include <cursor.h>
 
 #include <rscp.hpp>
 #include <convkey.hpp>
+#include <config.hpp>
 
-#define CURRENT_PC_LIST "/tmp/current_pc"
-#define ALL_PC_LIST "/tmp/all_pc"
 
 void error(const char * s)
 {
@@ -33,9 +31,7 @@ void RSCP::_th_safe_op(Mutex &m, Lambda &&l)
 
 RSCP::RSCP(): _if(DEFAULT_IF), _next_pc_id{0}, _state(State::HERE)
 {
-  _cursor = open_cursor_info();
-  
-  auto sh_ptr = ComboShortcut::make_ptr();
+ auto sh_ptr = ComboShortcut::make_ptr();
 
   sh_ptr->add_shortcut(KEY_LEFTCTRL, KEY_PRESSED);
   sh_ptr->add_shortcut(KEY_R, KEY_PRESSED);
@@ -62,6 +58,9 @@ RSCP::RSCP(): _if(DEFAULT_IF), _next_pc_id{0}, _state(State::HERE)
   
   _pc_list.add(local_pc);
 
+#ifndef NO_CURSOR
+  _cursor = open_cursor_info();
+
   if(_cursor) {
     _shortcut.push_back(ComboMouse::make_ptr(local_pc.resolution.w,
 					     local_pc.resolution.h,
@@ -72,11 +71,14 @@ RSCP::RSCP(): _if(DEFAULT_IF), _next_pc_id{0}, _state(State::HERE)
 				   _transit(combo->get_way());
 				 });
   }
+#endif
 }
 
 RSCP::~RSCP()
 {
+#ifndef NO_CURSOR
   if(_cursor) close_cursor_info(_cursor);
+#endif
 }
 
 int RSCP::init()
@@ -111,8 +113,10 @@ void RSCP::_transit(Combo::Way way)
  
   _state = (_pc_list.get_current().local)? State::HERE : State::AWAY;
 
+#ifndef NO_CURSOR
   if(_state == State::AWAY) hide_cursor(_cursor);
   else                      show_cursor(_cursor);
+#endif
 }
 
 void RSCP::add_pc(const uint8_t *addr)
@@ -144,6 +148,8 @@ void RSCP::_receive()
   struct scnp_packet   packet;
   ControllerEvent    * ev = nullptr;
   uint8_t              addr_src[PC::LEN_ADDR];
+
+#ifndef NO_CURSOR
   const PC&            local_pc = _pc_list.get_local();
   ComboMouse           mouse(local_pc.resolution.w, local_pc.resolution.h,_cursor);
   
@@ -156,6 +162,7 @@ void RSCP::_receive()
 		     pack.type = (Combo::Way::LEFT == way) ? OUT_LEFT : OUT_RIGHT;
 		     scnp_send(&_sock,addr_src,&pack,sizeof(pack));
 		   });
+#endif
 
   while(_run) {
     scnp_recv_from(&_sock, &packet, addr_src);
@@ -172,7 +179,10 @@ void RSCP::_receive()
     
     if(ev) {
       write_controller(ev);
+
+#ifndef NO_CURSOR
       if(ev->controller_type == MOUSE) mouse.update(ev->code, ev->value);
+#endif
     }
   }
 }

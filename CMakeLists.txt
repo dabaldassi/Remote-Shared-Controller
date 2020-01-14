@@ -11,6 +11,7 @@ include_directories(
   src/rsclocal_com
   src/rsccli
   src/common
+  src/
   ) 
  
 option(INCLUDE_TEST OFF)
@@ -40,11 +41,23 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL Windows)
-  file(GLOB_RECURSE controller_sources src/controller/*_win.c)
+  message(FATAL_ERROR "${CMAKE_SYSTEM_NAME} is not handled")
+  file(GLOB_RECURSE controller_sources src/controller/windows/*.c)
+  file(GLOB_RECURSE controller_sources src/rsclocal_com/windows/*.cpp)
 elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
-  file(GLOB_RECURSE controller_sources src/controller/linux/*.c)
   file(GLOB_RECURSE rsclocal_com_sources src/rsclocal_com/linux/*.cpp)
-  set(controller_libs X11 Xfixes)
+
+  find_package(X11 COMPONENTS Xfixes)
+
+  if( X11_FOUND )
+    message(STATUS "X11 is found, compiling with X11 features")
+    set(controller_libs X11::X11 X11::Xfixes)
+    file(GLOB_RECURSE controller_sources src/controller/linux/*.c)
+  else()
+    message(STATUS "X11 is not found, assuming there is no graphic server")
+    add_compile_options(-DNO_CURSOR)
+    file(GLOB_RECURSE controller_sources src/controller/linux/controller_linux.c)
+  endif()
 else()
   message(FATAL_ERROR "${CMAKE_SYSTEM_NAME} is not handled")
 endif()

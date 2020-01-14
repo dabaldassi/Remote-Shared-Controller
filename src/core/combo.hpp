@@ -65,6 +65,8 @@ public:
   bool update(int code, int value) override;
 };
 
+#ifndef NO_CURSOR
+
 class ComboMouse : public Combo, public Ptr<ComboMouse>
 {
   int          _width, _height;
@@ -80,6 +82,7 @@ public:
   bool update(int code, int value) override;
 };
 
+#endif
 
 
 #endif /* COMBO_H */

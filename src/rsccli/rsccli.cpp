@@ -3,7 +3,7 @@
 
 #include <rsccli.hpp>
 #include <parser-cli.hpp>
-#include <config-cli.hpp>
+#include <config.hpp>
 
 #include <interface.h>
 #include <pc_list.hpp>
@@ -157,13 +157,13 @@ int RSCCli::add(const std::string & id1, const std::string & id2)
 
 int RSCCli::version()
 {
-  std::cout << "Current version : " << VERSION << "\n\n";
+  std::cout << "Current version : " << RSCCLI_VERSION << "\n\n";
   return 0;
 }
 
 int RSCCli::help()
 {
-  std::cout << RSCCLI << " help : " << "\n\n";
+  std::cout << RSCCLI_NAME << " help : " << "\n\n";
 
   Command::print_default_usage();
 

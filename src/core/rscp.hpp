@@ -10,8 +10,11 @@
 #include <pc_list.hpp>
 #include <scnp.h>
 
+#ifndef NO_CURSOR
+#include <cursor.h>
+#endif
+
 struct ControllerEvent;
-struct CursorInfo;
 
 class RSCP
 {

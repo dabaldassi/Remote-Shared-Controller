@@ -10,11 +10,7 @@
 
 enum { LISTALL, LISTCURRENT, LISTREFRESH, ADD, ADD2, REMOVE, SETIF, LISTIF, VERSION, HELP };
 
-std::map<rsclocalcom::Message::Ack, std::function<void(void)>> RSCCli::_err_msg =
-  { 
-   { rsclocalcom::Message::ERROR, []() { std::cerr << "An error occured\n"; } },
-   { rsclocalcom::Message::FUTURE, []() { std::cerr << "Not Implemented yet\n"; } },
-  };
+std::map<rsclocalcom::Message::Ack, std::function<void(void)>> RSCCli::_err_msg{};
 
 int RSCCli::_send_cmd(const rsclocalcom::Message& )
 {
@@ -26,7 +22,7 @@ int RSCCli::_getlist(PCList&, const std::string& )
   return 0;
 }
 
-int RSCCli::run(int argc, char **argv)
+int RSCCli::run(int , char **)
 {
 
   return 0;

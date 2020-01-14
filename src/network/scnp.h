@@ -14,6 +14,7 @@ extern "C" {
 
 #define ETH_P_SCNP 0x8888
 #define MAX_SCNP_PACKET_LENGTH 7
+#define SCNP_OUT 4
 #define SCNP_ACK 254
 #define SCNP_MNGT 255
 
@@ -42,6 +43,12 @@ extern "C" {
     uint16_t code;    // Code associated to the movement event
     uint32_t value;   // Value of the movement
   } PACKED;
+
+  struct scnp_out
+  {
+    uint8_t  type;    // Type of the SCNO packet = SCNP_OUT
+    uint8_t flags;    // Flags of SCNP out of screen packet
+  };
 
   struct scnp_management
   {
@@ -95,7 +102,7 @@ extern "C" {
    * @param dest_addr Destination address.
    * @param packet SCNP packet to be sent.
    * @param packet_length Size of the SCNP packet.
-   * @return On success, returns 0. On error, returns -1.
+   * @return On success, returns the number of bytes sent. On error, returns -1.
    */
 
   int scnp_send(struct scnp_socket * sock, const uint8_t * dest_addr, struct scnp_packet * packet, size_t packet_length);

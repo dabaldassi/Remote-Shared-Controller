@@ -7,6 +7,7 @@
 #include <net/ethernet.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include <errno.h>
 
 #include "scnp.h"
 
@@ -64,6 +65,11 @@ void scnp_packet_to_buffer(uint8_t * buffer, const struct scnp_packet * packet)
       memcpy(buffer+3, &net_order_long, sizeof(uint32_t));
       break;
 
+    /* SCNP out of screen */
+    case SCNP_OUT:
+      buffer[1] = packet->data[0];
+      break;
+
     /* SCNP management */
     case SCNP_MNGT:
       buffer[1] = packet->data[0];
@@ -105,6 +111,11 @@ void scnp_buffer_to_packet(const uint8_t * buffer, struct scnp_packet * packet)
       memcpy(&host_order_long, buffer+3, sizeof(uint32_t));
       host_order_long = ntohl(host_order_long);
       memcpy(packet->data+2, &host_order_long, sizeof(uint32_t));
+      break;
+
+    /* SCNP out of screen */
+    case SCNP_OUT:
+      packet->data[0] = buffer[1];
       break;
 
     /* SCNP management */
@@ -165,22 +176,26 @@ int scnp_send(struct scnp_socket * sock, const uint8_t * dest_addr, struct scnp_
 
   /* init buffer */
   uint8_t * buffer = (uint8_t *) malloc(packet_length);
+  if (buffer == NULL) {
+    if (errno != ENOMEM) errno = ENODATA;
+    return -1;
+  }
 
   /* copy packet into buffer */
   scnp_packet_to_buffer(buffer, packet);
 
   /* send packet */
-  int bytes_sent = -1;
+  int bytes_sent = 0;
   if (scnp_is_ack_needed(packet)) {
     /* create socket to receive aknowledgment */
     struct scnp_socket ack_sock;
-    if (scnp_create_socket(&ack_sock, sock->if_index) == -1) return -1;
+    if (scnp_create_socket(&ack_sock, sock->if_index) == -1) bytes_sent = -1;
 
     /* set acknowledgment timeout */
     struct timeval ack_timeout;
     ack_timeout.tv_sec = ACK_TIMEOUT_S;
     ack_timeout.tv_usec = ACK_TIMEOUT_US;
-    if (setsockopt(ack_sock.packet_socket, SOL_SOCKET, SO_RCVTIMEO, &ack_timeout, sizeof(ack_timeout)) == -1) return -1;
+    if (setsockopt(ack_sock.packet_socket, SOL_SOCKET, SO_RCVTIMEO, &ack_timeout, sizeof(ack_timeout)) == -1) bytes_sent = -1;
 
     /* send packet and wait for acknowledgment */
     struct scnp_packet ack;
@@ -188,21 +203,20 @@ int scnp_send(struct scnp_socket * sock, const uint8_t * dest_addr, struct scnp_
     memset(ack.data, 0, MAX_SCNP_PACKET_LENGTH - 1);
     uint8_t ack_src[ETHER_ADDR_LEN];
     int i = 0;
-    while (i++ < ACK_MAX_TRIES && (ack.type != SCNP_ACK || memcmp(ack_src, dest_addr, ETHER_ADDR_LEN) != 0)) {
+    while (bytes_sent != -1 && i++ < ACK_MAX_TRIES && (ack.type != SCNP_ACK || memcmp(ack_src, dest_addr, ETHER_ADDR_LEN) != 0)) {
       bytes_sent = sendto(sock->packet_socket, buffer, packet_length, 0, (struct sockaddr *) &sock_addr, sizeof(sock_addr));
       int bytes_received = 0;
-      while (bytes_received != -1 && (ack.type != SCNP_ACK || memcmp(ack_src, dest_addr, ETHER_ADDR_LEN) != 0)) {
+      while (bytes_sent != -1 && bytes_received != -1 && (ack.type != SCNP_ACK || memcmp(ack_src, dest_addr, ETHER_ADDR_LEN) != 0)) {
         bytes_received = scnp_recv_ackless(&ack_sock, &ack, ack_src);
       }
     }
+    if (ack.type != SCNP_ACK || memcmp(ack_src, dest_addr, ETHER_ADDR_LEN) != 0) errno = ETIMEDOUT; // Set errno when no acknowledgement has been received
     if (scnp_close_socket(&ack_sock) == -1 || ack.type != SCNP_ACK || memcmp(ack_src, dest_addr, ETHER_ADDR_LEN) != 0) bytes_sent = -1;
   }
   else {
     bytes_sent = sendto(sock->packet_socket, buffer, packet_length, 0, (struct sockaddr *) &sock_addr, sizeof(sock_addr));
   }
   free(buffer);
-
-  if (bytes_sent == -1) return -1;
 
   return bytes_sent;
 }

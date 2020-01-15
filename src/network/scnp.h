@@ -13,10 +13,11 @@ extern "C" {
 #define PACKED __attribute__((packed))
 
 #define ETH_P_SCNP 0x8888
-#define MAX_SCNP_PACKET_LENGTH 7
+#define MAX_SCNP_PACKET_LENGTH 66
 #define SCNP_OUT 4
 #define SCNP_ACK 254
 #define SCNP_MNGT 255
+#define HOST_LABEL_LENGTH 63
 
   struct scnp_socket
   {
@@ -46,14 +47,14 @@ extern "C" {
 
   struct scnp_out
   {
-    uint8_t  type;    // Type of the SCNO packet = SCNP_OUT
+    uint8_t type;     // Type of the SCNO packet = SCNP_OUT
     uint8_t flags;    // Flags of SCNP out of screen packet
   };
 
   struct scnp_management
   {
-    uint8_t type;   // Type of the SCNP packet = SCNP_MNGT
-    uint8_t flags;  // Flags of SCNP management packet
+    uint8_t type;                       // Type of the SCNP packet = SCNP_MNGT
+    char hostname[HOST_LABEL_LENGTH];   // Hostname label of the device linked with the source interface
   } PACKED;
 
   struct scnp_ack

@@ -72,7 +72,7 @@ void scnp_packet_to_buffer(uint8_t * buffer, const struct scnp_packet * packet)
 
     /* SCNP management */
     case SCNP_MNGT:
-      buffer[1] = packet->data[0];
+      memcpy(buffer + 1, packet->data, HOST_LABEL_LENGTH);
       break;
 
     /* SCNP acknowledgement */
@@ -120,7 +120,7 @@ void scnp_buffer_to_packet(const uint8_t * buffer, struct scnp_packet * packet)
 
     /* SCNP management */
     case SCNP_MNGT:
-      packet->data[0] = buffer[1];
+      memcpy(packet->data, buffer + 1, HOST_LABEL_LENGTH);
       break;
 
     /* SCNP acknowledgement */
@@ -341,7 +341,7 @@ void * session_run(void * session_data)
     /* init data to send */
     struct scnp_management packet;
     packet.type = SCNP_MNGT;
-    packet.flags = 0x80;
+    gethostname(packet.hostname, HOST_LABEL_LENGTH); // Possible error
     size_t packet_length = sizeof(packet);
 
     /* send I'm alive packet every SESSION_TIMEOUT */

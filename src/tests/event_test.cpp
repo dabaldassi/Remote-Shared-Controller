@@ -66,6 +66,8 @@ TEST_CASE("Move Mouse")
   exit_controller();
 }
 
+#ifdef CONTROLLER_EVENT_TEST
+
 TEST_CASE("controllerevent")
 {
   using namespace std::chrono_literals;
@@ -99,6 +101,8 @@ TEST_CASE("controllerevent")
 
   exit_controller();
 }
+
+#endif
 
 #ifdef GRAB_TEST
 

@@ -11,10 +11,11 @@ TEST_CASE("Message") {
     std::stringstream ss;
     Message m(Message::ACK);
 
-    REQUIRE_THROWS(m.add_arg("arg"));
-    
+    REQUIRE_THROWS(m.get(ss));
+    REQUIRE_NOTHROW(m.add_arg(Message::OK));
     REQUIRE_NOTHROW(m.get(ss));
-    REQUIRE(ss.str() == "ACK");
+    
+    REQUIRE(ss.str() == "ACK 0");
   }
 
   SECTION("GETLIST") {
@@ -95,11 +96,12 @@ TEST_CASE("Com") {
 
   std::stringstream().swap(ss);
   msg.reset(Message::ACK);
+  msg.add_arg(Message::OK);
 
   com.send_to(RSCLocalCom::Contact::CLIENT,msg);
   msg.reset();
   com.read_from(RSCLocalCom::Contact::CORE,msg);
 
   REQUIRE_NOTHROW(msg.get(ss));
-  REQUIRE(ss.str() == "ACK");
+  REQUIRE(ss.str() == "ACK 0");
 }

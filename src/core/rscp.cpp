@@ -142,8 +142,8 @@ void RSCP::add_pc(const uint8_t *addr)
 
 void RSCP::_receive()
 {
-  constexpr int OUT_LEFT  = 5;
-  constexpr int OUT_RIGHT = 6;
+  constexpr int OUT_LEFT  = 0;
+  constexpr int OUT_RIGHT = 1u << 7;
   
   struct scnp_packet   packet;
   ControllerEvent    * ev = nullptr;
@@ -158,24 +158,37 @@ void RSCP::_receive()
 		     int sens = (way == Combo::Way::LEFT)?1:-1;
 		     mouse_move(sens * 5, 0);
 		     
-		     struct scnp_packet pack;
-		     pack.type = (Combo::Way::LEFT == way) ? OUT_LEFT : OUT_RIGHT;
-		     scnp_send(&_sock,addr_src,&pack,sizeof(pack));
+		     struct scnp_out pkt;
+		     pkt.type = SCNP_OUT;
+		     pkt.flags = 0x00;
+		     pkt.flags |= (Combo::Way::LEFT == way) ? OUT_LEFT : OUT_RIGHT;
+		     scnp_send(&_sock,addr_src,
+			       reinterpret_cast<struct scnp_packet *>(&pkt),
+			       sizeof(pkt));
 		   });
 #endif
+
+  std::map<uint8_t, std::function<ControllerEvent *(void)>> on_packet =
+    {
+     { EV_KEY, [&packet]() { return ConvKey<ControllerEvent,KEY>::get(packet); }},
+     { EV_REL, [&packet]() { return ConvKey<ControllerEvent,MOUSE>::get(packet); }},
+     { EV_ABS, []() { return nullptr; } },
+     { SCNP_OUT, [&packet,this]() {
+		   auto * pkt = reinterpret_cast<struct scnp_out*>(&packet);
+		   if(!(pkt->flags & OUT_LEFT)) _transit(Combo::Way::LEFT);
+		   else                         _transit(Combo::Way::RIGHT);
+		   return nullptr;
+		 }},
+     { SCNP_MNGT, [this, &addr_src]() { add_pc(addr_src); return nullptr; }},
+    };
 
   while(_run) {
     scnp_recv_from(&_sock, &packet, addr_src);
     
-    switch(packet.type) {
-    case EV_KEY:    ev = ConvKey<ControllerEvent,KEY>::get(packet);   break;
-    case EV_ABS:    // [BUG] Can't move mouse in ABS for now
-    case EV_REL:    ev = ConvKey<ControllerEvent,MOUSE>::get(packet); break;
-    case OUT_LEFT:  _transit(Combo::Way::LEFT); ev = nullptr;         break;
-    case OUT_RIGHT: _transit(Combo::Way::RIGHT); ev = nullptr;        break;
-    case SCNP_MNGT: add_pc(addr_src);                                 break;
-    default:        ev = nullptr;                                     break;
-    }
+    auto it = on_packet.find(packet.type);
+    
+    if(it != on_packet.end()) ev = it->second();
+    else                      ev = nullptr;
     
     if(ev) {
       write_controller(ev);
@@ -246,12 +259,14 @@ void RSCP::_keep_alive()
   while(_run) {
 
     do {
-      it = std::find_if(_alive.begin(), _alive.end(), [](const auto& a) {
-							auto now = RSCP::clock_t::now();
-							std::chrono::duration<double> elapsed;
-							elapsed = now - a.second;
-							return elapsed.count() > ALIVE_TIMEOUT;
-						      });
+      it = std::find_if(_alive.begin(),
+			_alive.end(),
+			[](const auto& a) {
+			  auto now = RSCP::clock_t::now();
+			  std::chrono::duration<double> elapsed;
+			  elapsed = now - a.second;
+			  return elapsed.count() > ALIVE_TIMEOUT;
+			});
 
       if(it != _alive.end()) {
 	_th_safe_op(_pc_list_mutex, [&it,this]() {_pc_list.remove(it->first); });

@@ -119,13 +119,13 @@ void RSCP::_transit(Combo::Way way)
 #endif
 }
 
-void RSCP::add_pc(const uint8_t *addr)
+void RSCP::add_pc(const uint8_t *addr, const std::string& hostname)
 {
   bool exist = _all_pc_list.exist([&addr](const PC& pc) -> bool {
 				    return !memcmp(addr, pc.address, PC::LEN_ADDR);
 				  });
   if(!exist) {
-    PC pc{ _next_pc_id++, false, "PC " + std::to_string(_next_pc_id), {0}, { 0,0 }, { 0,0 }}; 
+    PC pc{ _next_pc_id++, false, hostname, {0}, { 0,0 }, { 0,0 }}; 
 
     memcpy(pc.address, addr, PC::LEN_ADDR);
     
@@ -179,7 +179,10 @@ void RSCP::_receive()
 		   else                         _transit(Combo::Way::RIGHT);
 		   return nullptr;
 		 }},
-     { SCNP_MNGT, [this, &addr_src]() { add_pc(addr_src); return nullptr; }},
+     { SCNP_MNGT, [this, &addr_src, &packet]() {
+		    auto * pkt = reinterpret_cast<struct scnp_management*>(&packet);
+		    add_pc(addr_src, pkt->hostname);
+		    return nullptr; }},
     };
 
   while(_run) {

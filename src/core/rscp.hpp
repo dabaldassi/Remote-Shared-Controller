@@ -112,7 +112,7 @@ public:
    *\param addr The mac address of the pc
    */
   
-  void add_pc(const uint8_t addr[]);
+  void add_pc(const uint8_t addr[], const std::string& hostname);
   
   void set_interface(int index) { _if = index; }
   

@@ -114,7 +114,7 @@ public:
   
   void add_pc(const uint8_t addr[], const std::string& hostname);
   
-  void set_interface(int index) { _if = index; }
+  void set_interface(int index);
   
 private:
   State _state;

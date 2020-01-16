@@ -234,7 +234,7 @@ void RSCP::_local_cmd()
     {
      { Message::IF, [this,&ack](const Message& m) {
 		      set_interface(std::stoi(m.get_arg(0)));
-		      ack.add_arg(Message::FUTURE);  }},
+		      ack.add_arg(Message::OK);  }},
      { Message::GETLIST, [this, &ack](const Message& ) {
 			   _pc_list.save(CURRENT_PC_LIST);
 			   _all_pc_list.save(ALL_PC_LIST);
@@ -303,4 +303,12 @@ void RSCP::run()
     case State::AWAY: _send(c); break;
     }
   }
+}
+
+void RSCP::set_interface(int index)
+{
+  scnp_stop_session(_if);
+  _if = index;
+  _sock.if_index = index;
+  scnp_start_session(_if);
 }

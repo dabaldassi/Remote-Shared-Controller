@@ -93,12 +93,16 @@ static void set_cursor_visibility(Display * display, bool t)
 
 void show_cursor(CursorInfo* cursor)
 {
-  cursor->visible = true;
-  set_cursor_visibility(cursor->display, true);
+  if(!cursor->visible) {
+    cursor->visible = true;
+    set_cursor_visibility(cursor->display, true);
+  }
 }
 
 void hide_cursor(CursorInfo* cursor)
 {
-  cursor->visible = false;
-  return set_cursor_visibility(cursor->display, false);
+  if(cursor->visible) {
+    cursor->visible = false;
+    set_cursor_visibility(cursor->display, false);
+  }
 }

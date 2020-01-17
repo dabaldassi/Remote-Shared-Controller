@@ -116,6 +116,28 @@ public:
    */
   
   int listif();
+
+  /**
+   *\brief Start the core if it is paused
+   *\return 1 if there was an error. 0 otherwise
+   *\todo Start a new process if core is not launched ?
+   */
+  
+  int start();
+
+  /**
+   *\brief Stop the core.
+   *\return 1 if there was an error. 0 otherwise
+   */
+  
+  int stop();
+
+  /**
+   *\brief Pause the core if it is running. 
+   *\return 1 if there was an error. 0 otherwise
+   */
+  
+  int pause();
 };
 
 

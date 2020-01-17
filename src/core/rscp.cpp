@@ -1,20 +1,13 @@
-#include <thread>
-#include <future>
 #include <functional>
-#include <iostream>
-#include <csignal>
-#include <map>
 #include <string>
 #include <cstring>
 #include <algorithm>
 
-#include <rsclocal_com.hpp>
-#include <controller.h>
+#include <controller.h> // Must be before convkey.hpp
+#include <rscp.hpp> // Also before convkey.hpp
 
-#include <rscp.hpp>
 #include <convkey.hpp>
 #include <config.hpp>
-
 
 void error(const char * s)
 {
@@ -91,8 +84,6 @@ int RSCP::init()
   if(err) error("Can't init controller");
 
   _run = true;
-
-  scnp_start_session(_if);
   
   return 0;
 }
@@ -101,7 +92,6 @@ void RSCP::exit()
 {
   exit_controller();
   scnp_close_socket(&_sock);
-  scnp_stop_session(_if);
 }
 
 void RSCP::_transit(Combo::Way way)
@@ -228,31 +218,46 @@ void RSCP::_local_cmd()
 {
   using namespace rsclocalcom;
   Message     msg, ack(Message::ACK);
-  RSCLocalCom com;
+  bool        pause_request = false, stop_request = false;
 
-  std::map<Message::Command, std::function<void(const Message&)>> on_msg
+  std::map<Message::Command, std::function<void(const Message&)>> on_msg = 
     {
-     { Message::IF, [this,&ack](const Message& m) {
-		      set_interface(std::stoi(m.get_arg(0)));
-		      ack.add_arg(Message::OK);  }},
-     { Message::GETLIST, [this, &ack](const Message& ) {
-			   _pc_list.save(CURRENT_PC_LIST);
-			   _all_pc_list.save(ALL_PC_LIST);
-			   ack.add_arg(Message::OK); } },
-     { Message::SETLIST, [this, &ack](const Message& ) {
-			 _th_safe_op(_pc_list_mutex, [this]() {_pc_list.load(CURRENT_PC_LIST);});
-			 _th_safe_op(_all_pc_list_mutex,[this](){_all_pc_list.load(ALL_PC_LIST);});
-			 ack.add_arg(Message::OK);
-			}},
+      { Message::IF, [this,&ack](const Message& m) {
+	  set_interface(std::stoi(m.get_arg(0)));
+	  ack.add_arg(Message::OK);  }},
+      { Message::GETLIST, [this, &ack](const Message& ) {
+	  _pc_list.save(CURRENT_PC_LIST);
+	  _all_pc_list.save(ALL_PC_LIST);
+	  ack.add_arg(Message::OK); } },
+      { Message::SETLIST, [this, &ack](const Message& ) {
+	  _th_safe_op(_pc_list_mutex, [this]() {_pc_list.load(CURRENT_PC_LIST);});
+	  _th_safe_op(_all_pc_list_mutex,[this](){_all_pc_list.load(ALL_PC_LIST);});
+	  ack.add_arg(Message::OK);
+	}},
+      { Message::START, [&ack](const Message&) {
+	  ack.add_arg(Message::STARTED);
+	}},
+      { Message::STOP, [&stop_request, &ack](const Message&) {
+	  stop_request = true;
+	  ack.add_arg(Message::OK);
+	}},
+      { Message::PAUSE, [&pause_request, &ack](const Message&) {
+	  pause_request = true;
+	  ack.add_arg(Message::OK);
+	}},
     };
 
   while(_run) {
     ack.reset(Message::ACK);
    
-    com.read_from(RSCLocalCom::Contact::CLIENT, msg);
+    _com.read_from(RSCLocalCom::Contact::CLIENT, msg);
     on_msg[msg.get_cmd()](msg);
-    com.send_to(RSCLocalCom::Contact::CLIENT, ack);
+    _com.send_to(RSCLocalCom::Contact::CLIENT, ack);
+
+    if(pause_request)     pause_requested();
+    else if(stop_request) stop_requested();
   }
+
 }
 
 void RSCP::_keep_alive()
@@ -283,14 +288,9 @@ void RSCP::_keep_alive()
   }
 }
 
-void RSCP::run()
+void RSCP::_send()
 {
   ControllerEvent c;
-
-  // always read in a thread
-  std::thread(std::bind(&RSCP::_receive, this)).detach(); // [BUG] : Memory leak
-  std::thread(std::bind(&RSCP::_local_cmd, this)).detach();
-  std::thread(std::bind(&RSCP::_keep_alive, this)).detach();
   
   while(_run) {
     int ret = poll_controller(&c);
@@ -303,6 +303,38 @@ void RSCP::run()
     case State::AWAY: _send(c); break;
     }
   }
+
+  stop_requested();
+}
+
+void RSCP::run()
+{
+  scnp_start_session(_if);
+  
+  _pause = false;
+  _run = true;
+  
+  _threads.push_back(std::thread(std::bind(&RSCP::_receive, this)));
+  _threads.push_back(std::thread([this]() { _send(); }));
+  _threads.push_back(std::thread(std::bind(&RSCP::_keep_alive, this)));
+  _threads.push_back(std::thread(&RSCP::_local_cmd, this));
+
+  for(auto&& th : _threads) th.join();
+
+  _threads.clear();
+  scnp_stop_session(_if);
+}
+
+void RSCP::pause_requested()
+{
+  _pause = true;
+  for(auto&& th : _threads) pthread_cancel(th.native_handle());  
+}
+
+void RSCP::stop_requested()
+{
+  _run = false;
+  for(auto&& th : _threads) pthread_cancel(th.native_handle());
 }
 
 void RSCP::set_interface(int index)
@@ -311,4 +343,32 @@ void RSCP::set_interface(int index)
   _if = index;
   _sock.if_index = index;
   scnp_start_session(_if);
+}
+
+void RSCP::wait_for_wakeup()
+{
+  using namespace rsclocalcom;
+  Message msg, ack(Message::ACK);
+
+  while(_pause) {
+    _com.read_from(RSCLocalCom::Contact::CLIENT, msg);
+    ack.reset(Message::ACK);
+
+    switch(msg.get_cmd()) {
+    case Message::START:
+      _pause = false;
+      ack.add_arg(Message::OK);
+      break;
+    case Message::STOP:
+      _pause = false;
+      _run = false;
+      ack.add_arg(Message::OK);
+      break;
+    default:
+      ack.add_arg(Message::PAUSED);
+      break;
+    }
+
+    _com.send_to(RSCLocalCom::Contact::CLIENT, ack);
+  }
 }

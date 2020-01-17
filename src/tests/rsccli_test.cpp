@@ -8,7 +8,8 @@
 #include <parser-cli.hpp>
 #include <rsccli.hpp>
 
-enum { LISTALL, LISTCURRENT, LISTREFRESH, ADD, ADD2, REMOVE, SETIF, LISTIF, VERSION, HELP };
+enum { LISTALL, LISTCURRENT, LISTREFRESH, ADD, ADD2, REMOVE, SETIF, LISTIF, VERSION, HELP,
+       START, STOP, PAUSE};
 
 std::map<rsclocalcom::Message::Ack, std::function<void(void)>> RSCCli::_err_msg{};
 
@@ -80,6 +81,22 @@ int RSCCli::remove(const std::string &)
   return REMOVE;
 }
 
+int RSCCli::start()
+{
+  return START;
+}
+
+int RSCCli::stop()
+{
+  return STOP;
+}
+
+int RSCCli::pause()
+{
+  return PAUSE;
+}
+
+
 TEST_CASE("Command") {
   RSCCli cli;
   
@@ -125,6 +142,33 @@ TEST_CASE("Command") {
     REQUIRE_THROWS(cmd.add_opt("-a"));
     
     REQUIRE(cmd.execute(&cli) == VERSION);
+  }
+
+  SECTION("start") {
+    StartCommand cmd;
+
+    REQUIRE_THROWS(cmd.add_arg("a"));
+    REQUIRE_THROWS(cmd.add_opt("-a"));
+    
+    REQUIRE(cmd.execute(&cli) == START);
+  }
+
+  SECTION("stop") {
+    StopCommand cmd;
+
+    REQUIRE_THROWS(cmd.add_arg("a"));
+    REQUIRE_THROWS(cmd.add_opt("-a"));
+    
+    REQUIRE(cmd.execute(&cli) == STOP);
+  }
+
+    SECTION("pause") {
+    PauseCommand cmd;
+
+    REQUIRE_THROWS(cmd.add_arg("a"));
+    REQUIRE_THROWS(cmd.add_opt("-a"));
+    
+    REQUIRE(cmd.execute(&cli) == PAUSE);
   }
   
   SECTION("help") {
@@ -202,6 +246,15 @@ TEST_CASE("parser") {
      std::make_tuple("version", 0, VERSION),
      std::make_tuple("version -a", 1, 0),
      std::make_tuple("version a", 1, 0),
+     std::make_tuple("start", 0, START),
+     std::make_tuple("start -a", 1, 0),
+     std::make_tuple("start a", 1, 0),
+     std::make_tuple("stop", 0, STOP),
+     std::make_tuple("stop -a", 1, 0),
+     std::make_tuple("stop a", 1, 0),
+     std::make_tuple("pause", 0, PAUSE),
+     std::make_tuple("pause -a", 1, 0),
+     std::make_tuple("pause a", 1, 0),
      std::make_tuple("help", 0, HELP),
      std::make_tuple("help -a", 1, 0),
      std::make_tuple("help a", 1, 0),

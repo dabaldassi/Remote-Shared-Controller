@@ -229,4 +229,59 @@ public:
   static std::string get_name() { return _NAME; }
 };
 
+
+// Start ///////////////////////////////////////////////////////////////////////
+
+class StartCommand : public Command
+{
+  static constexpr char _NAME[] = "start";
+  
+public:
+  StartCommand() = default;
+
+  void print_usage() const override;
+  void add_arg(const std::string& arg) override;
+  void add_opt(const std::string& opt) override;
+  int  execute(RSCCli * cli) override;
+
+  static void print_help();
+  static std::string get_name() { return _NAME; }
+};
+
+// Stop ///////////////////////////////////////////////////////////////////////
+
+class StopCommand : public Command
+{
+  static constexpr char _NAME[] = "stop";
+  
+public:
+  StopCommand() = default;
+
+  void print_usage() const override;
+  void add_arg(const std::string& arg) override;
+  void add_opt(const std::string& opt) override;
+  int  execute(RSCCli * cli) override;
+
+  static void print_help();
+  static std::string get_name() { return _NAME; }
+};
+
+// Pause ///////////////////////////////////////////////////////////////////////
+
+class PauseCommand : public Command
+{
+  static constexpr char _NAME[] = "pause";
+  
+public:
+  PauseCommand() = default;
+
+  void print_usage() const override;
+  void add_arg(const std::string& arg) override;
+  void add_opt(const std::string& opt) override;
+  int  execute(RSCCli * cli) override;
+
+  static void print_help();
+  static std::string get_name() { return _NAME; }
+};
+
 #endif /* COMMAND_H */

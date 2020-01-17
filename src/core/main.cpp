@@ -10,7 +10,13 @@ int main(int argc, char *argv[])
   if(argc == 2) rscp.set_interface(atoi(argv[1]));
   
   rscp.init();
-  rscp.run();
+
+  do {
+    rscp.run();
+    if(rscp.is_paused()) rscp.wait_for_wakeup();
+    
+  }while(rscp.is_running());
+  
   rscp.exit();
   
   return 0;

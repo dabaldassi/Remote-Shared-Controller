@@ -15,6 +15,9 @@ constexpr char AddCommand::_NAME[];
 constexpr char RemoveCommand::_NAME[];
 constexpr char VersionCommand::_NAME[];
 constexpr char IfCommand::_NAME[];
+constexpr char StartCommand::_NAME[];
+constexpr char StopCommand::_NAME[];
+constexpr char PauseCommand::_NAME[];
 constexpr char Command::_NAME[];
 
 const std::string Command::OPT_DELIM = "-";
@@ -29,8 +32,11 @@ Command::Ptr Command::get_command(const std::string &name)
   else if(name == ListCommand::get_name())    return std::make_unique<ListCommand>();
   else if(name == AddCommand::get_name())     return std::make_unique<AddCommand>();
   else if(name == VersionCommand::get_name()) return std::make_unique<VersionCommand>();
-  else if(name == RemoveCommand::get_name()) return std::make_unique<RemoveCommand>();
+  else if(name == RemoveCommand::get_name())  return std::make_unique<RemoveCommand>();
   else if(name == IfCommand::get_name())      return std::make_unique<IfCommand>();
+  else if(name == PauseCommand::get_name())   return std::make_unique<PauseCommand>();
+  else if(name == StartCommand::get_name())   return std::make_unique<StartCommand>();
+  else if(name == StopCommand::get_name())    return std::make_unique<StopCommand>();
   else                                        return nullptr;
 }
 
@@ -343,4 +349,94 @@ int IfCommand::set(RSCCli * cli)
 int IfCommand::list(RSCCli * cli)
 {
   return cli->listif();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//                                   Start                                   //
+///////////////////////////////////////////////////////////////////////////////
+
+void StartCommand::print_usage() const
+{
+  std::cout << "Usage : " << RSCCLI_NAME << " " << _NAME << "\n";
+}
+
+void StartCommand::add_arg(const std::string&)
+{
+  throw std::runtime_error(_NAME + std::string(" doesn't take argument"));
+}
+
+void StartCommand::add_opt(const std::string&)
+{
+  throw std::runtime_error(_NAME + std::string(" doesn't take option"));
+}
+
+void StartCommand::print_help()
+{
+  std::cout << "\t" << _NAME << "\tStart the core if paused " << RSCCLI_NAME << ".\n";
+  std::cout << "\n";
+}
+
+int StartCommand::execute(RSCCli * cli)
+{
+  return cli->start();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//                                   Stop                                   //
+///////////////////////////////////////////////////////////////////////////////
+
+void StopCommand::print_usage() const
+{
+  std::cout << "Usage : " << RSCCLI_NAME << " " << _NAME << "\n";
+}
+
+void StopCommand::add_arg(const std::string&)
+{
+  throw std::runtime_error(_NAME + std::string(" doesn't take argument"));
+}
+
+void StopCommand::add_opt(const std::string&)
+{
+  throw std::runtime_error(_NAME + std::string(" doesn't take option"));
+}
+
+void StopCommand::print_help()
+{
+  std::cout << "\t" << _NAME << "\tStop the core " << RSCCLI_NAME << ".\n";
+  std::cout << "\n";
+}
+
+int StopCommand::execute(RSCCli * cli)
+{
+  return cli->stop();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//                                   Pause                                   //
+///////////////////////////////////////////////////////////////////////////////
+
+void PauseCommand::print_usage() const
+{
+  std::cout << "Usage : " << RSCCLI_NAME << " " << _NAME << "\n";
+}
+
+void PauseCommand::add_arg(const std::string&)
+{
+  throw std::runtime_error(_NAME + std::string(" doesn't take argument"));
+}
+
+void PauseCommand::add_opt(const std::string&)
+{
+  throw std::runtime_error(_NAME + std::string(" doesn't take option"));
+}
+
+void PauseCommand::print_help()
+{
+  std::cout << "\t" << _NAME << "\tPause the core if it is running " << RSCCLI_NAME << ".\n";
+  std::cout << "\n";
+}
+
+int PauseCommand::execute(RSCCli * cli)
+{
+  return cli->pause();
 }

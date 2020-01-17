@@ -5,10 +5,12 @@
 #include <chrono>
 #include <map>
 #include <mutex>
+#include <thread>
 
 #include <combo.hpp>
 #include <pc_list.hpp>
 #include <scnp.h>
+#include <rsclocal_com.hpp>
 
 #ifndef NO_CURSOR
 #include <cursor.h>
@@ -32,14 +34,16 @@ class RSCP
   PCList                _pc_list;
   PCList                _all_pc_list;
   socket_t              _sock;
-  std::atomic_bool      _run;
+  std::atomic_bool      _run, _pause;
   int                   _if;
   int                   _next_pc_id;
   CursorInfo *          _cursor;
-
-  std::mutex _pc_list_mutex;
-  std::mutex _all_pc_list_mutex;
-  std::mutex _alive_mutex;
+  
+  rsclocalcom::RSCLocalCom _com;
+  std::vector<std::thread> _threads; // Index 0 is reserved for keep_alive
+  std::mutex               _pc_list_mutex;
+  std::mutex               _all_pc_list_mutex;
+  std::mutex               _alive_mutex;
 
   /**
    *\brief Lock a mutex to execute safely an operation
@@ -69,10 +73,17 @@ class RSCP
   void _keep_alive();
 
   /**
-   *\brief Listening thread to event. Then forward them through sncp packet
+   *\brief Send an event through scnp_packet.
+   *\param ev The evenement to send
    */
   
   void _send(const ControllerEvent& ev);
+
+  /**
+   *\brief Listening thread to event.
+   */
+  
+  void _send();
 
   /**
    *\brief Get the next pc in the list.
@@ -113,8 +124,34 @@ public:
    */
   
   void add_pc(const uint8_t addr[], const std::string& hostname);
+
+  /**
+   *\brief Change the current network interface.
+   *\param index The index of the current interface.
+   */
   
   void set_interface(int index);
+
+  /**
+   *\brief Put rsc core into sleep.
+   */
+  
+  void pause_requested();
+  
+  /**
+   *\brief Stop rsc core.
+   */
+  
+  void stop_requested();
+  
+  bool is_paused() const { return _pause; }
+  bool is_running() const { return _run; }
+
+  /**
+   *\brief Wait for a command to wake up the core or stop it when sleeping.
+   */
+  
+  void wait_for_wakeup();
   
 private:
   State _state;

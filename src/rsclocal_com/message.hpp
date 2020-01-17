@@ -10,8 +10,8 @@ namespace rsclocalcom {
   class Message
   {
   public:
-    enum Command{ IF, GETLIST, SETLIST, ACK, NA};
-    enum Ack { OK, ERROR, FUTURE };
+    enum Command{ IF, GETLIST, SETLIST, ACK, START, STOP, PAUSE, NA};
+    enum Ack { OK, ERROR, STARTED, PAUSED, FUTURE };
     
   private:
     Command                  _cmd;

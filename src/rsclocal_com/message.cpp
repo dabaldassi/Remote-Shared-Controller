@@ -7,7 +7,10 @@ std::vector<std::tuple<std::string,size_t>> Message::_commands =
   { std::make_tuple("IF",1),
     std::make_tuple("GETLIST",0),
     std::make_tuple("SETLIST",0),
-    std::make_tuple("ACK",1)
+    std::make_tuple("ACK",1),
+    std::make_tuple("START",0),
+    std::make_tuple("STOP",0),
+    std::make_tuple("PAUSE",0),
   };
 
 Message::Message(Command c): _cmd(c)

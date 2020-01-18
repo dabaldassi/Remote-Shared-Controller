@@ -295,12 +295,16 @@ void RSCP::_send()
   while(_run) {
     int ret = poll_controller(&c);
     if(!ret) continue;
+    if(ret & 0x02) {
+    }
+    if(ret & 0x01) {
 
-    for(auto&& s : _shortcut) s->update(c.code, c.value);
+      for(auto&& s : _shortcut) s->update(c.code, c.value);
     
-    switch(_state) {
-    case State::HERE:           break;
-    case State::AWAY: _send(c); break;
+      switch(_state) {
+      case State::HERE:           break;
+      case State::AWAY: _send(c); break;
+      }
     }
   }
 

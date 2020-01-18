@@ -19,6 +19,8 @@ CursorInfo* open_cursor_info()
 {
   CursorInfo * cursor = malloc(sizeof(CursorInfo));
 
+  XInitThreads();
+
   cursor->pos_x = 0;
   cursor->pos_y = 0;
   cursor->visible = true;

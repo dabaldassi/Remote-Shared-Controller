@@ -157,9 +157,8 @@ void RSCP::_receive()
 
   std::map<uint8_t, std::function<ControllerEvent *(void)>> on_packet =
     {
-     { EV_KEY, [&packet]() { return ConvKey<ControllerEvent,KEY>::get(packet); }},
-     { EV_REL, [&packet]() { return ConvKey<ControllerEvent,MOUSE>::get(packet); }},
-     { EV_ABS, []() { return nullptr; } },
+     { SCNP_KEY, [&packet]() { return ConvKey<ControllerEvent,KEY>::get(packet); }},
+     { SCNP_MOV, [&packet]() { return ConvKey<ControllerEvent,MOUSE>::get(packet); }},
      { SCNP_OUT, [&packet,this]() {
 		   auto * pkt = reinterpret_cast<struct scnp_out*>(&packet);
 		   if(!pkt->direction) _transit(Combo::Way::LEFT);
@@ -173,7 +172,9 @@ void RSCP::_receive()
     };
 
   while(_run) {
-    scnp_recv(&_sock, &packet, addr_src);
+    int err = scnp_recv(&_sock, &packet, addr_src);
+
+    if(err == -1) perror("scnp_recv");
     
     auto it = on_packet.find(packet.type);
     
@@ -197,12 +198,12 @@ void RSCP::_send(const ControllerEvent &ev)
   case MOUSE:
     scnp_send(&_sock,
 	      ConvKey<struct scnp_packet, MOUSE>::get(ev),
-        _pc_list.get_current().address);
+	      _pc_list.get_current().address);
     break;
   case KEY:
     scnp_send(&_sock,
 	      ConvKey<struct scnp_packet, KEY>::get(ev),
-        _pc_list.get_current().address);
+	      _pc_list.get_current().address);
     break;
   default:
     break;
@@ -288,10 +289,10 @@ void RSCP::_send()
   ControllerEvent c;
   
   while(_run) {
+    c.grabbed = _state == State::AWAY;
     int ret = poll_controller(&c);
     if(!ret) continue;
-    if(ret & 0x02) {
-    }
+    
     if(ret & 0x01) {
 
       for(auto&& s : _shortcut) s->update(c.code, c.value);

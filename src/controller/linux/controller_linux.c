@@ -29,7 +29,7 @@ typedef struct EventFileInfo
 static int           uinput_file_descriptor = -1;
 static EventFileInfo event_file_info;
 
-static void add_event_file(const char * name)
+static void add_event_file(const char * name, bool must_grab)
 {
   if(event_file_info.size >= event_file_info.capacity) {
     event_file_info.capacity <<= 1;
@@ -52,13 +52,15 @@ static void add_event_file(const char * name)
   strcpy(event_file_info.names[event_file_info.size], name);
 
   char dir_name[256] = DEV_INPUT_FILE_NAME;
-  event_file_info.pfds[event_file_info.size].fd = open(strcat(dir_name,name),
-						       O_RDONLY | O_NONBLOCK);
+  int  fd = open(strcat(dir_name,name),
+		 O_RDONLY | O_NONBLOCK);
   
-  if(event_file_info.pfds[event_file_info.size].fd < 0) perror(dir_name);
-  
+  if(fd < 0) perror(dir_name);
+
+  if(must_grab) ioctl(fd, EVIOCGRAB, 1);
+
+  event_file_info.pfds[event_file_info.size].fd = fd;
   event_file_info.pfds[event_file_info.size].events = POLLIN;
-  
   ++event_file_info.size;
 }
 
@@ -326,7 +328,7 @@ void write_controller(const ControllerEvent * ce)
    argv is the list of watched directories.
    Entry 0 of wd and argv is unused. */
 
-static void handle_inotify(void)
+static void handle_inotify(bool must_grab)
 {
   /* Some systems cannot read integer variables if they are not
      properly aligned. On other systems, incorrect alignment may
@@ -366,7 +368,7 @@ static void handle_inotify(void)
       event = (const struct inotify_event *) ptr;
 
       if(!(event->mask & IN_ISDIR) && !strncmp(event->name, event_name, event_len)) {
-	if(event->mask & IN_CREATE) add_event_file(event->name);
+	if(event->mask & IN_CREATE) add_event_file(event->name,must_grab);
 	if(event->mask & IN_DELETE) remove_event_file(event->name);
       }
     }
@@ -390,7 +392,7 @@ int poll_controller(ControllerEvent * ce)
     if(event_file_info.pfds[i].revents & POLLIN) {
       if(i == 0) {
 	--p;
-	handle_inotify();
+	handle_inotify(ce->grabbed);
 	quit |= RINO; 
       }
       else {

@@ -126,7 +126,7 @@ TEST_CASE("scnp_send") {
 
   SECTION("scnp_out") {
     /* send out */
-    struct scnp_out out = {SCNP_OUT, true, 0.1f};
+    struct scnp_out out = {SCNP_OUT, OUT_EGRESS, OUT_LEFT, 0.1f};
     ssize_t bytes_sent = scnp_send (&send_sock, (struct scnp_packet *) &out, loopaddr);
     if (bytes_sent == 0) perror("Cannot send out");
     REQUIRE(bytes_sent == - OUT_LENGTH);
@@ -146,8 +146,10 @@ TEST_CASE("scnp_send") {
     REQUIRE_FALSE(memcmp(test += ETHER_ADDR_LEN, loopaddr, ETHER_ADDR_LEN));
     REQUIRE_FALSE(memcmp(test += ETHER_ADDR_LEN, &proto, ETHER_TYPE_LEN));
     REQUIRE_FALSE(memcmp(test += ETHER_TYPE_LEN, &out.type, sizeof(out.type)));
-    uint8_t data = 0x8c;
+    uint8_t data = 0x80;
     REQUIRE_FALSE(memcmp(test += sizeof(out.type), &data, sizeof(data)));
+    uint16_t data2 = htons(0x1999);
+    REQUIRE_FALSE(memcmp(test += sizeof(data), &data2, sizeof(data2)));
   }
 
   SECTION("scnp_mov") {

@@ -147,7 +147,7 @@ void RSCP::_receive()
 		     
 		     struct scnp_out pkt;
 		     pkt.type = SCNP_OUT;
-		     pkt.direction = (Combo::Way::RIGHT == way);
+		     pkt.side = (Combo::Way::RIGHT == way);
 		     pkt.height = 0.5f;
 		     scnp_send(&_sock,
 			       reinterpret_cast<struct scnp_packet *>(&pkt),
@@ -161,7 +161,7 @@ void RSCP::_receive()
      { SCNP_MOV, [&packet]() { return ConvKey<ControllerEvent,MOUSE>::get(packet); }},
      { SCNP_OUT, [&packet,this]() {
 		   auto * pkt = reinterpret_cast<struct scnp_out*>(&packet);
-		   if(!pkt->direction) _transit(Combo::Way::LEFT);
+		   if(!pkt->side) _transit(Combo::Way::LEFT);
 		   else                _transit(Combo::Way::RIGHT);
 		   return nullptr;
 		 }},

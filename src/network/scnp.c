@@ -56,6 +56,7 @@ static uint8_t * alloc_buffer(uint8_t type, size_t * length)
   if (type == SCNP_KEY || type == SCNP_MOV || type == SCNP_OUT || type == SCNP_MNG || type == SCNP_ACK) {
     *length = packet_sizes[map_type(type)];
     buffer = (uint8_t *) malloc(*length);
+    memset(buffer, 0, *length);
   } else {
     *length = 0;
     errno = EBADMSG;
@@ -95,11 +96,14 @@ static int build_out_buffer(uint8_t * buf, const struct scnp_packet * packet)
   struct scnp_out * p = (struct scnp_out *) packet;
 
   uint8_t direction_flag = (p->direction) << 7;
+  uint8_t side_flag = (p->side) << 6;
+  *buf = direction_flag + side_flag;
   if (p->height > 1 || p->height < 0) {
     p->height = 0.5f;
   }
-  uint8_t height = (uint8_t) (p->height * ((1 << 7) - 1));
-  *buf = direction_flag + height;
+  uint16_t height = p->height * ((1 << 16) - 1);
+  height = htons(height);
+  memcpy(buf + sizeof(uint8_t), &height, sizeof(uint16_t));
 
   return 0;
 }
@@ -165,7 +169,10 @@ static int build_out_packet(struct scnp_packet * packet, const uint8_t * buf)
   struct scnp_out out;
   out.type = SCNP_OUT;
   out.direction = *buf >> 7;
-  out.height = (float) (*buf & (1 << 7)) / ((1 << 7) - 1);
+  out.side = (*buf & (1 << 6)) >> 6;
+  uint16_t height;
+  memcpy(&height, buf + sizeof(uint8_t), sizeof(uint16_t));
+  out.height = (float) ntohs(height) / ((1 << 16) - 1);
 
   memcpy(packet, &out, sizeof(struct scnp_out));
 

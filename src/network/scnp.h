@@ -19,12 +19,16 @@ extern "C" {
 
 #define KEY_LENGTH 4
 #define MOV_LENGTH 7
-#define OUT_LENGTH 2
+#define OUT_LENGTH 4
 #define MNG_LENGTH 65
 #define ACK_LENGTH 1
 
 #define MAX_PACKET_LENGTH 127
 #define HOSTNAME_LENGTH 64
+#define OUT_EGRESS true
+#define OUT_INGRESS false
+#define OUT_RIGHT true
+#define OUT_LEFT false
 
   struct scnp_socket
   {
@@ -55,7 +59,8 @@ extern "C" {
   struct scnp_out
   {
     uint8_t type;         // SCNP_OUT
-    bool direction;       // true if the mouse is located at the right border of the screen, false if it is on the left
+    bool direction;       // true if the mouse is going from the host to the client, false otherwise
+    bool side;            // true if the mouse is located at the right border of the screen, false if it is on the left
     float height;         // Height of the cursor relative to the size of the screen
   };
 

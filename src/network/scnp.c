@@ -251,9 +251,9 @@ ssize_t scnp_send(struct scnp_socket * sock, const struct scnp_packet * packet, 
   /* init buffer */
   size_t buf_length;
   uint8_t * buf = alloc_buffer(packet->type, &buf_length);
-  if (buf == NULL) return -1;
-  if (build_buffer(buf, packet)) return -1;
-
+  if (buf == NULL) return 0;
+  if (build_buffer(buf, packet)) return 0;
+  
   /* send packet */
   ssize_t bytes_sent = 0;
   if (scnp_is_ack_needed(packet)) {

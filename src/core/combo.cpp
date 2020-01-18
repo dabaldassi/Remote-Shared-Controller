@@ -55,13 +55,16 @@ bool ComboShortcut::update(int code, int value)
 
 bool ComboMouse::update(int /* code */, int /* value */)
 {
-  get_cursor_position(_cursor);
+  if(_cursor->visible) {
+    get_cursor_position(_cursor);
 
-  if(_cursor->pos_x == 0)               _way = Way::LEFT;
-  else if(_cursor->pos_x == _width - 1) _way = Way::RIGHT;
-  else                                  _way = Way::NONE;
+    if(_cursor->pos_x <= 0)               _way = Way::LEFT;
+    else if(_cursor->pos_x >= _width - 1) _way = Way::RIGHT;
+    else                                  _way = Way::NONE;
 
-  if(_way != Way::NONE) _action(this);
+    if(_way != Way::NONE) _action(this);
+  }
+  else _way = Way::NONE;
   
   return _way != Way::NONE;
 }

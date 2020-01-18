@@ -20,14 +20,16 @@ extern "C" {
     int pos_x;
     int pos_y;
     bool visible;
+
+    struct { int width; int height; } screen_size;
   }CursorInfo;
 
   CursorInfo * open_cursor_info();
   
-  int get_cursor_position(CursorInfo * cursor);
+  int  get_cursor_position(CursorInfo * cursor);
+  int  set_cursor_position(CursorInfo * cursor);
   void show_cursor(CursorInfo * cursor);
   void hide_cursor(CursorInfo * cursor);
-  
   void close_cursor_info(CursorInfo * cursor);
 
 #ifdef __cplusplus

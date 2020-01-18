@@ -47,24 +47,28 @@ RSCP::RSCP(): _if(DEFAULT_IF), _next_pc_id{0}, _state(State::HERE)
   
   _shortcut.push_back(std::move(quit_shortcut));
     
-  PC local_pc { _next_pc_id++, true, "localhost", {0}, {1920,1080}, {0,0}};
-  
-  _pc_list.add(local_pc);
+  PC local_pc { _next_pc_id++, true, "localhost", {0}, {0,0}, {0,0}};
 
 #ifndef NO_CURSOR
   _cursor = open_cursor_info();
 
+  local_pc.resolution.w = _cursor->screen_size.width;
+  local_pc.resolution.h = _cursor->screen_size.height;    
+  
   if(_cursor) {
     _shortcut.push_back(ComboMouse::make_ptr(local_pc.resolution.w,
 					     local_pc.resolution.h,
 					     _cursor));
     _shortcut.back()->set_action([this](Combo* combo) {
-				   int s = (combo->get_way() == Combo::Way::LEFT)?1:-1;
-				   mouse_move(s * 5, 0);
-				   _transit(combo->get_way());
+				   float height = (float) _cursor->pos_y /
+				     _cursor->screen_size.height;
+				   _transit(combo->get_way(), height);
 				 });
+    
   }
 #endif
+
+  _pc_list.add(local_pc);
 }
 
 RSCP::~RSCP()
@@ -109,6 +113,32 @@ void RSCP::_transit(Combo::Way way)
 #endif
 }
 
+#ifndef NO_CURSOR
+
+void RSCP::_transit(Combo::Way way, float height)
+{
+  _transit(way);
+  
+  if(_pc_list.get_current().local) {
+    _cursor->pos_x = (way == Combo::Way::RIGHT)?10:_cursor->screen_size.width-10;
+    _cursor->pos_y = height * _cursor->screen_size.height;
+    set_cursor_position(_cursor);
+  }
+  else {
+    struct scnp_out pkt;
+    pkt.type = SCNP_OUT;
+    pkt.direction = OUT_INGRESS;
+    pkt.side = (way == Combo::Way::LEFT)? OUT_LEFT : OUT_RIGHT;
+    pkt.height = height;
+    scnp_send(&_sock,
+	      reinterpret_cast<scnp_packet*>(&pkt),
+	      _pc_list.get_current().address);
+
+  }
+}
+
+#endif
+
 void RSCP::add_pc(const uint8_t *addr, const std::string& hostname)
 {
   bool exist = _all_pc_list.exist([&addr](const PC& pc) -> bool {
@@ -135,23 +165,24 @@ void RSCP::_receive()
   struct scnp_packet   packet;
   ControllerEvent    * ev = nullptr;
   uint8_t              addr_src[PC::LEN_ADDR];
-
+  int                  can_update = 0;
+    
 #ifndef NO_CURSOR
   const PC&            local_pc = _pc_list.get_local();
   ComboMouse           mouse(local_pc.resolution.w, local_pc.resolution.h,_cursor);
   
   mouse.set_action([&](Combo* combo) {
 		     auto way = combo->get_way();
-		     int sens = (way == Combo::Way::LEFT)?1:-1;
-		     mouse_move(sens * 5, 0);
 		     
 		     struct scnp_out pkt;
 		     pkt.type = SCNP_OUT;
 		     pkt.side = (Combo::Way::RIGHT == way);
-		     pkt.height = 0.5f;
+		     pkt.direction = OUT_EGRESS;
+		     pkt.height = _cursor->pos_y / (float)_cursor->screen_size.height;
 		     scnp_send(&_sock,
 			       reinterpret_cast<struct scnp_packet *>(&pkt),
 			       addr_src);
+		     --can_update;
 		   });
 #endif
 
@@ -159,10 +190,19 @@ void RSCP::_receive()
     {
      { SCNP_KEY, [&packet]() { return ConvKey<ControllerEvent,KEY>::get(packet); }},
      { SCNP_MOV, [&packet]() { return ConvKey<ControllerEvent,MOUSE>::get(packet); }},
-     { SCNP_OUT, [&packet,this]() {
+     { SCNP_OUT, [&packet,this,&can_update]() {
 		   auto * pkt = reinterpret_cast<struct scnp_out*>(&packet);
-		   if(!pkt->side) _transit(Combo::Way::LEFT);
-		   else                _transit(Combo::Way::RIGHT);
+
+		   if(pkt->direction == OUT_EGRESS) {
+		     if(!pkt->side) _transit(Combo::Way::LEFT, pkt->height);
+		     else           _transit(Combo::Way::RIGHT, pkt->height);		     
+		   }
+		   else {
+		     _cursor->pos_x = (pkt->side == OUT_RIGHT)?10:_cursor->screen_size.width-10;
+		     _cursor->pos_y = pkt->height * _cursor->screen_size.height;
+		     set_cursor_position(_cursor);
+		     ++can_update;
+		   }
 		   return nullptr;
 		 }},
      { SCNP_MNG, [this, &addr_src, &packet]() {
@@ -181,7 +221,7 @@ void RSCP::_receive()
     if(it != on_packet.end()) ev = it->second();
     else                      ev = nullptr;
     
-    if(ev) {
+    if(ev && can_update) {
       write_controller(ev);
 
 #ifndef NO_CURSOR
@@ -290,6 +330,7 @@ void RSCP::_send()
   
   while(_run) {
     c.grabbed = _state == State::AWAY;
+    
     int ret = poll_controller(&c);
     if(!ret) continue;
     

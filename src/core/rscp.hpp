@@ -92,6 +92,10 @@ class RSCP
   
   void _transit(Combo::Way way);
 
+  #ifndef NO_CURSOR
+  void _transit(Combo::Way way, float height);
+  #endif
+
 public:
 
   enum class State { HERE, AWAY };

@@ -308,11 +308,8 @@ void exit_controller(void)
 
 void grab_controller(bool t)
 {
-  int i = 0;
-  
-  while(event_file_info.pfds[i].fd > 0) {
+  for(size_t i = 1; i < event_file_info.size ; ++i) {
     ioctl(event_file_info.pfds[i].fd, EVIOCGRAB, t);
-    ++i;
   }
 }
 

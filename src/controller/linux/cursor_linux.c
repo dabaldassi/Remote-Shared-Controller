@@ -17,15 +17,20 @@ static int _XlibErrorHandler(Display * display __attribute__((unused)),
 
 CursorInfo* open_cursor_info()
 {
+  Display    * display = XOpenDisplay(NULL);
+
+  XSetErrorHandler(_XlibErrorHandler);
+  assert(display);
+  
   CursorInfo * cursor = malloc(sizeof(CursorInfo));
+  Screen     * screen = DefaultScreenOfDisplay(display);
 
   cursor->pos_x = 0;
   cursor->pos_y = 0;
   cursor->visible = true;
-  cursor->display = XOpenDisplay(NULL);
-
-  XSetErrorHandler(_XlibErrorHandler);
-  assert(cursor->display);
+  cursor->display = display;
+  cursor->screen_size.width = screen->width;
+  cursor->screen_size.height = screen->height;
   
   return cursor;
 }
@@ -38,41 +43,40 @@ void close_cursor_info(CursorInfo * cursor)
 
 int get_cursor_position(CursorInfo * cursor)
 {
-  int            number_of_screens;
-  int            i;
-  Bool           result;
-  Window       * root_windows;
-  Window         window_returned;
-  int            win_x, win_y;
-  unsigned int   mask_return;
+  Bool          result;
+  Window        root_windows;
+  Window        window_returned;
+  int           win_x, win_y;
+  unsigned int  mask_return;
   
-  number_of_screens = XScreenCount(cursor->display);
-  root_windows = malloc(sizeof(Window) * number_of_screens);
-  
-  for (i = 0; i < number_of_screens; i++) {
-    root_windows[i] = XRootWindow(cursor->display, i);
-  }
-  
-  for (i = 0; i < number_of_screens; i++) {
-    result = XQueryPointer(cursor->display, root_windows[i],
-			   &window_returned,
-			   &window_returned,
-			   &cursor->pos_x,
-			   &cursor->pos_y,
-			   &win_x,
-			   &win_y,
-			   &mask_return);
+  root_windows = XRootWindow(cursor->display, 0);
     
-    if (result == True) break;
-  }
+  result = XQueryPointer(cursor->display, root_windows,
+			 &window_returned,
+			 &window_returned,
+			 &cursor->pos_x,
+			 &cursor->pos_y,
+			 &win_x,
+			 &win_y,
+			 &mask_return);
   
   if (result != True) {
     fprintf(stderr, "No mouse found.\n");
     return -1;
   }
 
-  free(root_windows);
   return 0;
+}
+
+int set_cursor_position(CursorInfo * cursor)
+{
+  Window root_window = XRootWindow(cursor->display, 0);
+  
+  XSelectInput(cursor->display, root_window, KeyReleaseMask);
+  XWarpPointer(cursor->display, None, root_window, 0, 0, 0, 0, cursor->pos_x, cursor->pos_y);
+  XFlush(cursor->display);
+
+ return 0;
 }
 
 static void set_cursor_visibility(Display * display, bool t)

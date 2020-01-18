@@ -5,62 +5,70 @@
 extern "C" {
 #endif
 
-#include <stdlib.h>
 #include <stdint.h>
-#include <linux/input-event-codes.h>
+#include <stdbool.h>
 
-
-#define PACKED __attribute__((packed))
 
 #define ETH_P_SCNP 0x8888
-#define MAX_SCNP_PACKET_LENGTH 66
-#define SCNP_OUT 4
-#define SCNP_ACK 254
-#define SCNP_MNGT 255
-#define HOST_LABEL_LENGTH 63
+
+#define SCNP_KEY 0x01
+#define SCNP_MOV 0x02
+#define SCNP_OUT 0x03
+#define SCNP_MNG 0xfe
+#define SCNP_ACK 0xff
+
+#define KEY_LENGTH 4
+#define MOV_LENGTH 7
+#define OUT_LENGTH 2
+#define MNG_LENGTH 65
+#define ACK_LENGTH 1
+
+#define MAX_PACKET_LENGTH 127
+#define HOSTNAME_LENGTH 64
 
   struct scnp_socket
   {
-    int packet_socket;  // Socket used to send or receive SCNP packets
+    int fd;             // Socket used to send or receive SCNP packets
     int if_index;       // Index of the interface used
   };
 
   struct scnp_packet
   {
-    uint8_t type;                               // Type of the SCNP packet
-    uint8_t data[MAX_SCNP_PACKET_LENGTH - 1];   // Data in the SCNP packet
-  } PACKED;
+    uint8_t type;                          // Type of the SCNP packet
+    uint8_t data[MAX_PACKET_LENGTH - 1];   // Data in the SCNP packet
+  };
 
   struct scnp_key
   {
-    uint8_t type;   // Type of the SCNP packet = EV_KEY
+    uint8_t type;   // SCNP_KEY
     uint16_t code;  // Code associated to the key event
-    uint8_t flags;  // Flags of SCNP key packet
-  } PACKED;
+    bool pressed;   // true if the key is pressed, false otherwise
+  };
 
   struct scnp_movement
   {
-    uint8_t type;     // Type of the SCNP packet = EV_REL || EV_ABS
+    uint8_t type;     // SCNP_MOV
     uint16_t code;    // Code associated to the movement event
-    uint32_t value;   // Value of the movement
-  } PACKED;
+    int32_t value;    // Value of the movement
+  };
 
   struct scnp_out
   {
-    uint8_t type;     // Type of the SCNO packet = SCNP_OUT
-    uint8_t flags;    // Flags of SCNP out of screen packet
+    uint8_t type;         // SCNP_OUT
+    bool direction;       // true if the mouse is located at the right border of the screen, false if it is on the left
+    float height;         // Height of the cursor relative to the size of the screen
   };
 
   struct scnp_management
   {
-    uint8_t type;                       // Type of the SCNP packet = SCNP_MNGT
-    char hostname[HOST_LABEL_LENGTH];   // Hostname label of the device linked with the source interface
-  } PACKED;
+    uint8_t type;                     // SCNP_MNG
+    char hostname[HOSTNAME_LENGTH];   // Hostname label of the device linked with the source interface
+  };
 
   struct scnp_ack
   {
-    uint8_t type;   // Type of the SCNP packet = SCNP_ACK
-  } PACKED;
+    uint8_t type;   // SCNP_ACK
+  };
 
   /**
    * @brief Create a new SCNP socket to send or receive SCNP packet.
@@ -80,43 +88,15 @@ extern "C" {
   int scnp_close_socket(struct scnp_socket * sock);
 
   /**
-   * @brief Transform a SCNP packet to a buffer used to send SCNP data.
-   * Also change bytes order to match network order.
-   * @param buffer Buffer that will contain SCNP data.
-   * @param packet SCNP packet that will fill the buffer.
-   */
-
-  void scnp_packet_to_buffer(uint8_t * buffer, const struct scnp_packet * packet);
-
-  /**
-   * @brief Transform a buffer which contain SCNP data to a SCNP packet.
-   * Also change bytes order to match system order.
-   * @param buffer Buffer that will fill the SCNP packet.
-   * @param packet SCNP packet that will contain the SCNP data of the buffer.
-   */
-
-  void scnp_buffer_to_packet(const uint8_t * buffer, struct scnp_packet * packet);
-
-  /**
    * @brief Send a SCNP packet.
    * @param sock SCNP socket used to send the SCNP packet.
    * @param dest_addr Destination address.
    * @param packet SCNP packet to be sent.
-   * @param packet_length Size of the SCNP packet.
-   * @return On success, returns the number of bytes sent. On error, returns -1.
+   * @return On success, returns the number of bytes sent. The return value is negative if the packet sent led to an
+   * acknowledgement in response and it was not received. The return value is positive otherwise. On error, returns 0.
    */
 
-  int scnp_send(struct scnp_socket * sock, const uint8_t * dest_addr, struct scnp_packet * packet, size_t packet_length);
-
-  /**
-   * @deprecated Use scnp_recv_from"()" instead.
-   * @brief Receive a SCNP packet.
-   * @param sock SCNP socket used to receive the SCNP packet.
-   * @param packet SCNP packet that will be fill with SCNP data.
-   * @return On success, returns the number of bytes received. On error, returns -1.
-   */
-
-  int scnp_recv(struct scnp_socket * sock, struct scnp_packet * packet);
+  ssize_t scnp_send(struct scnp_socket * sock, const struct scnp_packet * packet, const uint8_t * dest_addr);
 
   /**
    * @brief Receive a SCNP packet and provide the source address of the message.
@@ -126,7 +106,7 @@ extern "C" {
    * @return On success, returns the number of bytes received. On error, returns -1.
    */
 
-  int scnp_recv_from(struct scnp_socket * sock, struct scnp_packet * packet, uint8_t * src_addr);
+  ssize_t scnp_recv(struct scnp_socket * sock, struct scnp_packet * packet, uint8_t * src_addr);
 
   /**
    * @brief Start a new SCNP session.

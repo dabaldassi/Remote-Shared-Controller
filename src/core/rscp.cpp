@@ -132,9 +132,6 @@ void RSCP::add_pc(const uint8_t *addr, const std::string& hostname)
 
 void RSCP::_receive()
 {
-  constexpr int OUT_LEFT  = 0;
-  constexpr int OUT_RIGHT = 1u << 7;
-  
   struct scnp_packet   packet;
   ControllerEvent    * ev = nullptr;
   uint8_t              addr_src[PC::LEN_ADDR];
@@ -150,11 +147,11 @@ void RSCP::_receive()
 		     
 		     struct scnp_out pkt;
 		     pkt.type = SCNP_OUT;
-		     pkt.flags = 0x00;
-		     pkt.flags |= (Combo::Way::LEFT == way) ? OUT_LEFT : OUT_RIGHT;
-		     scnp_send(&_sock,addr_src,
+		     pkt.direction = (Combo::Way::RIGHT == way);
+		     pkt.height = 0.5f;
+		     scnp_send(&_sock,
 			       reinterpret_cast<struct scnp_packet *>(&pkt),
-			       sizeof(pkt));
+			       addr_src);
 		   });
 #endif
 
@@ -165,18 +162,18 @@ void RSCP::_receive()
      { EV_ABS, []() { return nullptr; } },
      { SCNP_OUT, [&packet,this]() {
 		   auto * pkt = reinterpret_cast<struct scnp_out*>(&packet);
-		   if(!(pkt->flags & OUT_LEFT)) _transit(Combo::Way::LEFT);
-		   else                         _transit(Combo::Way::RIGHT);
+		   if(!pkt->direction) _transit(Combo::Way::LEFT);
+		   else                _transit(Combo::Way::RIGHT);
 		   return nullptr;
 		 }},
-     { SCNP_MNGT, [this, &addr_src, &packet]() {
+     { SCNP_MNG, [this, &addr_src, &packet]() {
 		    auto * pkt = reinterpret_cast<struct scnp_management*>(&packet);
 		    add_pc(addr_src, pkt->hostname);
 		    return nullptr; }},
     };
 
   while(_run) {
-    scnp_recv_from(&_sock, &packet, addr_src);
+    scnp_recv(&_sock, &packet, addr_src);
     
     auto it = on_packet.find(packet.type);
     
@@ -199,15 +196,13 @@ void RSCP::_send(const ControllerEvent &ev)
   switch(ev.controller_type) {
   case MOUSE:
     scnp_send(&_sock,
-	      _pc_list.get_current().address,
 	      ConvKey<struct scnp_packet, MOUSE>::get(ev),
-	      ConvKey<struct scnp_packet, MOUSE>::SIZE);
+        _pc_list.get_current().address);
     break;
   case KEY:
     scnp_send(&_sock,
-	      _pc_list.get_current().address,
 	      ConvKey<struct scnp_packet, KEY>::get(ev),
-	      ConvKey<struct scnp_packet, KEY>::SIZE);
+        _pc_list.get_current().address);
     break;
   default:
     break;

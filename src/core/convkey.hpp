@@ -26,7 +26,7 @@ struct ConvKeyBase
 
   static Dest * get(const ControllerEvent& ev)
   {
-    key.type = ev.ev_type;
+    key.type = Impl::SCNP_TYPE;
     key.code = ev.code;
 
     Impl::set_value(ev);
@@ -45,6 +45,7 @@ struct ConvKey<T, MOUSE> : public ConvKeyBase<ConvKey<T,MOUSE>,T,struct scnp_mov
   using ConvKeyBase<ConvKey<T,MOUSE>,T,struct scnp_movement>::key;
   
   static constexpr int CTRL_TYPE=MOUSE;
+  static constexpr int SCNP_TYPE=SCNP_MOV;
   
   template<typename U>
   static void set_value(const U* u) {
@@ -63,15 +64,16 @@ struct ConvKey<T, KEY> : public ConvKeyBase<ConvKey<T,KEY>,T,struct scnp_key>
   using ConvKeyBase<ConvKey<T,KEY>,T,struct scnp_key>::key;
   
   static constexpr int CTRL_TYPE=KEY;
+  static constexpr int SCNP_TYPE=SCNP_KEY;
   
   template<typename U>
   static void set_value(const U& val) {
-    key.flags = val.value << 7;
+    key.pressed = val.value == KEY_PRESSED;
   }
 
   template<typename U>
   static void set_value(const U * val) {
-    key.value = (val->flags >> 7) & 0xff;
+    key.value = val->pressed;
   }
 };
 

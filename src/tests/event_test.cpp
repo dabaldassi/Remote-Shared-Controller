@@ -5,6 +5,7 @@
 #include <thread>
 
 #include <controller.h>
+#include <cursor.h>
 
 TEST_CASE("init/exit") {
   REQUIRE_FALSE(init_controller());
@@ -48,23 +49,81 @@ TEST_CASE("put keys") {
   exit_controller();
 }
 
-TEST_CASE("Move Mouse")
+#ifndef NO_CURSOR
+
+TEST_CASE("Mouse")
 {
   using namespace std::chrono_literals;
   
   REQUIRE_FALSE(init_controller());
+  CursorInfo * cursor = open_cursor_info();
+
+  REQUIRE(cursor);
 
   std::this_thread::sleep_for(300ms); // init takes some time (needed for this test)
 
-  int x = 5, y = 5, i = 100;
+  REQUIRE(cursor->visible);
+  hide_cursor(cursor);
+  REQUIRE_FALSE(cursor->visible);
+  show_cursor(cursor);
 
-  while(i--) {
+  int x = 5, y = 5;
+  
+  cursor->pos_x = x;
+  cursor->pos_y = y;
+  set_cursor_position(cursor);
+
+  cursor->pos_x = cursor->pos_y = 0;
+  get_cursor_position(cursor);
+
+  REQUIRE(cursor->pos_x == x);
+  REQUIRE(cursor->pos_y == y);
+
+  x = 40;
+  y = 120;
+  cursor->pos_x = x;
+  cursor->pos_y = y;
+  set_cursor_position(cursor);
+
+  cursor->pos_x = cursor->pos_y = 0;
+  get_cursor_position(cursor);
+
+  REQUIRE(cursor->pos_x == x);
+  REQUIRE(cursor->pos_y == y);
+
+  x = 400;
+  y = 10;
+  cursor->pos_x = x;
+  cursor->pos_y = y;
+  set_cursor_position(cursor);
+
+  cursor->pos_x = cursor->pos_y = 0;
+  get_cursor_position(cursor);
+
+  REQUIRE(cursor->pos_x == x);
+  REQUIRE(cursor->pos_y == y);
+
+  cursor->pos_x = cursor->pos_y = 0;
+  set_cursor_position(cursor);
+  
+  const int ite = 100;
+  x = y = 1;
+
+  for(int i = 0; i < ite; i++) {
     mouse_move(x,y);
-    std::this_thread::sleep_for(10ms);
+    std::this_thread::sleep_for(1ms);
   }
 
+  get_cursor_position(cursor);
+  
+  REQUIRE(cursor->pos_x >= (x*ite/2));
+  REQUIRE(cursor->pos_y >= (y*ite/2));
+
   exit_controller();
+  close_cursor_info(cursor);
 }
+
+#endif
 
 #ifdef CONTROLLER_EVENT_TEST
 

@@ -25,7 +25,8 @@ namespace rsclocalcom {
   public:
     using Contact = typename T::Contact;
   
-    RSCLocalComImpl() { _com_impl.open(); }
+    explicit RSCLocalComImpl(Contact c)
+      : _com_impl(c) { _com_impl.open(); }
 
     /**
      *\brief Send a message to specified contact
@@ -42,6 +43,20 @@ namespace rsclocalcom {
      */
     
     void read_from(Contact c, Message& buffer);
+
+    /**
+     *\brief Send a message to the other pair
+     *\param msg The message to send
+     */
+    
+    void send(const Message& msg);
+
+    /**
+     *\brief Receive a message from the other pair..
+     *\param buffer The buffer in which the message will be stored
+     */
+    
+    void read(Message& buffer);
   
     ~RSCLocalComImpl() { _com_impl.close(); }
   };
@@ -62,6 +77,27 @@ namespace rsclocalcom {
     std::string       buffer;
     
     _com_impl.read_from(c, buffer);
+
+    ss.str(buffer);
+    msg.set(ss);
+  }
+
+  template<typename T>
+  void RSCLocalComImpl<T>::send(const Message& msg)
+  {
+    std::stringstream ss;
+    
+    msg.get(ss);
+    _com_impl.send(ss.str());
+  }
+
+  template<typename T>
+  void RSCLocalComImpl<T>::read(Message& msg)
+  {
+    std::stringstream ss;
+    std::string       buffer;
+    
+    _com_impl.read(buffer);
 
     ss.str(buffer);
     msg.set(ss);

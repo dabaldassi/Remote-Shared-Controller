@@ -22,7 +22,9 @@ void RSCP::_th_safe_op(Mutex &m, Lambda &&l)
   l();
 }
 
-RSCP::RSCP(): _if(DEFAULT_IF), _next_pc_id{0}, _state(State::HERE)
+RSCP::RSCP(): _if(DEFAULT_IF), _next_pc_id{0},
+	      _com(rsclocalcom::RSCLocalCom::Contact::CORE),
+	      _state(State::HERE)
 {
  auto sh_ptr = ComboShortcut::make_ptr();
 
@@ -286,9 +288,9 @@ void RSCP::_local_cmd()
   while(_run) {
     ack.reset(Message::ACK);
    
-    _com.read_from(RSCLocalCom::Contact::CLIENT, msg);
+    _com.read(msg);
     on_msg[msg.get_cmd()](msg);
-    _com.send_to(RSCLocalCom::Contact::CLIENT, ack);
+    _com.send(ack);
 
     if(pause_request)     pause_requested();
     else if(stop_request) stop_requested();
@@ -392,7 +394,7 @@ void RSCP::wait_for_wakeup()
   Message msg, ack(Message::ACK);
 
   while(_pause) {
-    _com.read_from(RSCLocalCom::Contact::CLIENT, msg);
+    _com.read(msg);
     ack.reset(Message::ACK);
 
     switch(msg.get_cmd()) {
@@ -410,6 +412,6 @@ void RSCP::wait_for_wakeup()
       break;
     }
 
-    _com.send_to(RSCLocalCom::Contact::CLIENT, ack);
+    _com.send(ack);
   }
 }

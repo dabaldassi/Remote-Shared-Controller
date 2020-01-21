@@ -7,6 +7,7 @@
 
 #include <interface.h>
 #include <pc_list.hpp>
+#include <util.hpp>
 
 std::map<rsclocalcom::Message::Ack, std::function<void(void)>> RSCCli::_err_msg =
   { 
@@ -19,11 +20,15 @@ std::map<rsclocalcom::Message::Ack, std::function<void(void)>> RSCCli::_err_msg 
 int RSCCli::_send_cmd(const rsclocalcom::Message& msg)
 {
   using namespace rsclocalcom;
-  Message m;
-  
-  _com.send_to(RSCLocalCom::Contact::CORE, msg);
+  Message     m;
+
+  if(!rscutil::is_core_running()) throw std::runtime_error("Core is not running");
+
+  RSCLocalCom com(RSCLocalCom::Contact::CLIENT);
+
+  com.send(msg);
   m.reset();
-  _com.read_from(RSCLocalCom::Contact::CORE, m);
+  com.read(m);
 
   if(m.get_cmd() == Message::ACK) {
     auto err = (Message::Ack)std::stoi(m.get_arg(0));
@@ -93,7 +98,7 @@ int RSCCli::listcurrent()
 
   if(err) return err;
   
-  std::cout << "List of current PC :" << "\n";
+  std::cout << "List of current PC (name, id):" << "\n";
   
   for(size_t i = 0; i < list.size(); i++) {
     const PC& pc = list.get_current();

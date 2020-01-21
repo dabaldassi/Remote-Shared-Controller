@@ -6,6 +6,7 @@
 #define RSC_NAME "Remote-Shared-Controller"
 #define RSC_VERSION "0.1"
 #define RSC_BASE_PATH "/var/rsc"
+#define RSC_PID_FILE "/var/rsc/pid"
 
 // Local Communication
 

@@ -98,6 +98,7 @@ int RSCCli::pause()
 
 
 TEST_CASE("Command") {
+
   RSCCli cli;
   
   SECTION("list") {

@@ -13,8 +13,6 @@ class RSCCli
 {
   static std::map<rsclocalcom::Message::Ack, std::function<void(void)>> _err_msg;
   
-  rsclocalcom::RSCLocalCom _com;
-
   /**
    *\brief Send a message to the core and wait for the ack
    *\param msg The message to send
@@ -32,7 +30,6 @@ class RSCCli
   int _getlist(PCList& list, const std::string& file_name);
   
 public:
-  RSCCli() = default;
 
   /**
    *\brief Run the application

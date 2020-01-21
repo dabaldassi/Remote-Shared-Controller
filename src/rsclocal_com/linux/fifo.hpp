@@ -13,18 +13,20 @@ namespace rsclocalcom {
   
   class Fifo
   {
-    int _fd_cmd, _fd_answer;
+  public:
+    enum class Contact { CORE, CLIENT }; // Possible contact
+  private:
+    int     _fd_cmd, _fd_answer;
+    Contact _self;
 
-    static constexpr char PATH_CMD[] = "/tmp/fifo_cmd"; // TODO : set the real path
-    static constexpr char PATH_ANSWER[] = "/tmp/fifo_answer"; // TODO : real path
+    static constexpr char CMD_FILE[] = "/var/rsc/localcom/fifo_cmd";
+    static constexpr char ACK_FILE[] = "/var/rsc/localcom/fifo_ack";
     static constexpr int DEFAULT_READ_SIZE = 1024;
     static constexpr int DEFAULT_MODE = 0755; // Unix permission
 
   public:
-
-    enum class Contact { CORE, CLIENT }; // Possible contact
   
-    Fifo();
+    explicit Fifo(Contact c);
 
     /**
      *\brief Open the right file for the communication
@@ -49,8 +51,23 @@ namespace rsclocalcom {
      *\return Negative value if error. The number of bytes read otherwise.
      */
     
-    int  read_from(Contact c, std::string& msg);
+    int  read_from(Contact c, std::string& answer);
 
+    /**
+     *\brief Send a message to the other side of the fifo.
+     *\param msg The message as std::string
+     *\return Negative value if error. The number of bytes written otherwise.
+     */
+     
+    int send(const std::string& msg);
+
+    /**
+     *\brief Read a message from the other side of the fifo
+     *\param msg The buffer in which will be stored the message
+     *\return Negative value if error. The number of bytes read otherwise.
+     */
+    
+    int read(std::string& answer);
 
     /**
      *\brief Close the connection

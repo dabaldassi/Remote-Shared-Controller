@@ -84,7 +84,7 @@ TEST_CASE("Com") {
   using namespace rsclocalcom;
 
   std::stringstream ss;
-  RSCLocalCom       com;
+  RSCLocalCom       com(RSCLocalCom::Contact::CORE);
   Message           msg(Message::GETLIST);
 
   com.send_to(RSCLocalCom::Contact::CORE,msg);

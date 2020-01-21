@@ -152,7 +152,7 @@ TEST_CASE("scnp_send") {
     REQUIRE_FALSE(memcmp(test += sizeof(data), &data2, sizeof(data2)));
   }
 
-  SECTION("scnp_mov") {
+  SECTION("scnp_movement") {
     /* send mov */
     struct scnp_movement mov = {SCNP_MOV, 0x1234, 0x09876543};
     ssize_t bytes_sent = scnp_send (&send_sock, (struct scnp_packet *) &mov, loopaddr);
@@ -213,7 +213,118 @@ TEST_CASE("scnp_send") {
 }
 
 TEST_CASE("scnp_recv") {
-  REQUIRE(1);
+  /* create socket */
+  struct scnp_socket sock{};
+  REQUIRE_FALSE(scnp_create_socket(&sock, LOOP_INDEX));
+
+  uint8_t loopaddr[] = {0, 0, 0, 0, 0, 0};
+  uint8_t broadcastaddr[] = {255, 255, 255, 255, 255, 255};
+
+  SECTION("scnp_ack") {
+    /* send acknowledgement */
+    struct scnp_ack sent_ack = {SCNP_ACK};
+    ssize_t bytes_sent = scnp_send(&sock, (struct scnp_packet *) &sent_ack, loopaddr);
+    if (bytes_sent <= 0) perror("Cannot send acknowledgement");
+    REQUIRE(bytes_sent == ACK_LENGTH);
+
+    /* receive acknowledgement */
+    struct scnp_ack recv_ack{};
+    uint8_t addr[ETHER_ADDR_LEN];
+    ssize_t bytes_recv = scnp_recv(&sock, (struct scnp_packet *) &recv_ack, addr);
+    if (bytes_recv == -1) perror("Cannot receive acknowledgement");
+    REQUIRE(bytes_recv == ACK_LENGTH);
+
+    /* verify received packet */
+    REQUIRE_FALSE(memcmp(addr, loopaddr, ETHER_ADDR_LEN));
+    REQUIRE(recv_ack.type == SCNP_ACK);
+  }
+
+  SECTION("scnp_management") {
+    /* send management */
+    struct scnp_management sent_mng = {SCNP_MNG, "test"};
+    ssize_t bytes_sent = scnp_send(&sock, (struct scnp_packet *) &sent_mng, broadcastaddr);
+    if (bytes_sent <= 0) perror("Cannot send management");
+    REQUIRE(bytes_sent == MNG_LENGTH);
+
+    /* receive management */
+    struct scnp_management recv_mng{};
+    uint8_t addr[ETHER_ADDR_LEN];
+    ssize_t bytes_recv = scnp_recv(&sock, (struct scnp_packet *) &recv_mng, addr);
+    if (bytes_recv == -1) perror("Cannot receive management");
+    REQUIRE(bytes_recv == MNG_LENGTH);
+
+    /* verify received packet */
+    REQUIRE_FALSE(memcmp(addr, loopaddr, ETHER_ADDR_LEN));
+    REQUIRE(recv_mng.type == SCNP_MNG);
+    size_t n = strlen(sent_mng.hostname) + 1;
+    REQUIRE_FALSE(memcmp(recv_mng.hostname, sent_mng.hostname, n));
+  }
+
+  SECTION("scnp_out") {
+    /* send out */
+    struct scnp_out sent_out = {SCNP_OUT, OUT_INGRESS, OUT_RIGHT, 0.9f};
+    ssize_t bytes_sent = scnp_send(&sock, (struct scnp_packet *) &sent_out, loopaddr);
+    if (bytes_sent == 0) perror("Cannot send out");
+    REQUIRE(bytes_sent == - OUT_LENGTH);
+
+    /* receive out */
+    struct scnp_out recv_out{};
+    uint8_t addr[ETHER_ADDR_LEN];
+    ssize_t bytes_recv = scnp_recv(&sock, (struct scnp_packet *) &recv_out, addr);
+    if (bytes_recv == -1) perror("Cannot receive out");
+    REQUIRE(bytes_recv == OUT_LENGTH);
+
+    /* verify received packet */
+    REQUIRE_FALSE(memcmp(addr, loopaddr, ETHER_ADDR_LEN));
+    REQUIRE(recv_out.type == SCNP_OUT);
+    REQUIRE(recv_out.direction == sent_out.direction);
+    REQUIRE(recv_out.side == sent_out.side);
+    REQUIRE(recv_out.height == Approx(sent_out.height));
+  }
+
+  SECTION("scnp_movement") {
+    /* send movement */
+    struct scnp_movement sent_mov = {SCNP_MOV, 0x0987, 0x12345678};
+    ssize_t bytes_sent = scnp_send(&sock, (struct scnp_packet *) &sent_mov, loopaddr);
+    if (bytes_sent <= 0) perror("Cannot send movement");
+    REQUIRE(bytes_sent == MOV_LENGTH);
+
+    /* receive movement */
+    struct scnp_movement recv_mov{};
+    uint8_t addr[ETHER_ADDR_LEN];
+    ssize_t bytes_recv = scnp_recv(&sock, (struct scnp_packet *) &recv_mov, addr);
+    if (bytes_recv == -1) perror("Cannot receive movement");
+    REQUIRE(bytes_recv == MOV_LENGTH);
+
+    /* verify received packet */
+    REQUIRE_FALSE(memcmp(addr, loopaddr, ETHER_ADDR_LEN));
+    REQUIRE(recv_mov.type == SCNP_MOV);
+    REQUIRE(recv_mov.code == sent_mov.code);
+    REQUIRE(recv_mov.value == sent_mov.value);
+  }
+
+  SECTION("scnp_key") {
+    /* send key */
+    struct scnp_key sent_key = {SCNP_KEY, 0x0987, false};
+    ssize_t bytes_sent = scnp_send(&sock, (struct scnp_packet *) &sent_key, loopaddr);
+    if (bytes_sent == 0) perror("Cannot send key");
+    REQUIRE(bytes_sent == - KEY_LENGTH);
+
+    /* receive key */
+    struct scnp_key recv_key{};
+    uint8_t addr[ETHER_ADDR_LEN];
+    ssize_t bytes_recv = scnp_recv(&sock, (struct scnp_packet *) &recv_key, addr);
+    if (bytes_recv == -1) perror("Cannot receive key");
+    REQUIRE(bytes_recv == KEY_LENGTH);
+
+    /* verify received packet */
+    REQUIRE_FALSE(memcmp(addr, loopaddr, ETHER_ADDR_LEN));
+    REQUIRE(recv_key.type == SCNP_KEY);
+    REQUIRE(recv_key.code == sent_key.code);
+    REQUIRE(recv_key.pressed == sent_key.pressed);
+  }
+
+  scnp_close_socket(&sock);
 }
 
 TEST_CASE("scnp_session") {

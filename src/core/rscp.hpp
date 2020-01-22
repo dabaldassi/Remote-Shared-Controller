@@ -31,8 +31,8 @@ class RSCP
   std::map<int, timestamp_t> _alive;
   
   std::list<Combo::ptr> _shortcut;
-  PCList                _pc_list;
-  PCList                _all_pc_list;
+  rscutil::PCList       _pc_list;
+  rscutil::PCList       _all_pc_list;
   socket_t              _sock;
   std::atomic_bool      _run, _pause;
   int                   _if;

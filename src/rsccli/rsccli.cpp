@@ -9,54 +9,7 @@
 #include <pc_list.hpp>
 #include <util.hpp>
 
-std::map<rsclocalcom::Message::Ack, std::function<void(void)>> RSCCli::_err_msg =
-  { 
-   { rsclocalcom::Message::ERROR, []() { std::cerr << "An error occured\n"; } },
-   { rsclocalcom::Message::STARTED, []() { std::cerr << "Already running\n"; } },
-   { rsclocalcom::Message::PAUSED, []() { std::cerr << "Core is paused\n"; } },
-   { rsclocalcom::Message::FUTURE, []() { std::cerr << "Not Implemented yet\n"; } },
-  };
-
-int RSCCli::_send_cmd(const rsclocalcom::Message& msg)
-{
-  using namespace rsclocalcom;
-  Message     m;
-
-  if(!rscutil::is_core_running()) throw std::runtime_error("Core is not running");
-
-  RSCLocalCom com(RSCLocalCom::Contact::CLIENT);
-
-  com.send(msg);
-  m.reset();
-  com.read(m);
-
-  if(m.get_cmd() == Message::ACK) {
-    auto err = (Message::Ack)std::stoi(m.get_arg(0));
-
-    if(err != Message::Ack::OK) {
-      _err_msg[err]();
-      return 1;
-    }
-    
-    return 0;
-  }
-  else {
-    std::cerr << "An error occured\n";
-  }
-	      
-  return 1;
-}
-
-int RSCCli::_getlist(PCList& list, const std::string& file_name)
-{
-  rsclocalcom::Message msg(rsclocalcom::Message::GETLIST);
-
-  int err = _send_cmd(msg);
-
-  if(!err) list.load(file_name);
-
-  return err;
-}
+using rscui::RSCCli;
 
 int RSCCli::run(int argc, char **argv)
 {
@@ -71,114 +24,46 @@ int RSCCli::run(int argc, char **argv)
 
   auto& cmd = parser.get_cmd();
   
-  return cmd->execute(this);
+  return cmd->execute(_ops);
 }
 
-int RSCCli::listall()
+void RSCCli::display_pc(rscutil::PCList& list, bool all)
 {
-  PCList list;
-  int    err = _getlist(list, CURRENT_PC_LIST);
-
-  if(err) return err;
-  
   std::cout << "List of current PC :" << "\n";
   
   for(size_t i = 0; i < list.size(); i++) {
-    std::cout << list.get_current() << "\n";
+    const rscutil::PC& pc = list.get_current();
+    
+    if(all) std::cout << pc << "\n";
+    else    std::cout << pc.name << "\t" << pc.id << "\n";
+    
     list.next_pc();
   }
-  
-  return 0;
 }
 
-int RSCCli::listcurrent()
+void RSCCli::display_if(const IF * interface)
 {
-  PCList list;
-  int    err = _getlist(list, CURRENT_PC_LIST);
+  std::cout << "Network interface : " << "\n\n";
 
-  if(err) return err;
-  
-  std::cout << "List of current PC (name, id):" << "\n";
-  
-  for(size_t i = 0; i < list.size(); i++) {
-    const PC& pc = list.get_current();
-    std::cout << pc.name << "\t" << pc.id << "\n";
-    list.next_pc();
-  }
-  
-  return 0;
-}
-
-int RSCCli::listrefresh()
-{
-  PCList list;
-  int    err = _getlist(list, ALL_PC_LIST);
-
-  if(err) return err;
-  
-  std::cout << "Available PC :" << "\n";
-  
-  for(size_t i = 0; i < list.size(); i++) {
-    const PC& pc = list.get_current();
-    std::cout << pc.name << "\t" << pc.id << "\n";
-    list.next_pc();
-  }
-  
-  return 0;
-}
-
-int RSCCli::add(const std::string & id)
-{
-  PCList all_list, current_list;
-  int    err = _getlist(all_list, ALL_PC_LIST);
-
-  if(err) return err;
-  
-  current_list.load(CURRENT_PC_LIST);
-
-  try {
-    const PC& pc = all_list.get(std::stoi(id));
-    current_list.add(pc);
-  }catch(std::runtime_error& e) {
-    std::cout << e.what() << "\n";
-    return 1;
+  for(const IF* i = interface; !(i->if_index == 0 && i->if_name == NULL); ++i) {
+    std::cout << "\t" << i->if_index << "\t" << i->if_name << "\n";
   }
 
-  current_list.save(CURRENT_PC_LIST);
-  
-  rsclocalcom::Message msg(rsclocalcom::Message::SETLIST);
-  return _send_cmd(msg);
+  std::cout << "\n";
 }
 
-int RSCCli::add(const std::string & id1, const std::string & id2)
+void RSCCli::display_error(const std::string& error)
 {
-   PCList all_list, current_list;
-   int    err = _getlist(all_list, ALL_PC_LIST);
-
-   if(err) return err;
-   
-   current_list.load(CURRENT_PC_LIST);
-
-   try {
-     const PC& pc = all_list.get(std::stoi(id1));
-     current_list.add(pc,std::stoi(id2));
-   }catch(std::runtime_error& e) {
-     std::cout << e.what() << "\n";
-     return 1;
-   }
-
-   current_list.save(CURRENT_PC_LIST);
-   rsclocalcom::Message msg(rsclocalcom::Message::SETLIST);
-   return _send_cmd(msg);  
+  std::cerr << error << "\n";
 }
 
-int RSCCli::version()
+void RSCCli::display_version(const std::string& version)
 {
-  std::cout << "Current version : " << RSCCLI_VERSION << "\n\n";
-  return 0;
+  std::cout << "Current rsc version : " << version << "\n";
+  std::cout << "Current rsccli version: " << RSCCLI_VERSION << "\n\n";
 }
 
-int RSCCli::help()
+void RSCCli::display_help()
 {
   std::cout << RSCCLI_NAME << " help : " << "\n\n";
 
@@ -198,69 +83,4 @@ int RSCCli::help()
   PauseCommand::print_help();
 
   std::cout << "\n";
-  
-  return 0;
-}
-
-int RSCCli::setif(const std::string & id)
-{
-  rsclocalcom::Message msg(rsclocalcom::Message::IF);
-  msg.add_arg(id);
-
-  return _send_cmd(msg);
-}
-
-int RSCCli::listif()
-{
-  IF * interface = get_interfaces();
-
-  std::cout << "Network interface : " << "\n\n";
-
-  if(interface) {
-    for(IF* i = interface; !(i->if_index == 0 && i->if_name == NULL); ++i) {
-      std::cout << "\t" << i->if_index << "\t" << i->if_name << "\n";
-    }
-
-    std::cout << "\n";
-    free_interfaces(interface);
-  }
-    
-  return 0;
-}
-
-int RSCCli::remove(const std::string &id)
-{
-   PCList current_list;
-   int    err = _getlist(current_list, CURRENT_PC_LIST);
-
-   if(err) return err;
-
-   std::cout << current_list.size() << "\n";
-   current_list.remove(std::stoi(id));
-   std::cout << current_list.size() << "\n";
-  
-   current_list.save(CURRENT_PC_LIST);
-   rsclocalcom::Message msg(rsclocalcom::Message::SETLIST);
-   return _send_cmd(msg);
-}
-
-int RSCCli::start()
-{
-  rsclocalcom::Message msg(rsclocalcom::Message::START);
-
-  return _send_cmd(msg);
-}
-
-int RSCCli::stop()
-{
-  rsclocalcom::Message msg(rsclocalcom::Message::STOP);
-
-  return _send_cmd(msg);
-}
-
-int RSCCli::pause()
-{
-  rsclocalcom::Message msg(rsclocalcom::Message::PAUSE);
-
-  return _send_cmd(msg);
 }

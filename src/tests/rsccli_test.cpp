@@ -6,92 +6,88 @@
 
 #include <command-cli.hpp>
 #include <parser-cli.hpp>
-#include <rsccli.hpp>
+#include <controller_op.hpp>
 
 enum { LISTALL, LISTCURRENT, LISTREFRESH, ADD, ADD2, REMOVE, SETIF, LISTIF, VERSION, HELP,
        START, STOP, PAUSE};
 
-std::map<rsclocalcom::Message::Ack, std::function<void(void)>> RSCCli::_err_msg{};
+using namespace rscui;
 
-int RSCCli::_send_cmd(const rsclocalcom::Message& )
+std::map<rsclocalcom::Message::Ack, std::string> ControllerOperation::_err_msg{};
+
+int ControllerOperation::_send_cmd(const rsclocalcom::Message& )
 {
   return 0;
 }
 
-int RSCCli::_getlist(PCList&, const std::string& )
+int ControllerOperation::_getlist(rscutil::PCList&, const std::string& )
 {
   return 0;
 }
 
-int RSCCli::run(int , char **)
-{
-
-  return 0;
-}
-
-int RSCCli::listall()
+int ControllerOperation::listall()
 {
   return LISTALL;
 }
 
-int RSCCli::listcurrent()
+int ControllerOperation::listcurrent()
 {
   return LISTCURRENT;
 }
 
-int RSCCli::listrefresh()
+int ControllerOperation::listrefresh()
 {
   return LISTREFRESH;
 }
 
-int RSCCli::add(const std::string &)
+int ControllerOperation::add(const std::string &)
 {
   return ADD;
 }
 
-int RSCCli::add(const std::string &, const std::string &)
+int ControllerOperation::add(const std::string &, const std::string &)
 {
  
   return ADD2;
 }
 
-int RSCCli::version()
+int ControllerOperation::version()
 {
   return VERSION;
 }
 
-int RSCCli::help()
+int ControllerOperation::help()
 {
 
   return HELP;
 }
 
-int RSCCli::setif(const std::string &)
+int ControllerOperation::setif(const std::string &)
 {
   return SETIF;
 }
 
-int RSCCli::listif()
+int ControllerOperation::listif()
 {
   return LISTIF;
 }
 
-int RSCCli::remove(const std::string &)
+int ControllerOperation::remove(const std::string &)
 {
   return REMOVE;
 }
 
-int RSCCli::start()
+int ControllerOperation::start()
 {
   return START;
 }
 
-int RSCCli::stop()
+int ControllerOperation::stop()
 {
   return STOP;
 }
 
-int RSCCli::pause()
+int ControllerOperation::pause()
 {
   return PAUSE;
 }
@@ -99,39 +95,39 @@ int RSCCli::pause()
 
 TEST_CASE("Command") {
 
-  RSCCli cli;
+  ControllerOperation ops(nullptr);
   
   SECTION("list") {
     ListCommand cmd, cmd2, cmd3;
 
-    REQUIRE(cmd.execute(&cli) == LISTCURRENT);
+    REQUIRE(cmd.execute(ops) == LISTCURRENT);
 
     REQUIRE_THROWS(cmd.add_arg("1"));
     REQUIRE_THROWS(cmd.add_opt("a"));
     REQUIRE_NOTHROW(cmd.add_opt("-a"));
-    REQUIRE(cmd.execute(&cli) == LISTALL);
+    REQUIRE(cmd.execute(ops) == LISTALL);
     REQUIRE_THROWS(cmd.add_opt("-c"));
 
     REQUIRE_THROWS(cmd2.add_opt("-e"));
     REQUIRE_NOTHROW(cmd2.add_opt("-r"));
-    REQUIRE(cmd2.execute(&cli) == LISTREFRESH);
+    REQUIRE(cmd2.execute(ops) == LISTREFRESH);
 
     REQUIRE_NOTHROW(cmd3.add_opt("-c"));
-    REQUIRE(cmd3.execute(&cli) == LISTCURRENT);
+    REQUIRE(cmd3.execute(ops) == LISTCURRENT);
   }
 
   SECTION("add") {
     AddCommand cmd;
 
-    REQUIRE(cmd.execute(&cli) == 1); // ERROR
+    REQUIRE(cmd.execute(ops) == 1); // ERROR
 
     REQUIRE_NOTHROW(cmd.add_arg("1"));
     REQUIRE_THROWS(cmd.add_opt("a"));
     REQUIRE_THROWS(cmd.add_opt("-a"));
-    REQUIRE(cmd.execute(&cli) == ADD);
+    REQUIRE(cmd.execute(ops) == ADD);
 
     REQUIRE_NOTHROW(cmd.add_arg("2"));
-    REQUIRE(cmd.execute(&cli) == ADD2);
+    REQUIRE(cmd.execute(ops) == ADD2);
 
     REQUIRE_THROWS(cmd.add_arg("3"));
   }
@@ -142,7 +138,7 @@ TEST_CASE("Command") {
     REQUIRE_THROWS(cmd.add_arg("a"));
     REQUIRE_THROWS(cmd.add_opt("-a"));
     
-    REQUIRE(cmd.execute(&cli) == VERSION);
+    REQUIRE(cmd.execute(ops) == VERSION);
   }
 
   SECTION("start") {
@@ -151,7 +147,7 @@ TEST_CASE("Command") {
     REQUIRE_THROWS(cmd.add_arg("a"));
     REQUIRE_THROWS(cmd.add_opt("-a"));
     
-    REQUIRE(cmd.execute(&cli) == START);
+    REQUIRE(cmd.execute(ops) == START);
   }
 
   SECTION("stop") {
@@ -160,7 +156,7 @@ TEST_CASE("Command") {
     REQUIRE_THROWS(cmd.add_arg("a"));
     REQUIRE_THROWS(cmd.add_opt("-a"));
     
-    REQUIRE(cmd.execute(&cli) == STOP);
+    REQUIRE(cmd.execute(ops) == STOP);
   }
 
     SECTION("pause") {
@@ -169,7 +165,7 @@ TEST_CASE("Command") {
     REQUIRE_THROWS(cmd.add_arg("a"));
     REQUIRE_THROWS(cmd.add_opt("-a"));
     
-    REQUIRE(cmd.execute(&cli) == PAUSE);
+    REQUIRE(cmd.execute(ops) == PAUSE);
   }
   
   SECTION("help") {
@@ -178,18 +174,18 @@ TEST_CASE("Command") {
     REQUIRE_THROWS(cmd.add_arg("a"));
     REQUIRE_THROWS(cmd.add_opt("-a"));
     
-    REQUIRE(cmd.execute(&cli) == HELP);
+    REQUIRE(cmd.execute(ops) == HELP);
   }
 
   SECTION("Remove") {
     RemoveCommand cmd;
 
-    REQUIRE(cmd.execute(&cli) == 1); // ERROR
+    REQUIRE(cmd.execute(ops) == 1); // ERROR
 
     REQUIRE_NOTHROW(cmd.add_arg("1"));
     REQUIRE_THROWS(cmd.add_opt("a"));
     REQUIRE_THROWS(cmd.add_opt("-a"));
-    REQUIRE(cmd.execute(&cli) == REMOVE);
+    REQUIRE(cmd.execute(ops) == REMOVE);
 
     REQUIRE_THROWS(cmd.add_arg("2"));
   }
@@ -197,7 +193,7 @@ TEST_CASE("Command") {
   SECTION("IF") {
     IfCommand cmd, cmd2;
 
-    REQUIRE(cmd.execute(&cli) == 1);
+    REQUIRE(cmd.execute(ops) == 1);
 
     REQUIRE_THROWS(cmd.add_arg("l"));
     REQUIRE_NOTHROW(cmd.add_opt("l"));
@@ -205,19 +201,19 @@ TEST_CASE("Command") {
     REQUIRE_THROWS(cmd.add_arg("a"));
     REQUIRE_THROWS(cmd.add_opt("-a"));
 
-    REQUIRE(cmd.execute(&cli) == LISTIF);
+    REQUIRE(cmd.execute(ops) == LISTIF);
 
     REQUIRE_NOTHROW(cmd2.add_opt("-s"));
     REQUIRE_THROWS(cmd2.add_opt("-s"));
     REQUIRE_NOTHROW(cmd2.add_arg("1"));
     REQUIRE_THROWS(cmd2.add_arg("2"));
 
-    REQUIRE(cmd2.execute(&cli) == SETIF);
+    REQUIRE(cmd2.execute(ops) == SETIF);
   }
 }
 
 TEST_CASE("parser") {
-  RSCCli cli;
+  ControllerOperation ops(nullptr);
   Parser parser;
   
   std::list<std::tuple<std::string, int, int>> cmd_list =
@@ -277,7 +273,7 @@ TEST_CASE("parser") {
     if(!std::get<1>(a)) {
       auto& cmd = parser.get_cmd();
 
-      REQUIRE(cmd->execute(&cli) == std::get<2>(a));
+      REQUIRE(cmd->execute(ops) == std::get<2>(a));
     }
     else {
       REQUIRE(parser.get_cmd() == nullptr);

@@ -1,6 +1,8 @@
 #include <iostream>
 #include <parser-cli.hpp>
 
+using rscui::Parser;
+
 bool start_with(const std::string& str, const std::string delim)
 {
   size_t pos = str.find(delim);

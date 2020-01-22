@@ -19,7 +19,7 @@ protected:
   std::function<void(Combo*)> _action;
   
 public:
-  using ptr = Ptr<Combo>::ptr;
+  using ptr = rscutil::Ptr<Combo>::ptr;
   
   Combo(Way way = Way::NONE)
     : _way(way),_action(nullptr) {}
@@ -33,7 +33,7 @@ public:
   virtual bool update(int code, int value) = 0;  
 };
 
-class ComboShortcut : public Combo, public Ptr<ComboShortcut>
+class ComboShortcut : public Combo, public rscutil::Ptr<ComboShortcut>
 {
   using shortcut_t = std::tuple<int,int,int>;
   
@@ -67,7 +67,7 @@ public:
 
 #ifndef NO_CURSOR
 
-class ComboMouse : public Combo, public Ptr<ComboMouse>
+class ComboMouse : public Combo, public rscutil::Ptr<ComboMouse>
 {
   int          _width, _height;
   CursorInfo * _cursor;

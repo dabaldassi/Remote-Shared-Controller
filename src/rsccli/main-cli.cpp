@@ -4,7 +4,7 @@
 
 int main(int argc, char *argv[])
 {
-  RSCCli cli;
+  rscui::RSCCli cli;
   
   return cli.run(argc,argv);
 }

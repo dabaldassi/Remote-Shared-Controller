@@ -3,6 +3,9 @@
 
 #include <pc_list.hpp>
 
+using rscutil::PCList;
+using rscutil::PC;
+
 void PCList::next_pc()
 {  
   ++_current;

@@ -6,6 +6,8 @@
 
 #include <pc.hpp>
 
+using rscutil::PC;
+
 void PC::save(std::ofstream &ofs) const
 {
   size_t len = name.size();

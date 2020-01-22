@@ -3,7 +3,9 @@
 
 #include <config.hpp>
 #include <command-cli.hpp>
-#include <rsccli.hpp>
+#include <controller_op.hpp>
+
+using namespace rscui;
 
 ///////////////////////////////////////////////////////////////////////////////
 //                              Static variable                              //
@@ -70,20 +72,20 @@ void HelpCommand::print_help()
   std::cout << "\n";
 }
 
-int HelpCommand::execute(RSCCli * cli)
+int HelpCommand::execute(ControllerOperation & ops)
 {
-  return cli->help();
+  return ops.help();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 //                                ListCommand                                //
 ///////////////////////////////////////////////////////////////////////////////
 
-std::map<char, std::function<int(ListCommand*,RSCCli*)>> ListCommand::_on_opt =
+std::map<char, std::function<int(ListCommand*,ControllerOperation&)>> ListCommand::_on_opt =
   {
-   { char{CURRENT}, [] (ListCommand * cmd, RSCCli* cli) -> int { return cmd->listcurrent(cli); } },
-   { char{ALL}, [] (ListCommand * cmd, RSCCli* cli) -> int { return cmd->listall(cli); } },
-   { char{REFRESH}, [] (ListCommand * cmd, RSCCli* cli) -> int { return cmd->listrefresh(cli); } },
+   { char{CURRENT}, [] (ListCommand * cmd, ControllerOperation& ops) -> int { return cmd->listcurrent(ops); } },
+   { char{ALL}, [] (ListCommand * cmd, ControllerOperation& ops) -> int { return cmd->listall(ops); } },
+   { char{REFRESH}, [] (ListCommand * cmd, ControllerOperation& ops) -> int { return cmd->listrefresh(ops); } },
 };
 
 void ListCommand::print_usage() const
@@ -130,34 +132,34 @@ void ListCommand::print_help()
   std::cout << "\n";
 }
 
-int ListCommand::execute(RSCCli * cli) 
+int ListCommand::execute(ControllerOperation & ops) 
 {
   if(_opts.empty()) {
-    int err = _on_opt[char{CURRENT}](this,cli);
+    int err = _on_opt[char{CURRENT}](this,ops);
     if(err) return err;
   }
   
   for(char c : _opts) {
-    int err = _on_opt[c](this, cli);
+    int err = _on_opt[c](this, ops);
     if(err) return err;
   }
   
   return 0;
 }
 
-int ListCommand::listall(RSCCli* cli)
+int ListCommand::listall(ControllerOperation& ops)
 {
-  return cli->listall();
+  return ops.listall();
 }
 
-int ListCommand::listrefresh(RSCCli* cli)
+int ListCommand::listrefresh(ControllerOperation& ops)
 {
-  return cli->listrefresh();
+  return ops.listrefresh();
 }
 
-int ListCommand::listcurrent(RSCCli* cli)
+int ListCommand::listcurrent(ControllerOperation& ops)
 {
-  return cli->listcurrent();
+  return ops.listcurrent();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -188,7 +190,7 @@ void AddCommand::print_help()
   std::cout << "\n";
 }
 
-int AddCommand::execute(RSCCli * cli)
+int AddCommand::execute(ControllerOperation & ops)
 {
   if(_args.empty()) {
     std::cerr << _NAME << " need at least one argument\n";
@@ -196,8 +198,8 @@ int AddCommand::execute(RSCCli * cli)
     return 1;
   }
 
-  if(_args.size() == 1) return cli->add(_args.front());
-  else                  return cli->add(_args.front(), _args.back());
+  if(_args.size() == 1) return ops.add(_args.front());
+  else                  return ops.add(_args.front(), _args.back());
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -227,7 +229,7 @@ void RemoveCommand::print_help()
   std::cout << "\n";
 }
 
-int RemoveCommand::execute(RSCCli * cli)
+int RemoveCommand::execute(ControllerOperation & ops)
 {
   if(_args.empty()) {
     std::cerr << _NAME << " need one argument\n";
@@ -235,7 +237,7 @@ int RemoveCommand::execute(RSCCli * cli)
     return 1;
   }
 
-  return cli->remove(_args.front());
+  return ops.remove(_args.front());
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -263,18 +265,19 @@ void VersionCommand::print_help()
   std::cout << "\n";
 }
 
-int VersionCommand::execute(RSCCli * cli)
+int VersionCommand::execute(ControllerOperation & ops)
 {
-  return cli->version();
+  return ops.version();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 //                                 IfCommand                                 //
 ///////////////////////////////////////////////////////////////////////////////
 
-std::map<char, std::function<int(IfCommand*,RSCCli*)>> IfCommand::_on_opt = {
-  { char{SET}, [] (IfCommand * cmd, RSCCli* cli) -> int { return cmd->set(cli); } },
-  { char{LIST}, [] (IfCommand * cmd, RSCCli* cli) -> int { return cmd->list(cli); } },
+std::map<char,
+	 std::function<int(IfCommand*,ControllerOperation&)>> IfCommand::_on_opt = {
+  { char{SET}, [] (IfCommand * cmd, ControllerOperation& ops) -> int { return cmd->set(ops); } },
+  { char{LIST}, [] (IfCommand * cmd, ControllerOperation& ops) -> int { return cmd->list(ops); } },
 };
 
 void IfCommand::print_usage() const
@@ -318,7 +321,7 @@ void IfCommand::print_help()
   std::cout << "\n";
 }
 
-int IfCommand::execute(RSCCli * cli) 
+int IfCommand::execute(ControllerOperation & ops) 
 {
   if(_opts.empty()) {
     std::cerr << _NAME << " need at least one option.\n";
@@ -333,7 +336,7 @@ int IfCommand::execute(RSCCli * cli)
   }
   
   for(char c : _opts) {
-    int err = _on_opt[c](this,cli);
+    int err = _on_opt[c](this,ops);
 
     if(err) return err;
   }
@@ -341,14 +344,14 @@ int IfCommand::execute(RSCCli * cli)
   return 0;
 }
 
-int IfCommand::set(RSCCli * cli)
+int IfCommand::set(ControllerOperation & ops)
 {
-  return cli->setif(_args.front());
+  return ops.setif(_args.front());
 }
 
-int IfCommand::list(RSCCli * cli)
+int IfCommand::list(ControllerOperation & ops)
 {
-  return cli->listif();
+  return ops.listif();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -376,9 +379,9 @@ void StartCommand::print_help()
   std::cout << "\n";
 }
 
-int StartCommand::execute(RSCCli * cli)
+int StartCommand::execute(ControllerOperation & ops)
 {
-  return cli->start();
+  return ops.start();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -406,9 +409,9 @@ void StopCommand::print_help()
   std::cout << "\n";
 }
 
-int StopCommand::execute(RSCCli * cli)
+int StopCommand::execute(ControllerOperation & ops)
 {
-  return cli->stop();
+  return ops.stop();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -436,7 +439,7 @@ void PauseCommand::print_help()
   std::cout << "\n";
 }
 
-int PauseCommand::execute(RSCCli * cli)
+int PauseCommand::execute(ControllerOperation & ops)
 {
-  return cli->pause();
+  return ops.pause();
 }

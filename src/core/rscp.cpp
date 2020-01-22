@@ -49,7 +49,7 @@ RSCP::RSCP(): _if(DEFAULT_IF), _next_pc_id{0},
   
   _shortcut.push_back(std::move(quit_shortcut));
     
-  PC local_pc { _next_pc_id++, true, "localhost", {0}, {0,0}, {0,0}};
+  rscutil::PC local_pc { _next_pc_id++, true, "localhost", {0}, {0,0}, {0,0}};
 
 #ifndef NO_CURSOR
   _cursor = open_cursor_info();
@@ -143,6 +143,7 @@ void RSCP::_transit(Combo::Way way, float height)
 
 void RSCP::add_pc(const uint8_t *addr, const std::string& hostname)
 {
+  using namespace rscutil;
   bool exist = _all_pc_list.exist([&addr](const PC& pc) -> bool {
 				    return !memcmp(addr, pc.address, PC::LEN_ADDR);
 				  });
@@ -166,11 +167,11 @@ void RSCP::_receive()
 {
   struct scnp_packet   packet;
   ControllerEvent    * ev = nullptr;
-  uint8_t              addr_src[PC::LEN_ADDR];
+  uint8_t              addr_src[rscutil::PC::LEN_ADDR];
   int                  can_update = 0;
     
 #ifndef NO_CURSOR
-  const PC&            local_pc = _pc_list.get_local();
+  const rscutil::PC&   local_pc = _pc_list.get_local();
   ComboMouse           mouse(local_pc.resolution.w, local_pc.resolution.h,_cursor);
   
   mouse.set_action([&](Combo* combo) {

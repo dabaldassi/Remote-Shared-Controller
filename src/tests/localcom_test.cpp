@@ -7,15 +7,41 @@
 TEST_CASE("Message") {
   using namespace rsclocalcom;
   
-  SECTION("ACK") {
+  SECTION("ACKDEFAULT") {
+    std::stringstream ss;
+    Message m(Message::ACK);
+
+    REQUIRE_THROWS(m.get(ss));
+    REQUIRE_NOTHROW(m.add_arg(Message::OK, Message::DEFAULT));
+    REQUIRE_NOTHROW(m.get(ss));
+    REQUIRE_THROWS(m.add_arg(2));
+    
+    REQUIRE(ss.str() == "ACK 0 0");
+  }
+
+  SECTION("ACKINFO") {
     std::stringstream ss;
     Message m(Message::ACK);
 
     REQUIRE_THROWS(m.get(ss));
     REQUIRE_NOTHROW(m.add_arg(Message::OK));
+    REQUIRE_NOTHROW(m.add_arg(2));
     REQUIRE_NOTHROW(m.get(ss));
+    REQUIRE_THROWS(m.add_arg(2));
     
-    REQUIRE(ss.str() == "ACK 0");
+    REQUIRE(ss.str() == "ACK 0 2");
+  }
+
+  SECTION("ACKERROR") {
+    std::stringstream ss;
+    Message m(Message::ACK);
+
+    REQUIRE_THROWS(m.get(ss));
+    REQUIRE_NOTHROW(m.add_arg(Message::ERROR, Message::DEFAULT));
+    REQUIRE_NOTHROW(m.get(ss));
+    REQUIRE_THROWS(m.add_arg(2));
+    
+    REQUIRE(ss.str() == "ACK 1 0");
   }
 
   SECTION("GETLIST") {
@@ -96,12 +122,12 @@ TEST_CASE("Com") {
 
   std::stringstream().swap(ss);
   msg.reset(Message::ACK);
-  msg.add_arg(Message::OK);
+  msg.add_arg(Message::OK, Message::DEFAULT);
 
   com.send_to(RSCLocalCom::Contact::CLIENT,msg);
   msg.reset();
   com.read_from(RSCLocalCom::Contact::CORE,msg);
 
   REQUIRE_NOTHROW(msg.get(ss));
-  REQUIRE(ss.str() == "ACK 0");
+  REQUIRE(ss.str() == "ACK 0 0");
 }

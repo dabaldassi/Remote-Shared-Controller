@@ -263,26 +263,28 @@ void RSCP::_local_cmd()
     {
       { Message::IF, [this,&ack](const Message& m) {
 	  set_interface(std::stoi(m.get_arg(0)));
-	  ack.add_arg(Message::OK);  }},
+	  ack.add_arg(Message::OK, Message::DEFAULT);  }},
+      { Message::GETIF, [this,&ack](const Message&) {
+	  ack.add_arg(Message::OK, _if);  }},
       { Message::GETLIST, [this, &ack](const Message& ) {
 	  _pc_list.save(CURRENT_PC_LIST);
 	  _all_pc_list.save(ALL_PC_LIST);
-	  ack.add_arg(Message::OK); } },
+	  ack.add_arg(Message::OK, Message::DEFAULT); } },
       { Message::SETLIST, [this, &ack](const Message& ) {
 	  _th_safe_op(_pc_list_mutex, [this]() {_pc_list.load(CURRENT_PC_LIST);});
 	  _th_safe_op(_all_pc_list_mutex,[this](){_all_pc_list.load(ALL_PC_LIST);});
-	  ack.add_arg(Message::OK);
+	  ack.add_arg(Message::OK, Message::DEFAULT);
 	}},
       { Message::START, [&ack](const Message&) {
-	  ack.add_arg(Message::STARTED);
+	  ack.add_arg(Message::ERROR, Message::STARTED);
 	}},
       { Message::STOP, [&stop_request, &ack](const Message&) {
 	  stop_request = true;
-	  ack.add_arg(Message::OK);
+	  ack.add_arg(Message::OK, Message::DEFAULT);
 	}},
       { Message::PAUSE, [&pause_request, &ack](const Message&) {
 	  pause_request = true;
-	  ack.add_arg(Message::OK);
+	  ack.add_arg(Message::OK, Message::DEFAULT);
 	}},
     };
 
@@ -401,15 +403,15 @@ void RSCP::wait_for_wakeup()
     switch(msg.get_cmd()) {
     case Message::START:
       _pause = false;
-      ack.add_arg(Message::OK);
+      ack.add_arg(Message::OK, Message::DEFAULT);
       break;
     case Message::STOP:
       _pause = false;
       _run = false;
-      ack.add_arg(Message::OK);
+      ack.add_arg(Message::OK, Message::DEFAULT);
       break;
     default:
-      ack.add_arg(Message::PAUSED);
+      ack.add_arg(Message::ERROR, Message::PAUSED);
       break;
     }
 

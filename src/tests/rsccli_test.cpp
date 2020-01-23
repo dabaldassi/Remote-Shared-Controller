@@ -9,11 +9,11 @@
 #include <controller_op.hpp>
 
 enum { LISTALL, LISTCURRENT, LISTREFRESH, ADD, ADD2, REMOVE, SETIF, LISTIF, VERSION, HELP,
-       START, STOP, PAUSE};
+       START, STOP, PAUSE, GETIF};
 
 using namespace rscui;
 
-std::map<rsclocalcom::Message::Ack, std::string> ControllerOperation::_err_msg{};
+std::map<rsclocalcom::Message::AckCode, std::string> ControllerOperation::_err_msg{};
 
 int ControllerOperation::_send_cmd(const rsclocalcom::Message& )
 {
@@ -25,17 +25,13 @@ int ControllerOperation::_getlist(rscutil::PCList&, const std::string& )
   return 0;
 }
 
-int ControllerOperation::listall()
+int ControllerOperation::listcurrent(bool all)
 {
-  return LISTALL;
+  if(all) return LISTALL;
+  else    return LISTCURRENT;
 }
 
-int ControllerOperation::listcurrent()
-{
-  return LISTCURRENT;
-}
-
-int ControllerOperation::listrefresh()
+int ControllerOperation::listrefresh(bool)
 {
   return LISTREFRESH;
 }
@@ -65,6 +61,11 @@ int ControllerOperation::help()
 int ControllerOperation::setif(const std::string &)
 {
   return SETIF;
+}
+
+int ControllerOperation::getif()
+{
+  return GETIF;
 }
 
 int ControllerOperation::listif()
@@ -106,6 +107,7 @@ TEST_CASE("Command") {
     REQUIRE_THROWS(cmd.add_opt("a"));
     REQUIRE_NOTHROW(cmd.add_opt("-a"));
     REQUIRE(cmd.execute(ops) == LISTALL);
+    REQUIRE_NOTHROW(cmd.add_opt("-c"));
     REQUIRE_THROWS(cmd.add_opt("-c"));
 
     REQUIRE_THROWS(cmd2.add_opt("-e"));
@@ -191,7 +193,7 @@ TEST_CASE("Command") {
   }
 
   SECTION("IF") {
-    IfCommand cmd, cmd2;
+    IfCommand cmd, cmd2, cmd_get;
 
     REQUIRE(cmd.execute(ops) == 1);
 
@@ -202,6 +204,14 @@ TEST_CASE("Command") {
     REQUIRE_THROWS(cmd.add_opt("-a"));
 
     REQUIRE(cmd.execute(ops) == LISTIF);
+
+    REQUIRE_THROWS(cmd_get.add_arg("g"));
+    REQUIRE_NOTHROW(cmd_get.add_opt("g"));
+    REQUIRE_NOTHROW(cmd_get.add_opt("-g"));
+    REQUIRE_THROWS(cmd_get.add_arg("a"));
+    REQUIRE_THROWS(cmd_get.add_opt("-a"));
+
+    REQUIRE(cmd_get.execute(ops) == GETIF);
 
     REQUIRE_NOTHROW(cmd2.add_opt("-s"));
     REQUIRE_THROWS(cmd2.add_opt("-s"));
@@ -221,7 +231,15 @@ TEST_CASE("parser") {
      std::make_tuple("list", 0, LISTCURRENT),
      std::make_tuple("list -c", 0, LISTCURRENT),
      std::make_tuple("list -a", 0, LISTALL),
+     std::make_tuple("list -ac", 0, LISTALL),
+     std::make_tuple("list -a -c", 0, LISTALL),
      std::make_tuple("list -r", 0, LISTREFRESH),
+     std::make_tuple("list -ar", 0, LISTREFRESH),
+     std::make_tuple("list -a -r", 0, LISTREFRESH),
+     std::make_tuple("list -a 1", 1, 0),
+     std::make_tuple("list -a -a", 1, 0),
+     std::make_tuple("list -a -r -a", 1, 0),
+     std::make_tuple("list -a -c -a", 1, 0),
      std::make_tuple("list -r -r", 1, 0),
      std::make_tuple("list abc", 1, 0),
      std::make_tuple("list -c a", 1, 0),
@@ -257,7 +275,9 @@ TEST_CASE("parser") {
      std::make_tuple("help a", 1, 0),
      std::make_tuple("if -l", 0, LISTIF),
      std::make_tuple("if -s 1", 0, SETIF),
+     std::make_tuple("if -g", 0, GETIF),
      std::make_tuple("if -l 1", 1, 0),
+     std::make_tuple("if -g 1", 1, 0),
      std::make_tuple("if", 0, 1),
      std::make_tuple("if -r", 1, 0),
      std::make_tuple("if -s 1 1", 1, 0),

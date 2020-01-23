@@ -25,6 +25,7 @@ namespace rscui {
 
     void display_pc(rscutil::PCList& list, bool all) override;
     void display_if(const IF * interface) override;
+    void display_if(int if_index, const std::string& if_name) override;
     void display_error(const std::string& error) override;
     void display_version(const std::string& version) override;
     void display_help() override;

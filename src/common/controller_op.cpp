@@ -7,9 +7,9 @@ using rscui::ControllerOperation;
 using rscutil::PCList;
 using rscutil::PC;
 
-std::map<rsclocalcom::Message::Ack, std::string> ControllerOperation::_err_msg =
+std::map<rsclocalcom::Message::AckCode, std::string> ControllerOperation::_err_msg =
   { 
-   { rsclocalcom::Message::ERROR, "An error occured\n"},
+   { rsclocalcom::Message::DEFAULT, "An error occured\n"},
    { rsclocalcom::Message::STARTED, "Already running\n" },
    { rsclocalcom::Message::PAUSED, "Core is paused\n"},
    { rsclocalcom::Message::FUTURE, "Not Implemented yet\n"},
@@ -29,20 +29,23 @@ int ControllerOperation::_send_cmd(const rsclocalcom::Message& msg)
   com.read(m);
 
   if(m.get_cmd() == Message::ACK) {
-    auto err = (Message::Ack)std::stoi(m.get_arg(0));
+    auto ack = (Message::AckType)std::stoi(m.get_arg(0));
 
-    if(err != Message::Ack::OK) {
+    if(ack != Message::AckType::OK) {
+      auto err = (Message::AckCode)std::stoi(m.get_arg(1));
       _ui->display_error(_err_msg[err]);
-      return 1;
+      return -1;
     }
+
+    int ret = std::stoi(m.get_arg(1));
     
-    return 0;
+    return ret;
   }
   else {
     _ui->display_error("An error occured\n");
   }
 	      
-  return 1;
+  return -1;
 }
 
 int ControllerOperation::_getlist(PCList& list, const std::string& file_name)
@@ -56,38 +59,26 @@ int ControllerOperation::_getlist(PCList& list, const std::string& file_name)
   return err;
 }
 
-int ControllerOperation::listall()
-{
-  PCList list;
-  int    err = _getlist(list, CURRENT_PC_LIST);
-
-  if(err) return err;
-
-  _ui->display_pc(list, true);
-  
-  return 0;
-}
-
-int ControllerOperation::listcurrent()
+int ControllerOperation::listcurrent(bool all)
 {
   PCList list;
   int    err = _getlist(list, CURRENT_PC_LIST);
 
   if(err) return err;
   
-  _ui->display_pc(list, false);
+  _ui->display_pc(list, all);
   
   return 0;
 }
 
-int ControllerOperation::listrefresh()
+int ControllerOperation::listrefresh(bool all)
 {
   PCList list;
   int    err = _getlist(list, ALL_PC_LIST);
 
   if(err) return err;
   
-  _ui->display_pc(list, false);
+  _ui->display_pc(list, all);
   
   return 0;
 }
@@ -204,4 +195,36 @@ int ControllerOperation::pause()
   rsclocalcom::Message msg(rsclocalcom::Message::PAUSE);
 
   return _send_cmd(msg);
+}
+
+int ControllerOperation::getif()
+{
+  rsclocalcom::Message msg(rsclocalcom::Message::GETIF);
+
+  int ret = _send_cmd(msg);
+  
+  if(ret > 0) {
+    unsigned int if_index = ret;
+    IF *         ifs = get_interfaces();
+
+    if(!ifs) {
+      _ui->display_error("Can not get network interface list");
+      return 1;
+    }
+
+    while(!(ifs->if_index == 0 && ifs->if_name == NULL) && (if_index != ifs->if_index)) {
+      ++ifs;
+    }
+
+    if(ifs->if_index == 0 && ifs->if_name == NULL) {
+      _ui->display_error("The current interface does not exist");
+      return 1;
+    }
+    
+    _ui->display_if(if_index, ifs->if_name);
+    free_interfaces(ifs);
+    return 0;
+  }
+
+  return 1;
 }

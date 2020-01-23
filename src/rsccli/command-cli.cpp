@@ -72,7 +72,7 @@ void HelpCommand::print_help()
   std::cout << "\n";
 }
 
-int HelpCommand::execute(ControllerOperation & ops)
+int HelpCommand::execute(ctrl_op_t & ops)
 {
   return ops.help();
 }
@@ -81,11 +81,10 @@ int HelpCommand::execute(ControllerOperation & ops)
 //                                ListCommand                                //
 ///////////////////////////////////////////////////////////////////////////////
 
-std::map<char, std::function<int(ListCommand*,ControllerOperation&)>> ListCommand::_on_opt =
+std::map<char, std::function<int(ListCommand*,ctrl_op_t&)>> ListCommand::_on_opt =
   {
-   { char{CURRENT}, [] (ListCommand * cmd, ControllerOperation& ops) -> int { return cmd->listcurrent(ops); } },
-   { char{ALL}, [] (ListCommand * cmd, ControllerOperation& ops) -> int { return cmd->listall(ops); } },
-   { char{REFRESH}, [] (ListCommand * cmd, ControllerOperation& ops) -> int { return cmd->listrefresh(ops); } },
+   { char{CURRENT}, [] (ListCommand * cmd, ctrl_op_t& ops) { return cmd->listcurrent(ops); } },
+   { char{REFRESH}, [] (ListCommand * cmd, ctrl_op_t& ops) { return cmd->listrefresh(ops); } },
 };
 
 void ListCommand::print_usage() const
@@ -105,9 +104,12 @@ void ListCommand::add_opt(const std::string& opt)
   if(opt.empty()) throw std::runtime_error("Option is empty !");
   if(opt.substr(0, 1) != OPT_DELIM)
     throw std::runtime_error("Option must start with !" + OPT_DELIM);
-
+  
   for(size_t i = 1; i < opt.size(); i++) {
-    if(_opts.size() >= _nb_opt)
+    if(_opts.size() >= _nb_opt ||
+       (_opts.size() == 1 && _all) ||
+       (_opts.size() == 1 && !_all && c[i] != ALL) ||
+       (_all && c[i] == ALL))
       throw std::range_error(_NAME + std::string(" too many options"));
     
     auto it = _on_opt.find(c[i]);
@@ -115,6 +117,7 @@ void ListCommand::add_opt(const std::string& opt)
       auto it_opt = std::find(_opts.begin(), _opts.end(), c[i]);
       if(it_opt == _opts.end()) _opts.push_back(c[i]);
     }
+    else if(c[i] == ALL) _all = true;
     else {
       throw std::runtime_error(std::string("No such option for list : -") + c[i]);
     }
@@ -132,7 +135,7 @@ void ListCommand::print_help()
   std::cout << "\n";
 }
 
-int ListCommand::execute(ControllerOperation & ops) 
+int ListCommand::execute(ctrl_op_t & ops) 
 {
   if(_opts.empty()) {
     int err = _on_opt[char{CURRENT}](this,ops);
@@ -147,19 +150,14 @@ int ListCommand::execute(ControllerOperation & ops)
   return 0;
 }
 
-int ListCommand::listall(ControllerOperation& ops)
+int ListCommand::listrefresh(ctrl_op_t& ops)
 {
-  return ops.listall();
+  return ops.listrefresh(_all);
 }
 
-int ListCommand::listrefresh(ControllerOperation& ops)
+int ListCommand::listcurrent(ctrl_op_t& ops)
 {
-  return ops.listrefresh();
-}
-
-int ListCommand::listcurrent(ControllerOperation& ops)
-{
-  return ops.listcurrent();
+  return ops.listcurrent(_all);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -190,7 +188,7 @@ void AddCommand::print_help()
   std::cout << "\n";
 }
 
-int AddCommand::execute(ControllerOperation & ops)
+int AddCommand::execute(ctrl_op_t & ops)
 {
   if(_args.empty()) {
     std::cerr << _NAME << " need at least one argument\n";
@@ -229,7 +227,7 @@ void RemoveCommand::print_help()
   std::cout << "\n";
 }
 
-int RemoveCommand::execute(ControllerOperation & ops)
+int RemoveCommand::execute(ctrl_op_t & ops)
 {
   if(_args.empty()) {
     std::cerr << _NAME << " need one argument\n";
@@ -265,7 +263,7 @@ void VersionCommand::print_help()
   std::cout << "\n";
 }
 
-int VersionCommand::execute(ControllerOperation & ops)
+int VersionCommand::execute(ctrl_op_t & ops)
 {
   return ops.version();
 }
@@ -275,15 +273,16 @@ int VersionCommand::execute(ControllerOperation & ops)
 ///////////////////////////////////////////////////////////////////////////////
 
 std::map<char,
-	 std::function<int(IfCommand*,ControllerOperation&)>> IfCommand::_on_opt = {
-  { char{SET}, [] (IfCommand * cmd, ControllerOperation& ops) -> int { return cmd->set(ops); } },
-  { char{LIST}, [] (IfCommand * cmd, ControllerOperation& ops) -> int { return cmd->list(ops); } },
+	 std::function<int(IfCommand*,ctrl_op_t&)>> IfCommand::_on_opt = {
+  { char{SET}, [] (IfCommand * cmd, ctrl_op_t& ops) -> int { return cmd->set(ops); } },
+  { char{LIST}, [] (IfCommand *, ctrl_op_t& ops) -> int { return ops.listif(); } },
+  { char{GET}, [] (IfCommand *, ctrl_op_t& ops) -> int { return ops.getif(); } },
 };
 
 void IfCommand::print_usage() const
 {
   std::cout << "Usage : " << RSCCLI_NAME << " " << _NAME
-	    << " {-" << SET << " id | -" << LIST << " }\n";
+	    << " {-" << SET << " id | -" << LIST << " | -" << GET << " }\n";
 }
 
 void IfCommand::add_arg(const std::string& arg)
@@ -317,11 +316,12 @@ void IfCommand::print_help()
 {
   std::cout << "\t" << _NAME << "\tOperations on the network interface.\n";
   std::cout << "\t\t" << "-" << SET << " id" << "\tSet the current network interface." << "\n";
+  std::cout << "\t\t" << "-" << GET << "\tGet the current network interface." << "\n";
   std::cout << "\t\t" << "-" << LIST << "\tList all the available network interface." << "\n";
   std::cout << "\n";
 }
 
-int IfCommand::execute(ControllerOperation & ops) 
+int IfCommand::execute(ctrl_op_t & ops) 
 {
   if(_opts.empty()) {
     std::cerr << _NAME << " need at least one option.\n";
@@ -344,14 +344,9 @@ int IfCommand::execute(ControllerOperation & ops)
   return 0;
 }
 
-int IfCommand::set(ControllerOperation & ops)
+int IfCommand::set(ctrl_op_t & ops)
 {
   return ops.setif(_args.front());
-}
-
-int IfCommand::list(ControllerOperation & ops)
-{
-  return ops.listif();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -379,7 +374,7 @@ void StartCommand::print_help()
   std::cout << "\n";
 }
 
-int StartCommand::execute(ControllerOperation & ops)
+int StartCommand::execute(ctrl_op_t & ops)
 {
   return ops.start();
 }
@@ -409,7 +404,7 @@ void StopCommand::print_help()
   std::cout << "\n";
 }
 
-int StopCommand::execute(ControllerOperation & ops)
+int StopCommand::execute(ctrl_op_t & ops)
 {
   return ops.stop();
 }
@@ -439,7 +434,7 @@ void PauseCommand::print_help()
   std::cout << "\n";
 }
 
-int PauseCommand::execute(ControllerOperation & ops)
+int PauseCommand::execute(ctrl_op_t & ops)
 {
   return ops.pause();
 }

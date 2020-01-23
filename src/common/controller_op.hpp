@@ -16,7 +16,7 @@ namespace rscui {
 
   class ControllerOperation
   {
-    static std::map<rsclocalcom::Message::Ack, std::string> _err_msg;
+    static std::map<rsclocalcom::Message::AckCode, std::string> _err_msg;
 
     RscUi * _ui;
 
@@ -39,27 +39,20 @@ namespace rscui {
   public:
     ControllerOperation(RscUi * ui)
       : _ui(ui) {}
-
-    /**
-     *\brief List all the charateristics of the current list of PC
-     *\return 1 if there was an error. 0 otherwise
-     */
-  
-    int listall();
-  
+   
     /**
      *\brief List all the current list of PC
      *\return 1 if there was an error. 0 otherwise
      */
   
-    int listcurrent();
+    int listcurrent(bool all);
   
     /**
      *\brief List all the pc available on the network
      *\return 1 if there was an error. 0 otherwise
      */
   
-    int listrefresh();
+    int listrefresh(bool all);
 
     /**
      *\brief Add a pc to the current list by its id
@@ -107,6 +100,13 @@ namespace rscui {
      */
 
     int setif(const std::string& id);
+
+    /**
+     *\brief Get the id of current network interface
+     *\return 1 if there was an error. 0 otherwise
+     */
+
+    int getif();
 
     /**
      *\brief List all the network interface of the PC

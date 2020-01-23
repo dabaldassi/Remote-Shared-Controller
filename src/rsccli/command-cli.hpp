@@ -9,7 +9,8 @@
 namespace rscui {
 
   class ControllerOperation;
-
+  using ctrl_op_t = ControllerOperation;
+  
   /**
    *\class Command
    *\brief Build and execute an rsccli command.
@@ -45,7 +46,7 @@ namespace rscui {
      *      with SFINAE
      */
   
-    virtual int execute(ControllerOperation & ops) = 0;
+    virtual int execute(ctrl_op_t & ops) = 0;
 
     /**
      *\brief Add an option to the command.
@@ -110,7 +111,7 @@ namespace rscui {
     void print_usage() const override;
     void add_arg(const std::string& arg) override;
     void add_opt(const std::string& opt) override;
-    int  execute(ControllerOperation & ops) override;
+    int  execute(ctrl_op_t & ops) override;
 
     static void print_help();
     static std::string get_name() { return _NAME; }
@@ -126,24 +127,25 @@ namespace rscui {
   class ListCommand : public Command
   {
     static constexpr char _NAME[] = "list";
-    static std::map<char, std::function<int(ListCommand*,ControllerOperation&)>> _on_opt;
+    static std::map<char, std::function<int(ListCommand*,ctrl_op_t&)>> _on_opt;
 
     static constexpr char ALL = 'a';
     static constexpr char REFRESH = 'r';
     static constexpr char CURRENT = 'c';
+
+    bool _all;
   
   public:
     ListCommand()
-      : Command(0,1) {}
+      : Command(0,2), _all{false} {}
   
     void print_usage() const override;
     void add_arg(const std::string& arg) override;
     void add_opt(const std::string& opt) override;
-    int  execute(ControllerOperation & ops) override;
+    int  execute(ctrl_op_t & ops) override;
 
-    int listall(ControllerOperation&);
-    int listrefresh(ControllerOperation&);
-    int listcurrent(ControllerOperation&);
+    int listcurrent(ctrl_op_t& ops);
+    int listrefresh(ctrl_op_t& ops);
 
     static void print_help();
     static std::string get_name() { return _NAME; }
@@ -162,7 +164,7 @@ namespace rscui {
     void print_usage() const override;
     void add_arg(const std::string& arg) override;
     void add_opt(const std::string& opt) override;
-    int  execute(ControllerOperation & ops) override;
+    int  execute(ctrl_op_t & ops) override;
 
     static void print_help();
     static std::string get_name() { return _NAME; }
@@ -181,7 +183,7 @@ namespace rscui {
     void print_usage() const override;
     void add_arg(const std::string& arg) override;
     void add_opt(const std::string& opt) override;
-    int  execute(ControllerOperation & ops) override;
+    int  execute(ctrl_op_t & ops) override;
 
     static void print_help();
     static std::string get_name() { return _NAME; }
@@ -199,7 +201,7 @@ namespace rscui {
     void print_usage() const override;
     void add_arg(const std::string& arg) override;
     void add_opt(const std::string& opt) override;
-    int  execute(ControllerOperation & ops) override;
+    int  execute(ctrl_op_t & ops) override;
 
     static void print_help();
     static std::string get_name() { return _NAME; }
@@ -211,10 +213,11 @@ namespace rscui {
   {
     static constexpr char _NAME[] = "if";
     static std::map<char,
-		    std::function<int(IfCommand*,ControllerOperation&)>> _on_opt;
+		    std::function<int(IfCommand*,ctrl_op_t&)>> _on_opt;
 
     static constexpr char SET = 's';
     static constexpr char LIST = 'l';
+    static constexpr char GET = 'g';
   
   public:
     IfCommand()
@@ -223,11 +226,10 @@ namespace rscui {
     void print_usage() const override;
     void add_arg(const std::string& arg) override;
     void add_opt(const std::string& opt) override;
-    int  execute(ControllerOperation & ops) override;
+    int  execute(ctrl_op_t & ops) override;
 
-    int set(ControllerOperation&);
-    int list(ControllerOperation&);
-
+    int set(ctrl_op_t&);
+    
     static void print_help();
     static std::string get_name() { return _NAME; }
   };
@@ -245,7 +247,7 @@ namespace rscui {
     void print_usage() const override;
     void add_arg(const std::string& arg) override;
     void add_opt(const std::string& opt) override;
-    int  execute(ControllerOperation & ops) override;
+    int  execute(ctrl_op_t & ops) override;
 
     static void print_help();
     static std::string get_name() { return _NAME; }
@@ -263,7 +265,7 @@ namespace rscui {
     void print_usage() const override;
     void add_arg(const std::string& arg) override;
     void add_opt(const std::string& opt) override;
-    int  execute(ControllerOperation & ops) override;
+    int  execute(ctrl_op_t & ops) override;
 
     static void print_help();
     static std::string get_name() { return _NAME; }
@@ -281,7 +283,7 @@ namespace rscui {
     void print_usage() const override;
     void add_arg(const std::string& arg) override;
     void add_opt(const std::string& opt) override;
-    int  execute(ControllerOperation & ops) override;
+    int  execute(ctrl_op_t & ops) override;
 
     static void print_help();
     static std::string get_name() { return _NAME; }

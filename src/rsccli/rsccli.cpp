@@ -84,3 +84,9 @@ void RSCCli::display_help()
 
   std::cout << "\n";
 }
+
+void RSCCli::display_if(int if_index, const std::string &if_name)
+{
+  std::cout << "The current network interface is : \n";
+  std::cout << if_index << "\t" << if_name << "\n";
+}

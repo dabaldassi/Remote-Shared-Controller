@@ -10,8 +10,9 @@ namespace rsclocalcom {
   class Message
   {
   public:
-    enum Command{ IF, GETLIST, SETLIST, ACK, START, STOP, PAUSE, NA};
-    enum Ack { OK, ERROR, STARTED, PAUSED, FUTURE };
+    enum Command : unsigned { IF, GETIF, GETLIST, SETLIST, ACK, START, STOP, PAUSE, NA };
+    enum AckType { OK, ERROR };
+    enum AckCode : unsigned { DEFAULT, STARTED, PAUSED, FUTURE };
     
   private:
     Command                  _cmd;
@@ -43,7 +44,7 @@ namespace rsclocalcom {
     /**
      *\brief Get the message in a stringstream
      *\param ss The stringstream to get the message
-     *\exception std::runtime_error if the command is NA or if the number of argument does not match
+     *\exception std::runtime_error if the command is NA or if the number of argument doesn't match
      */
     
     void get(std::stringstream& ss) const;
@@ -80,11 +81,21 @@ namespace rsclocalcom {
      *\exception std::runtime_error Throw this exception if command if NA
      *\exception std::range_error Throw this exception if the number of argument is exeeded
      */
+
+    template<typename T, typename... Ts>
+    void add_arg(T&& t, Ts... ts)
+    {
+      add_arg(std::forward<T>(t));
+      add_arg(std::forward<Ts>(ts)...);
+    }
     
     template<typename T>
     void add_arg(T&& t) {
+      size_t nb_args = std::get<1>(_commands[_cmd]);
+      
       if(_cmd == NA) throw std::runtime_error("Command is N/A");
-      if(_args.size() >= std::get<1>(_commands[_cmd])) throw std::range_error("Too much arguments");
+      if(_args.size() >= nb_args)
+	throw std::range_error("Too much arguments : expecting " + std::to_string(nb_args));
 
       _args.push_back(_to_string(std::forward<T>(t)));
     }

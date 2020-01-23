@@ -3,7 +3,7 @@ workflow:
     - changes:
         - CMakeLists.txt
         - src/**/*
-	- .gitlab-ci.yml
+        - .gitlab-ci.yml
       when: always
     - when: never
 

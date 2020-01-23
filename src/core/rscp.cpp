@@ -122,9 +122,11 @@ void RSCP::_transit(Combo::Way way, float height)
   _transit(way);
   
   if(_pc_list.get_current().local) {
-    _cursor->pos_x = (way == Combo::Way::RIGHT)?10:_cursor->screen_size.width-10;
-    _cursor->pos_y = height * _cursor->screen_size.height;
-    set_cursor_position(_cursor);
+    if(_pc_list.size() > 1) {
+      _cursor->pos_x = (way == Combo::Way::RIGHT)?10:_cursor->screen_size.width-10;
+      _cursor->pos_y = height * _cursor->screen_size.height;
+      set_cursor_position(_cursor);
+    }
   }
   else {
     struct scnp_out pkt;

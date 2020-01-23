@@ -212,16 +212,18 @@ int ControllerOperation::getif()
       return 1;
     }
 
-    while(!(ifs->if_index == 0 && ifs->if_name == NULL) && (if_index != ifs->if_index)) {
-      ++ifs;
+    IF * if_cur = ifs;
+    
+    while(!(if_cur->if_index == 0 && if_cur->if_name == NULL) && (if_index != if_cur->if_index)){
+      ++if_cur;
     }
 
-    if(ifs->if_index == 0 && ifs->if_name == NULL) {
+    if(if_cur->if_index == 0 && if_cur->if_name == NULL) {
       _ui->display_error("The current interface does not exist");
       return 1;
     }
     
-    _ui->display_if(if_index, ifs->if_name);
+    _ui->display_if(if_index, if_cur->if_name);
     free_interfaces(ifs);
     return 0;
   }

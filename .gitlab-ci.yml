@@ -20,13 +20,21 @@ building:
   script:
     - mkdir build
     - cd build
-    - cmake -DINCLUDE_TEST=on ..
+    - cmake -DINCLUDE_TEST=ON -DNOCURSOR=ON ..
     - make -j$(nproc)
   artifacts:
     paths:
       - build/src/tests/*_test
     when: on_success
     expire_in: 5 min
+
+building_cursor:
+  stage: build
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DINCLUDE_TEST=ON ..
+    - make -j$(nproc)
 
 event_testing:
   stage: test

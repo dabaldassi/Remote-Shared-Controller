@@ -5,7 +5,6 @@
 #include <config.hpp>
 #include <util.hpp>
 
-using rscutil::ComboMouse;
 using rscutil::ComboShortcut;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -183,6 +182,8 @@ void ComboShortcut::save(const ComboShortcutList &list)
 
 #ifndef NO_CURSOR
 #include <cursor.h>
+
+using rscutil::ComboMouse;
 
 ComboMouse::ComboMouse(size_t width, size_t height, CursorInfo * cursor) : _width(width),
 									   _height(height),

@@ -203,8 +203,9 @@ void RSC::_receive()
      { SCNP_KEY, [&packet]() { return ConvKey<ControllerEvent,KEY>::get(packet); }},
      { SCNP_MOV, [&packet]() { return ConvKey<ControllerEvent,MOUSE>::get(packet); }},
      { SCNP_OUT, [&packet,this,&can_update]() {
+#ifndef NO_CURSOR
 		   auto * pkt = reinterpret_cast<struct scnp_out*>(&packet);
-
+		   
 		   if(pkt->direction == OUT_EGRESS) {
 		     if(!pkt->side) _transit(Combo::Way::LEFT, pkt->height);
 		     else           _transit(Combo::Way::RIGHT, pkt->height);		     
@@ -215,6 +216,7 @@ void RSC::_receive()
 		     set_cursor_position(_cursor);
 		     ++can_update;
 		   }
+#endif
 		   return nullptr;
 		 }},
      { SCNP_MNG, [this, &addr_src, &packet]() {

@@ -1,6 +1,8 @@
 #ifndef CURSOR_H
 #define CURSOR_H
 
+#ifndef NOCURSOR
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -36,4 +38,5 @@ extern "C" {
 }
 #endif
 
+#endif
 #endif /* CURSOR_H */

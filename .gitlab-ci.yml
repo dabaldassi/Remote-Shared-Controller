@@ -3,6 +3,7 @@ workflow:
     - changes:
         - CMakeLists.txt
         - src/**/*
+	- .gitlab-ci.yml
       when: always
     - when: never
 
@@ -56,6 +57,7 @@ localcom_testing:
 common_testing:
   stage: test
   script:
+    - mkdir -p /var/rsc/localcom
     - build/src/tests/common_test
 
 rsccli_testing:

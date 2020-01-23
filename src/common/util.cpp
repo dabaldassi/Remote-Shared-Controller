@@ -60,4 +60,26 @@ void rscutil::register_pid()
 
 #endif
 
+void rscutil::serialize_string(std::ofstream& ofs, const std::string& str)
+{
+  size_t size = str.size();
+  ofs.write((char *)&size, sizeof(size));
+  ofs.write(str.c_str(), size);
+}
+
+void rscutil::deserialize_string(std::ifstream& ifs, std::string& str)
+{
+  size_t size;
+  char * str_tmp;
+
+  ifs.read((char*)&size, sizeof(size));
+  str_tmp = new char[size+1];
+  
+  ifs.read(str_tmp, size);
+  
+  str_tmp[size] = 0;
+  str = str_tmp;
+  
+  delete [] str_tmp;
+}
 

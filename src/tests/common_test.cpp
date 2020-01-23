@@ -2,7 +2,13 @@
 
 #include <iostream>
 #include <fstream>
+
 #include <pc_list.hpp>
+#include <combo.hpp>
+
+#ifndef NO_CURSOR
+#include <cursor.h>
+#endif
 
 TEST_CASE("PC") {
   using namespace rscutil;
@@ -86,4 +92,165 @@ TEST_CASE("PC List") {
   REQUIRE(pc3 == list2.get_current());
   list2.next_pc();
   REQUIRE(pc2 == list2.get_current());
+}
+
+TEST_CASE("Combo") {
+  using namespace rscutil;
+  
+  SECTION("Shortcut") {
+    std::string   name("combotest"), description("This is a combotest");
+    ComboShortcut combo(name, description);
+    bool          action = false;
+    
+    combo.add_shortcut(1, 1);
+    combo.add_shortcut(2, 1);
+    combo.add_shortcut(3, 1);
+    combo.set_action([&action](Combo *) { action = true; });
+
+    auto test = [&name, &description, &action](ComboShortcut& cs) {
+      REQUIRE(cs.get_name() == name);
+      REQUIRE(cs.get_description() == description);
+      
+      REQUIRE_FALSE(cs.update(1,1));
+      REQUIRE_FALSE(cs.update(2,1));
+      REQUIRE(cs.update(3,1));
+      REQUIRE(action);
+      REQUIRE(cs.get_way() == Combo::Way::RIGHT);
+
+      action = false;
+
+      REQUIRE_FALSE(cs.update(1,1));
+      REQUIRE_FALSE(cs.update(1,1));
+      REQUIRE_FALSE(cs.update(2,1));
+      REQUIRE_FALSE(cs.update(3,1));
+      REQUIRE_FALSE(action);
+
+      REQUIRE_FALSE(cs.update(1,1));
+      REQUIRE_FALSE(cs.update(2,1));
+      REQUIRE(cs.update(3,1));
+      REQUIRE(action);
+
+      action = false;
+    };
+
+    test(combo);
+
+    constexpr char file_name[] = "/tmp/combo";
+    
+    std::ofstream ofs(file_name);
+
+    REQUIRE(ofs.is_open());
+    combo.save(ofs);
+    ofs.close();
+    
+    ComboShortcut combo_load("comboload","descload");
+    combo_load.set_action([&action](Combo *) { action = true; });
+
+    std::ifstream ifs(file_name);
+
+    REQUIRE(ifs.is_open());
+    combo_load.load(ifs);
+    ifs.close();
+
+    test(combo_load);
+
+    combo_load.release_for_all();
+
+    REQUIRE_FALSE(combo_load.update(1,1));
+    REQUIRE_FALSE(combo_load.update(2,1));
+    REQUIRE_FALSE(combo_load.update(3,1));
+    REQUIRE_FALSE(combo_load.update(1,0));
+    REQUIRE_FALSE(combo_load.update(2,0));
+    REQUIRE(combo_load.update(3,0));
+    REQUIRE(action);
+  }
+  
+#ifndef NO_CURSOR
+  SECTION("Mouse") {
+    REQUIRE_THROWS(ComboMouse(100,100, nullptr));
+    
+    CursorInfo * cursor = open_cursor_info();
+    ComboMouse   combo(100,100,cursor);
+    bool         action = false;
+
+    combo.set_action([&action](Combo*) { action = true; });
+    
+    cursor->pos_x = 50;
+    cursor->pos_y = 50;
+    set_cursor_position(cursor);
+    REQUIRE_FALSE(combo.update(0,0));
+    REQUIRE(combo.get_way() == Combo::Way::NONE);
+
+    cursor->pos_x = 0;
+    cursor->pos_y = 50;
+    set_cursor_position(cursor);
+    REQUIRE(combo.update(0,0));
+    REQUIRE(combo.get_way() == Combo::Way::LEFT);
+    REQUIRE(action);
+    
+    action = false;
+    cursor->pos_x = 100;
+    cursor->pos_y = 50;
+    set_cursor_position(cursor);
+    REQUIRE(combo.update(0,0));
+    REQUIRE(combo.get_way() == Combo::Way::RIGHT);
+    REQUIRE(action);
+
+    cursor->pos_x = 50;
+    cursor->pos_y = 50;
+    set_cursor_position(cursor);
+    REQUIRE_FALSE(combo.update(0,0));
+    REQUIRE(combo.get_way() == Combo::Way::NONE);
+    
+    close_cursor_info(cursor);
+  }
+#endif
+  
+  SECTION("ShortcutList") {
+    ComboShortcut::ComboShortcutList combolist;
+
+    std::vector<std::pair<std::string, std::string>> nd = {
+      { "combotest1", "descriptiontest1" },
+      { "combotest2", "descriptiontest2" },
+      { "combotest3", "descriptiontest3" },
+    };
+
+    for(size_t i = 0; i < nd.size(); ++i) {
+      ComboShortcut combo(nd[i].first, nd[i].second);
+      
+      combo.add_shortcut(i, 1);
+      combo.add_shortcut(i+1, 1);
+      
+      combo.set_action([](Combo *) {});
+
+      combolist.push_back(std::move(combo));
+    }
+
+    auto test = [&nd](ComboShortcut::ComboShortcutList& list) {
+      size_t i = 0;
+      
+      for(auto& cs : list) {
+	REQUIRE(cs.get_name() == nd[i].first);
+	REQUIRE(cs.get_description() == nd[i].second);
+      
+	REQUIRE_FALSE(cs.update(i,1));
+	REQUIRE(cs.update(i+1,1));
+	REQUIRE(cs.get_way() == Combo::Way::RIGHT);
+	
+	++i;
+      }
+    };
+
+    test(combolist);
+
+    ComboShortcut::save(combolist);
+    
+    ComboShortcut::ComboShortcutList loadlist;
+    ComboShortcut::load(loadlist);
+
+    for(auto& a: loadlist) a.set_action([](Combo*){});
+    
+    test(loadlist);
+    }
+  
 }

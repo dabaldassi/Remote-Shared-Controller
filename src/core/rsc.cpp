@@ -4,7 +4,7 @@
 #include <algorithm>
 
 #include <controller.h> // Must be before convkey.hpp
-#include <rscp.hpp> // Also before convkey.hpp
+#include <rsc.hpp> // Also before convkey.hpp
 
 #include <convkey.hpp>
 #include <config.hpp>
@@ -16,29 +16,30 @@ void error(const char * s)
 }
 
 template<typename Mutex, typename Lambda>
-void RSCP::_th_safe_op(Mutex &m, Lambda &&l)
+void RSC::_th_safe_op(Mutex &m, Lambda &&l)
 {
   std::unique_lock<Mutex> lock(m);
   l();
 }
 
-RSCP::RSCP(): _if(DEFAULT_IF), _next_pc_id{0},
+RSC::RSC(): _if(DEFAULT_IF), _next_pc_id{0},
 	      _com(rsclocalcom::RSCLocalCom::Contact::CORE),
 	      _state(State::HERE)
 {
- auto sh_ptr = ComboShortcut::make_ptr();
+  using namespace rscutil;
+  auto sh_ptr = ComboShortcut::make_ptr("right", "Move to the next computer on the right");
 
   sh_ptr->add_shortcut(KEY_LEFTCTRL, KEY_PRESSED);
   sh_ptr->add_shortcut(KEY_R, KEY_PRESSED);
   sh_ptr->add_shortcut(KEY_RIGHT, KEY_PRESSED);  
   sh_ptr->release_for_all();
   sh_ptr->set_action([this](Combo * combo) {
-		       _transit(combo->get_way());
-		     });
+      _transit(combo->get_way());
+    });
   
   _shortcut.push_back(std::move(sh_ptr));
   
-  auto quit_shortcut = ComboShortcut::make_ptr();
+  auto quit_shortcut = ComboShortcut::make_ptr("quit", "Quit the service");
 
   for(int i = 0; i < 3; i++) {
     quit_shortcut->add_shortcut(KEY_ESC, KEY_PRESSED, 200);
@@ -49,7 +50,7 @@ RSCP::RSCP(): _if(DEFAULT_IF), _next_pc_id{0},
   
   _shortcut.push_back(std::move(quit_shortcut));
     
-  rscutil::PC local_pc { _next_pc_id++, true, "localhost", {0}, {0,0}, {0,0}};
+  PC local_pc { _next_pc_id++, true, "localhost", {0}, {0,0}, {0,0}};
 
 #ifndef NO_CURSOR
   _cursor = open_cursor_info();
@@ -62,10 +63,10 @@ RSCP::RSCP(): _if(DEFAULT_IF), _next_pc_id{0},
 					     local_pc.resolution.h,
 					     _cursor));
     _shortcut.back()->set_action([this](Combo* combo) {
-				   float height = (float) _cursor->pos_y /
-				     _cursor->screen_size.height;
-				   _transit(combo->get_way(), height);
-				 });
+	float height = (float) _cursor->pos_y /
+	  _cursor->screen_size.height;
+	_transit(combo->get_way(), height);
+      });
     
   }
 #endif
@@ -73,14 +74,14 @@ RSCP::RSCP(): _if(DEFAULT_IF), _next_pc_id{0},
   _pc_list.add(local_pc);
 }
 
-RSCP::~RSCP()
+RSC::~RSC()
 {
 #ifndef NO_CURSOR
   if(_cursor) close_cursor_info(_cursor);
 #endif
 }
 
-int RSCP::init()
+int RSC::init()
 {
   int err = scnp_create_socket(&_sock, _if);
 
@@ -94,16 +95,18 @@ int RSCP::init()
   return 0;
 }
 
-void RSCP::exit()
+void RSC::exit()
 {
   exit_controller();
   scnp_close_socket(&_sock);
 }
 
-void RSCP::_transit(Combo::Way way)
-{  
-  if(way == Combo::Way::LEFT) _pc_list.previous_pc();
-  else                        _pc_list.next_pc();
+void RSC::_transit(rscutil::Combo::Way way)
+{
+  using Way = rscutil::Combo::Way;
+  
+  if(way == Way::LEFT) _pc_list.previous_pc();
+  else                 _pc_list.next_pc();
 
   grab_controller(!_pc_list.get_current().local);
  
@@ -117,13 +120,15 @@ void RSCP::_transit(Combo::Way way)
 
 #ifndef NO_CURSOR
 
-void RSCP::_transit(Combo::Way way, float height)
+void RSC::_transit(rscutil::Combo::Way way, float height)
 {
+  using Way = rscutil::Combo::Way;
+  
   _transit(way);
   
   if(_pc_list.get_current().local) {
     if(_pc_list.size() > 1) {
-      _cursor->pos_x = (way == Combo::Way::RIGHT)?10:_cursor->screen_size.width-10;
+      _cursor->pos_x = (way == Way::RIGHT)?10:_cursor->screen_size.width-10;
       _cursor->pos_y = height * _cursor->screen_size.height;
       set_cursor_position(_cursor);
     }
@@ -132,7 +137,7 @@ void RSCP::_transit(Combo::Way way, float height)
     struct scnp_out pkt;
     pkt.type = SCNP_OUT;
     pkt.direction = OUT_INGRESS;
-    pkt.side = (way == Combo::Way::LEFT)? OUT_LEFT : OUT_RIGHT;
+    pkt.side = (way == Way::LEFT)? OUT_LEFT : OUT_RIGHT;
     pkt.height = height;
     scnp_send(&_sock,
 	      reinterpret_cast<scnp_packet*>(&pkt),
@@ -143,7 +148,7 @@ void RSCP::_transit(Combo::Way way, float height)
 
 #endif
 
-void RSCP::add_pc(const uint8_t *addr, const std::string& hostname)
+void RSC::add_pc(const uint8_t *addr, const std::string& hostname)
 {
   using namespace rscutil;
   bool exist = _all_pc_list.exist([&addr](const PC& pc) -> bool {
@@ -165,8 +170,10 @@ void RSCP::add_pc(const uint8_t *addr, const std::string& hostname)
   }
 }
 
-void RSCP::_receive()
+void RSC::_receive()
 {
+  using rscutil::Combo;
+  
   struct scnp_packet   packet;
   ControllerEvent    * ev = nullptr;
   uint8_t              addr_src[rscutil::PC::LEN_ADDR];
@@ -174,7 +181,7 @@ void RSCP::_receive()
     
 #ifndef NO_CURSOR
   const rscutil::PC&   local_pc = _pc_list.get_local();
-  ComboMouse           mouse(local_pc.resolution.w, local_pc.resolution.h,_cursor);
+  rscutil::ComboMouse  mouse(local_pc.resolution.w, local_pc.resolution.h,_cursor);
   
   mouse.set_action([&](Combo* combo) {
 		     auto way = combo->get_way();
@@ -237,7 +244,7 @@ void RSCP::_receive()
 }
 
 
-void RSCP::_send(const ControllerEvent &ev)
+void RSC::_send(const ControllerEvent &ev)
 {
   switch(ev.controller_type) {
   case MOUSE:
@@ -255,7 +262,7 @@ void RSCP::_send(const ControllerEvent &ev)
   }
 }
 
-void RSCP::_local_cmd()
+void RSC::_local_cmd()
 {
   using namespace rsclocalcom;
   Message     msg, ack(Message::ACK);
@@ -303,7 +310,7 @@ void RSCP::_local_cmd()
 
 }
 
-void RSCP::_keep_alive()
+void RSC::_keep_alive()
 {
   decltype(_alive)::iterator it;
   
@@ -313,7 +320,7 @@ void RSCP::_keep_alive()
       it = std::find_if(_alive.begin(),
 			_alive.end(),
 			[](const auto& a) {
-			  auto now = RSCP::clock_t::now();
+			  auto now = RSC::clock_t::now();
 			  std::chrono::duration<double> elapsed;
 			  elapsed = now - a.second;
 			  return elapsed.count() > ALIVE_TIMEOUT;
@@ -331,7 +338,7 @@ void RSCP::_keep_alive()
   }
 }
 
-void RSCP::_send()
+void RSC::_send()
 {
   ControllerEvent c;
   
@@ -355,17 +362,17 @@ void RSCP::_send()
   stop_requested();
 }
 
-void RSCP::run()
+void RSC::run()
 {
   scnp_start_session(_if);
   
   _pause = false;
   _run = true;
   
-  _threads.push_back(std::thread(std::bind(&RSCP::_receive, this)));
+  _threads.push_back(std::thread(std::bind(&RSC::_receive, this)));
   _threads.push_back(std::thread([this]() { _send(); }));
-  _threads.push_back(std::thread(std::bind(&RSCP::_keep_alive, this)));
-  _threads.push_back(std::thread(&RSCP::_local_cmd, this));
+  _threads.push_back(std::thread(std::bind(&RSC::_keep_alive, this)));
+  _threads.push_back(std::thread(&RSC::_local_cmd, this));
 
   for(auto&& th : _threads) th.join();
 
@@ -373,19 +380,19 @@ void RSCP::run()
   scnp_stop_session(_if);
 }
 
-void RSCP::pause_requested()
+void RSC::pause_requested()
 {
   _pause = true;
   for(auto&& th : _threads) pthread_cancel(th.native_handle());  
 }
 
-void RSCP::stop_requested()
+void RSC::stop_requested()
 {
   _run = false;
   for(auto&& th : _threads) pthread_cancel(th.native_handle());
 }
 
-void RSCP::set_interface(int index)
+void RSC::set_interface(int index)
 {
   scnp_stop_session(_if);
   _if = index;
@@ -393,7 +400,7 @@ void RSCP::set_interface(int index)
   scnp_start_session(_if);
 }
 
-void RSCP::wait_for_wakeup()
+void RSC::wait_for_wakeup()
 {
   using namespace rsclocalcom;
   Message msg, ack(Message::ACK);

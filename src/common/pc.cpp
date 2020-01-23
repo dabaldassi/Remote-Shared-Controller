@@ -5,17 +5,15 @@
 #include <cstring>
 
 #include <pc.hpp>
+#include <util.hpp>
 
 using rscutil::PC;
 
 void PC::save(std::ofstream &ofs) const
-{
-  size_t len = name.size();
-  
+{  
   ofs.write((char*)&id, sizeof(id));
   ofs.write((char*)&local, sizeof(local));
-  ofs.write((char*)&len, sizeof(len));
-  ofs.write((char*)name.c_str(), name.size());
+  rscutil::serialize_string(ofs, name);
   ofs.write((char*)address, sizeof(*address) * LEN_ADDR);
   ofs.write((char*)&resolution, sizeof(resolution));
   ofs.write((char*)&offset, sizeof(offset));
@@ -23,19 +21,9 @@ void PC::save(std::ofstream &ofs) const
 
 void PC::load(std::ifstream& ifs)
 {
-  char * name_tmp;
-  size_t len;
-  
   ifs.read((char*)&id, sizeof(id));
   ifs.read((char*)&local, sizeof(local));
-  ifs.read((char*)&len, sizeof(len));
-
-  name_tmp = new char[len+1];
-  ifs.read((char*)name_tmp, len);
-  name_tmp[len] = 0;
-  name = name_tmp;
-  delete [] name_tmp;
-  
+  rscutil::deserialize_string(ifs, name);
   ifs.read((char*)address, sizeof(*address) * LEN_ADDR);
   ifs.read((char*)&resolution, sizeof(resolution));
   ifs.read((char*)&offset, sizeof(offset));

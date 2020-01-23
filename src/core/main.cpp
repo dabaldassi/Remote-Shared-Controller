@@ -1,26 +1,26 @@
 #include <iostream>
 #include <cstring>
 #include <scnp.h>
-#include <rscp.hpp>
+#include <rsc.hpp>
 #include <util.hpp>
 
 int main(int argc, char *argv[])
 {
   rscutil::register_pid();
   
-  RSCP rscp;
+  RSC rsc;
 
-  if(argc == 2) rscp.set_interface(atoi(argv[1]));
+  if(argc == 2) rsc.set_interface(atoi(argv[1]));
   
-  rscp.init();
+  rsc.init();
 
   do {
-    rscp.run();
-    if(rscp.is_paused()) rscp.wait_for_wakeup();
+    rsc.run();
+    if(rsc.is_paused()) rsc.wait_for_wakeup();
     
-  }while(rscp.is_running());
+  }while(rsc.is_running());
   
-  rscp.exit();
+  rsc.exit();
   
   return 0;
 }

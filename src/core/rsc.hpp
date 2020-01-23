@@ -18,26 +18,25 @@
 
 struct ControllerEvent;
 
-class RSCP
+class RSC
 {
   using socket_t = struct scnp_socket;
+  using clock_t = std::chrono::system_clock;
+  using timestamp_t = std::chrono::time_point<RSC::clock_t>;
 
   static constexpr int DEFAULT_IF = 2;
   static constexpr int ALIVE_TIMEOUT = 5;
-
-  using clock_t = std::chrono::system_clock;
-  using timestamp_t = std::chrono::time_point<RSCP::clock_t>;
   
   std::map<int, timestamp_t> _alive;
   
-  std::list<Combo::ptr> _shortcut;
-  rscutil::PCList       _pc_list;
-  rscutil::PCList       _all_pc_list;
-  socket_t              _sock;
-  std::atomic_bool      _run, _pause;
-  int                   _if;
-  int                   _next_pc_id;
-  CursorInfo *          _cursor;
+  std::list<rscutil::Combo::ptr> _shortcut;
+  rscutil::PCList                _pc_list;
+  rscutil::PCList                _all_pc_list;
+  socket_t                       _sock;
+  std::atomic_bool               _run, _pause;
+  int                            _if;
+  int                            _next_pc_id;
+  CursorInfo *                   _cursor;
   
   rsclocalcom::RSCLocalCom _com;
   std::vector<std::thread> _threads; // Index 0 is reserved for keep_alive
@@ -90,18 +89,18 @@ class RSCP
    *\param way If this is the next or previous pc.
    */
   
-  void _transit(Combo::Way way);
+  void _transit(rscutil::Combo::Way way);
 
   #ifndef NO_CURSOR
-  void _transit(Combo::Way way, float height);
+  void _transit(rscutil::Combo::Way way, float height);
   #endif
 
 public:
 
   enum class State { HERE, AWAY };
   
-  RSCP();
-  ~RSCP();
+  RSC();
+  ~RSC();
 
   /**
    *\brief run an rsc instance

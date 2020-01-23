@@ -78,6 +78,7 @@ target_link_libraries(network pthread)
 file(GLOB_RECURSE common_sources src/common/*.cpp)
 file(GLOB_RECURSE common_headers src/common/*.hpp)
 add_library(common ${common_sources} ${common_headers})
+target_link_libraries(common controller)
 
 file(GLOB_RECURSE core_sources src/core/*.cpp)
 file(GLOB_RECURSE core_headers src/core/*.hpp)

@@ -7,6 +7,7 @@
 #define RSC_VERSION "0.1"
 #define RSC_BASE_PATH "/var/rsc"
 #define RSC_PID_FILE "/var/rsc/pid"
+#define RSC_SHORTCUT_SAVE "/var/rsc/shortcut"
 
 // Local Communication
 

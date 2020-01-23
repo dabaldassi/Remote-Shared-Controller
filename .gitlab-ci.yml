@@ -1,0 +1,56 @@
+workflow:
+  rules:
+    - changes:
+        - CMakeLists.txt
+        - src/**/*
+      when: always
+    - when: never
+
+image: celforyon/debian-buster-amd64
+
+stages:
+  - build
+  - test
+
+before_script:
+  - apt-get -qq update && apt-get -qqy install libx11-dev libxfixes-dev
+
+building:
+  stage: build
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DINCLUDE_TEST=on ..
+    - make -j$(nproc)
+  artifacts:
+    paths:
+      - build/src/tests/*_test
+    when: on_success
+    expire_in: 5 min
+
+event_testing:
+  stage: test
+  script:
+    - build/src/tests/event_test
+  when: manual # unable to use uinput module
+
+network_testing:
+  stage: test
+  script:
+    - build/src/tests/network_test
+
+localcom_testing:
+  stage: test
+  script:
+    - mkdir -p /var/rsc/localcom
+    - build/src/tests/localcom_test
+
+common_testing:
+  stage: test
+  script:
+    - build/src/tests/common_test
+
+rsccli_testing:
+  stage: test
+  script:
+    - build/src/tests/rsccli_test

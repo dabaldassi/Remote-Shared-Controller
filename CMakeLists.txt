@@ -59,10 +59,14 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
       message(STATUS "X11 is not found, assuming there is no graphic server")
       message(STATUS "You must install X11 and X11 fixes to use X11 features")
       add_compile_options(-DNO_CURSOR)
-      file(GLOB_RECURSE controller_sources src/controller/linux/controller_linux.c)
+      file(GLOB_RECURSE controller_sources
+	src/controller/linux/translate.c
+	src/controller/linux/controller_linux.c)
     endif()
   else()
-    file(GLOB_RECURSE controller_sources src/controller/linux/controller_linux.c)
+    file(GLOB_RECURSE controller_sources
+      src/controller/linux/controller_linux.c
+      src/controller/linux/translate.c)
     add_compile_options(-DNO_CURSOR)
   endif()
   

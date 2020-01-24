@@ -5,6 +5,8 @@
 
 #include <pc_list.hpp>
 #include <combo.hpp>
+#include <config.hpp>
+#include <controller.h>
 
 #ifndef NO_CURSOR
 #include <cursor.h>
@@ -102,32 +104,33 @@ TEST_CASE("Combo") {
     ComboShortcut combo(name, description);
     bool          action = false;
     
-    combo.add_shortcut(1, 1);
-    combo.add_shortcut(2, 1);
-    combo.add_shortcut(3, 1);
+    combo.add_shortcut(KEY_LEFTCTRL, 1);
+    combo.add_shortcut(KEY_R, 1);
+    combo.add_shortcut(KEY_RIGHT, 1);
     combo.set_action([&action](Combo *) { action = true; });
 
     auto test = [&name, &description, &action](ComboShortcut& cs) {
       REQUIRE(cs.get_name() == name);
       REQUIRE(cs.get_description() == description);
+      REQUIRE(cs.to_string() == "LCTRL-R-->");
       
-      REQUIRE_FALSE(cs.update(1,1));
-      REQUIRE_FALSE(cs.update(2,1));
-      REQUIRE(cs.update(3,1));
+      REQUIRE_FALSE(cs.update(KEY_LEFTCTRL,1));
+      REQUIRE_FALSE(cs.update(KEY_R,1));
+      REQUIRE(cs.update(KEY_RIGHT,1));
       REQUIRE(action);
       REQUIRE(cs.get_way() == Combo::Way::RIGHT);
 
       action = false;
 
-      REQUIRE_FALSE(cs.update(1,1));
-      REQUIRE_FALSE(cs.update(1,1));
-      REQUIRE_FALSE(cs.update(2,1));
-      REQUIRE_FALSE(cs.update(3,1));
+      REQUIRE_FALSE(cs.update(KEY_LEFTCTRL,1));
+      REQUIRE_FALSE(cs.update(KEY_LEFTCTRL,1));
+      REQUIRE_FALSE(cs.update(KEY_R,1));
+      REQUIRE_FALSE(cs.update(KEY_RIGHT,1));
       REQUIRE_FALSE(action);
 
-      REQUIRE_FALSE(cs.update(1,1));
-      REQUIRE_FALSE(cs.update(2,1));
-      REQUIRE(cs.update(3,1));
+      REQUIRE_FALSE(cs.update(KEY_LEFTCTRL,1));
+      REQUIRE_FALSE(cs.update(KEY_R,1));
+      REQUIRE(cs.update(KEY_RIGHT,1));
       REQUIRE(action);
 
       action = false;
@@ -156,13 +159,14 @@ TEST_CASE("Combo") {
 
     combo_load.release_for_all();
 
-    REQUIRE_FALSE(combo_load.update(1,1));
-    REQUIRE_FALSE(combo_load.update(2,1));
-    REQUIRE_FALSE(combo_load.update(3,1));
-    REQUIRE_FALSE(combo_load.update(1,0));
-    REQUIRE_FALSE(combo_load.update(2,0));
-    REQUIRE(combo_load.update(3,0));
+    REQUIRE_FALSE(combo_load.update(KEY_LEFTCTRL,1));
+    REQUIRE_FALSE(combo_load.update(KEY_R,1));
+    REQUIRE_FALSE(combo_load.update(KEY_RIGHT,1));
+    REQUIRE_FALSE(combo_load.update(KEY_LEFTCTRL,0));
+    REQUIRE_FALSE(combo_load.update(KEY_R,0));
+    REQUIRE(combo_load.update(KEY_RIGHT,0));
     REQUIRE(action);
+    REQUIRE(combo_load.to_string() == "LCTRL-R-->-(R)*-(R)*-(R)*");
   }
   
 #ifndef NO_CURSOR
@@ -251,6 +255,7 @@ TEST_CASE("Combo") {
     for(auto& a: loadlist) a.set_action([](Combo*){});
     
     test(loadlist);
-    }
-  
+  }
+
+  std::remove(RSC_SHORTCUT_SAVE);
 }

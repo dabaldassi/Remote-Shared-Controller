@@ -35,6 +35,8 @@ namespace rscui {
      */
   
     int _getlist(rscutil::PCList& list, const std::string& file_name);
+
+    int _get_shortcut(rscutil::ComboShortcut::ComboShortcutList&);
     
   public:
     ControllerOperation(RscUi * ui)
@@ -136,6 +138,12 @@ namespace rscui {
      */
   
     int pause();
+
+    int list_shortcut();
+    int list_shortcut(const std::string& name);
+
+    int set_shortcut(const std::string& name);
+    int reset_shortcut();
   };
 
 

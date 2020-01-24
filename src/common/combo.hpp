@@ -22,6 +22,8 @@ namespace rscutil {
   
   public:
     using ptr = Ptr<Combo>::ptr;
+
+    static const std::string TYPE;
   
     explicit Combo(Way way = Way::NONE)
       : _way(way),_action(nullptr) {}
@@ -45,7 +47,8 @@ namespace rscutil {
      *\return true if the combo is a success. false otherwise.
      */
     
-    virtual bool update(int code, int value) = 0;  
+    virtual bool update(int code, int value) = 0;
+    virtual const std::string& get_type() const { return TYPE; }
   };
 
   class ComboShortcut : public Combo, public Ptr<ComboShortcut>
@@ -67,9 +70,13 @@ namespace rscutil {
     static constexpr int ANY = -1;                    // Wildcard for any key
     static constexpr int INFINITE = -1;               // No timeout on a key
     static constexpr int DEFAULT_TIMEOUT = INFINITE;
+
+    static const std::string TYPE; 
   
-    explicit ComboShortcut(const std::string& name, const std::string& description)
-      : Combo(Way::RIGHT),
+    explicit ComboShortcut(const std::string& name,
+			   const std::string& description,
+			   Way way = Way::RIGHT)
+      : Combo(way),
 	_current(_shortcut_list.end()),
 	_name(name),
 	_description(description) {}
@@ -92,6 +99,7 @@ namespace rscutil {
     ~ComboShortcut() = default;
   
     bool update(int code, int value) override;
+    std::string to_string() const;
 
     /**
      *\brief Get the name of the shortcut
@@ -138,6 +146,10 @@ namespace rscutil {
     
     static void save(const ComboShortcutList& list);
 
+    static void make_shortcut(ComboShortcut& combo);
+
+    const std::string& get_type() const override { return TYPE; }
+
     ComboShortcut(const ComboShortcut& other);
     ComboShortcut(ComboShortcut&& other);
     
@@ -154,12 +166,15 @@ namespace rscutil {
 
   public:
     using Ptr<ComboMouse>::ptr;
+
+    static const std::string TYPE;
   
     explicit ComboMouse(size_t width, size_t height, CursorInfo * cursor);
     
     ~ComboMouse() = default;
   
     bool update(int code, int value) override;
+    const std::string& get_type() const override { return TYPE; }
   };
 
 #endif

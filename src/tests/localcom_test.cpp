@@ -77,7 +77,27 @@ TEST_CASE("Message") {
     REQUIRE_NOTHROW(m.add_arg("2"));
     REQUIRE_NOTHROW(m.get(ss));
     REQUIRE(ss.str() == "IF 2");
+  }
+
+  SECTION("LOAD_SHORTCUT") {
+    std::stringstream ss;
+    Message m(Message::LOAD_SHORTCUT);
+
+    REQUIRE_THROWS(m.get(ss));
     
+    REQUIRE_NOTHROW(m.add_arg(1));
+    REQUIRE_NOTHROW(m.get(ss));
+    REQUIRE(ss.str() == "LOAD_SHORTCUT 1");
+
+    REQUIRE_THROWS(m.add_arg(2));
+  }
+
+  SECTION("SAVE_SHORTCUT") {
+    std::stringstream ss;
+    Message m(Message::SAVE_SHORTCUT);
+
+    REQUIRE_NOTHROW(m.get(ss));
+    REQUIRE(ss.str() == "SAVE_SHORTCUT");
   }
 
   SECTION("NA") {

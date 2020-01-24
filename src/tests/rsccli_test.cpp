@@ -9,21 +9,9 @@
 #include <controller_op.hpp>
 
 enum { LISTALL, LISTCURRENT, LISTREFRESH, ADD, ADD2, REMOVE, SETIF, LISTIF, VERSION, HELP,
-       START, STOP, PAUSE, GETIF};
+       START, STOP, PAUSE, GETIF, SET_SHORTCUT, LISTALL_SHORTCUT, LIST_SHORTCUT, RESET_SHORTCUT};
 
 using namespace rscui;
-
-std::map<rsclocalcom::Message::AckCode, std::string> ControllerOperation::_err_msg{};
-
-int ControllerOperation::_send_cmd(const rsclocalcom::Message& )
-{
-  return 0;
-}
-
-int ControllerOperation::_getlist(rscutil::PCList&, const std::string& )
-{
-  return 0;
-}
 
 int ControllerOperation::listcurrent(bool all)
 {
@@ -91,6 +79,26 @@ int ControllerOperation::stop()
 int ControllerOperation::pause()
 {
   return PAUSE;
+}
+
+int ControllerOperation::list_shortcut()
+{
+  return LISTALL_SHORTCUT;
+}
+
+int ControllerOperation::list_shortcut(const std::string&)
+{
+  return LIST_SHORTCUT;
+}
+
+int ControllerOperation::set_shortcut(const std::string&)
+{
+  return SET_SHORTCUT;
+}
+
+int ControllerOperation::reset_shortcut()
+{
+  return RESET_SHORTCUT;
 }
 
 
@@ -198,7 +206,7 @@ TEST_CASE("Command") {
     REQUIRE(cmd.execute(ops) == 1);
 
     REQUIRE_THROWS(cmd.add_arg("l"));
-    REQUIRE_NOTHROW(cmd.add_opt("l"));
+    REQUIRE_THROWS(cmd.add_opt("l"));
     REQUIRE_NOTHROW(cmd.add_opt("-l"));
     REQUIRE_THROWS(cmd.add_arg("a"));
     REQUIRE_THROWS(cmd.add_opt("-a"));
@@ -206,7 +214,7 @@ TEST_CASE("Command") {
     REQUIRE(cmd.execute(ops) == LISTIF);
 
     REQUIRE_THROWS(cmd_get.add_arg("g"));
-    REQUIRE_NOTHROW(cmd_get.add_opt("g"));
+    REQUIRE_THROWS(cmd_get.add_opt("g"));
     REQUIRE_NOTHROW(cmd_get.add_opt("-g"));
     REQUIRE_THROWS(cmd_get.add_arg("a"));
     REQUIRE_THROWS(cmd_get.add_opt("-a"));
@@ -219,6 +227,37 @@ TEST_CASE("Command") {
     REQUIRE_THROWS(cmd2.add_arg("2"));
 
     REQUIRE(cmd2.execute(ops) == SETIF);
+  }
+
+  SECTION("Shortcut") {
+    ShortcutCommand cmd, cmd2, cmd_reset;
+
+    REQUIRE(cmd.execute(ops) == 1);
+
+    REQUIRE_THROWS(cmd.add_arg("l"));
+    REQUIRE_THROWS(cmd.add_opt("l"));
+    REQUIRE_NOTHROW(cmd.add_opt("-l"));
+    REQUIRE_THROWS(cmd.add_opt("-a"));
+
+    REQUIRE(cmd.execute(ops) == LISTALL_SHORTCUT);
+    REQUIRE_NOTHROW(cmd.add_arg("right"));
+    REQUIRE_THROWS(cmd.add_arg("right"));
+    REQUIRE(cmd.execute(ops) == LIST_SHORTCUT);
+
+    REQUIRE_THROWS(cmd_reset.add_arg("r"));
+    REQUIRE_THROWS(cmd_reset.add_opt("r"));
+    REQUIRE_NOTHROW(cmd_reset.add_opt("-r"));
+    REQUIRE_THROWS(cmd_reset.add_arg("a"));
+    REQUIRE_THROWS(cmd_reset.add_opt("-a"));
+
+    REQUIRE(cmd_reset.execute(ops) == RESET_SHORTCUT);
+
+    REQUIRE_NOTHROW(cmd2.add_opt("-s"));
+    REQUIRE_THROWS(cmd2.add_opt("-s"));
+    REQUIRE_NOTHROW(cmd2.add_arg("right"));
+    REQUIRE_THROWS(cmd2.add_arg("2"));
+
+    REQUIRE(cmd2.execute(ops) == SET_SHORTCUT);
   }
 }
 
@@ -282,6 +321,17 @@ TEST_CASE("parser") {
      std::make_tuple("if -r", 1, 0),
      std::make_tuple("if -s 1 1", 1, 0),
      std::make_tuple("if 1 -s", 1, 0),
+     std::make_tuple("shortcut -l", 0, LISTALL_SHORTCUT),
+     std::make_tuple("shortcut -l right", 0, LIST_SHORTCUT),
+     std::make_tuple("shortcut -s right", 0, SET_SHORTCUT),
+     std::make_tuple("shortcut -r", 0, RESET_SHORTCUT),
+     std::make_tuple("shortcut -r 1", 1, 0),
+     std::make_tuple("shortcut 1 1", 1, 0),
+     std::make_tuple("shortcut -l 1 1", 1, 0),
+     std::make_tuple("shortcut -s 1 1", 1, 0),
+     std::make_tuple("shortcut -d", 1, 0),
+     std::make_tuple("shortcut -s -s", 1, 0),
+     std::make_tuple("shortcut -ls", 1, 0),
     };
 
   for(const auto& a: cmd_list) {

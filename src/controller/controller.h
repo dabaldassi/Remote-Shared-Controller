@@ -25,6 +25,7 @@ extern "C" {
   
 #define KEY_RELEASED 0x00
 #define KEY_PRESSED 0x01
+#define KEY_REPEATED 0x02
   
   typedef struct ControllerEvent
   {
@@ -77,10 +78,11 @@ extern "C" {
   /**
    *\brief Wait for an event to occur and store it in the ControllerEvent parameter
    *\param ev The event that just happened
+   *\param timeout Specifies the number of milliseconds that poll_controller() should block waiting. -1 means infinite timeout.
    *\return 0x02 bit if a device has been added / removed, 0x01 bit if there is something to read, negative value if error, 0 otherwise. 
    */
   
-  int poll_controller(ControllerEvent * ev);
+  int poll_controller(ControllerEvent * ev, int timeout);
 
   /**
    *\brief Make all the controller events only readable by the current process. All other process (as X server for example) can not read event anymore.
@@ -101,6 +103,9 @@ extern "C" {
    */
   
   void exit_controller(void);
+
+  char * get_key_name(unsigned short code);
+  char * get_key_name_azerty(unsigned short code);
 
 #ifdef __cplusplus  
 }

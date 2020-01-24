@@ -131,9 +131,10 @@ public:
   /**
    *\brief Change the current network interface.
    *\param index The index of the current interface.
+   *\return 0 on success. 1 otherwise.
    */
   
-  void set_interface(int index);
+  int set_interface(int index);
 
   /**
    *\brief Put rsc core into sleep.
@@ -155,6 +156,9 @@ public:
    */
   
   void wait_for_wakeup();
+
+  void save_shortcut() const;
+  void load_shortcut(bool reset);
   
 private:
   State _state;

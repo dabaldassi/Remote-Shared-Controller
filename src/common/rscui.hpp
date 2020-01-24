@@ -3,6 +3,7 @@
 
 #include <string>
 #include <interface.h>
+#include <combo.hpp>
 
 namespace rscutil {
 
@@ -22,6 +23,10 @@ namespace rscui {
     virtual void display_error(const std::string& error) = 0;
     virtual void display_version(const std::string& version) = 0;
     virtual void display_help() = 0;
+    virtual void display_shortcut(rscutil::ComboShortcut::ComboShortcutList&) = 0;
+    virtual void display_shortcut(rscutil::ComboShortcut&) = 0;
+    virtual void prepare_shortcut() = 0;
+    virtual bool shortcut_validation(const std::string&) = 0;
     
     virtual ~RscUi() = default;
   };

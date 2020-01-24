@@ -29,6 +29,10 @@ namespace rscui {
     void display_error(const std::string& error) override;
     void display_version(const std::string& version) override;
     void display_help() override;
+    void display_shortcut(rscutil::ComboShortcut::ComboShortcutList&) override;
+    void display_shortcut(rscutil::ComboShortcut&) override;
+    void prepare_shortcut() override;
+    bool shortcut_validation(const std::string&) override;
   };
 
 }  // rscui

@@ -10,9 +10,13 @@ namespace rsclocalcom {
   class Message
   {
   public:
-    enum Command : unsigned { IF, GETIF, GETLIST, SETLIST, ACK, START, STOP, PAUSE, NA };
+    enum Command : unsigned { IF, GETIF, GETLIST, SETLIST, ACK, START, STOP, PAUSE,
+			      LOAD_SHORTCUT, SAVE_SHORTCUT, NA };
     enum AckType { OK, ERROR };
-    enum AckCode : unsigned { DEFAULT, STARTED, PAUSED, FUTURE };
+    enum AckCode : unsigned { DEFAULT, STARTED, PAUSED, FUTURE, IF_EXIST };
+
+    static constexpr int LOAD_DEFAULT = 0;
+    static constexpr int LOAD_RESET = 1;
     
   private:
     Command                  _cmd;

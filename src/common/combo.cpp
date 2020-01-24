@@ -1,15 +1,22 @@
 #include <chrono>
 #include <fstream>
+#include <sstream>
 
 #include <combo.hpp>
 #include <config.hpp>
 #include <util.hpp>
+#include <controller.h>
 
+using rscutil::Combo;
 using rscutil::ComboShortcut;
+
+const std::string Combo::TYPE = "Combo";
 
 ///////////////////////////////////////////////////////////////////////////////
 //                               ComboShortcut                               //
 ///////////////////////////////////////////////////////////////////////////////
+
+const std::string ComboShortcut::TYPE = "ComboShortcut";
 
 ComboShortcut::ComboShortcut(const ComboShortcut& other): Combo(Way::RIGHT)
 {
@@ -176,6 +183,71 @@ void ComboShortcut::save(const ComboShortcutList &list)
   else throw std::runtime_error("Can't open " + std::string(RSC_SHORTCUT_SAVE));
 }
 
+std::string ComboShortcut::to_string() const
+{
+  std::ostringstream oss;
+  size_t i = 0;
+
+  for(const auto& a : _shortcut_list) {
+    int code, value, time;
+    std::tie(code, value, time) = a;
+
+    if(value == 0)  oss << "(R)";
+    
+    if(code == ANY) oss << "*";
+    else            oss << get_key_name_azerty(code);
+    
+    if(time != INFINITE) oss << "(" << time << "ms)";
+    
+    if(++i < _shortcut_list.size()) oss << "-";
+  }
+
+  return oss.str();
+}
+
+void ComboShortcut::make_shortcut(ComboShortcut& combo)
+{
+  using namespace std::chrono;
+  using namespace std::chrono_literals;
+
+  const auto timeout = 500ms;
+  
+  ControllerEvent ev;
+  bool            end = false;
+  bool            first = true;
+  auto            old = high_resolution_clock::now();
+
+  init_controller();
+
+  // Get rid of releasing enter key from the prompt when launching.
+  while(!end) {
+    int ret = poll_controller(&ev, -1);
+    end = (ret == 0x01) && (ev.code == KEY_S) && (ev.value == KEY_RELEASED);
+  }
+
+  write_key(KEY_BACKSPACE);
+  
+  grab_controller(true);
+  end = false;
+
+  while(!end) {
+    int ret = poll_controller(&ev, timeout.count());
+    
+    if(ret == 0x01 && ev.controller_type == KEY && ev.value != KEY_REPEATED) {
+      combo.add_shortcut(ev.code, ev.value, DEFAULT_TIMEOUT);
+      old = high_resolution_clock::now();
+      if(first) first = false;
+    }
+
+    auto now = high_resolution_clock::now();
+    auto elapsed = now - old;
+    if(!first && elapsed > timeout) end = true;
+  }
+
+  grab_controller(false);
+  exit_controller();
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 //                                 ComboMouse                                //
 ///////////////////////////////////////////////////////////////////////////////
@@ -184,6 +256,7 @@ void ComboShortcut::save(const ComboShortcutList &list)
 #include <cursor.h>
 
 using rscutil::ComboMouse;
+const std::string ComboMouse::TYPE = "ComboMouse";
 
 ComboMouse::ComboMouse(size_t width, size_t height, CursorInfo * cursor) : _width(width),
 									   _height(height),

@@ -289,6 +289,34 @@ namespace rscui {
     static std::string get_name() { return _NAME; }
   };
 
+  // ShortcutCommand //////////////////////////////////////////////////////////
+
+  class ShortcutCommand : public Command
+  {
+    static constexpr char _NAME[] = "shortcut";
+
+    static constexpr char SET = 's';
+    static constexpr char LIST = 'l';
+    static constexpr char RESET = 'r';
+
+    static std::map<char, std::function<int(ShortcutCommand*,ctrl_op_t&)>> _on_opt;
+    
+  public:
+    ShortcutCommand()
+      : Command(1,1) {}
+
+    void print_usage() const override;
+    void add_arg(const std::string& arg) override;
+    void add_opt(const std::string& opt) override;
+    int  execute(ctrl_op_t & ops) override;
+
+    int list(ctrl_op_t & ops);
+    int set(ctrl_op_t & ops);
+    
+    static void print_help();
+    static std::string get_name() { return _NAME; }
+  };
+  
 }  // rscui
 
 

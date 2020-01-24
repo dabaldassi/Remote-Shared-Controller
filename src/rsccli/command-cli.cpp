@@ -20,6 +20,7 @@ constexpr char IfCommand::_NAME[];
 constexpr char StartCommand::_NAME[];
 constexpr char StopCommand::_NAME[];
 constexpr char PauseCommand::_NAME[];
+constexpr char ShortcutCommand::_NAME[];
 constexpr char Command::_NAME[];
 
 const std::string Command::OPT_DELIM = "-";
@@ -39,6 +40,7 @@ Command::Ptr Command::get_command(const std::string &name)
   else if(name == PauseCommand::get_name())   return std::make_unique<PauseCommand>();
   else if(name == StartCommand::get_name())   return std::make_unique<StartCommand>();
   else if(name == StopCommand::get_name())    return std::make_unique<StopCommand>();
+  else if(name == ShortcutCommand::get_name())return std::make_unique<ShortcutCommand>();
   else                                        return nullptr;
 }
 
@@ -298,6 +300,10 @@ void IfCommand::add_opt(const std::string& opt)
 {
   const char * c = opt.c_str();
 
+  if(opt.empty()) throw std::runtime_error("Option is empty !");
+  if(opt.substr(0, 1) != OPT_DELIM)
+    throw std::runtime_error("Option must start with !" + OPT_DELIM);
+  
   for(size_t i = 1; i < opt.size(); i++) {
     if(_opts.size() >= _nb_opt)
       throw std::range_error(_NAME + std::string(" too many options"));
@@ -437,4 +443,92 @@ void PauseCommand::print_help()
 int PauseCommand::execute(ctrl_op_t & ops)
 {
   return ops.pause();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//                              ShortcutCommand                              //
+///////////////////////////////////////////////////////////////////////////////
+
+std::map<char,
+	 std::function<int(ShortcutCommand*,ctrl_op_t&)>> ShortcutCommand::_on_opt = {
+  { char{SET}, [] (ShortcutCommand * cmd, ctrl_op_t& ops) { return cmd->set(ops); } },
+  { char{LIST}, [] (ShortcutCommand * cmd, ctrl_op_t& ops) { return cmd->list(ops); } },
+  { char{RESET}, [] (ShortcutCommand *, ctrl_op_t& ops) { return ops.reset_shortcut(); } },
+};
+
+void ShortcutCommand::print_usage() const
+{
+  std::cout << "Usage : " << RSCCLI_NAME << " " << _NAME
+	    << " {-" << SET << " name | -" << LIST << " [name] | -" << RESET <<  " }\n";
+}
+
+void ShortcutCommand::add_arg(const std::string& arg)
+{
+  if(_opts.empty())
+    throw std::runtime_error(_NAME + std::string(" need an option first"));
+
+  if(_args.empty() && _opts.front() != RESET) _args.push_back(arg);
+  else throw std::range_error("Too many arguments");
+}
+
+void ShortcutCommand::add_opt(const std::string& opt)
+{
+  const char * c = opt.c_str();
+
+  if(opt.empty()) throw std::runtime_error("Option is empty !");
+  if(opt.substr(0, 1) != OPT_DELIM)
+    throw std::runtime_error("Option must start with !" + OPT_DELIM);
+
+  for(size_t i = 1; i < opt.size(); i++) {
+    if(_opts.size() >= _nb_opt)
+      throw std::range_error(_NAME + std::string(" too many options"));
+    
+    auto it = _on_opt.find(c[i]);
+    if(it != _on_opt.end()) {
+      _opts.push_back(c[i]);
+    }
+    else {
+      throw std::runtime_error(std::string("No such option for list : -") + c[i]);
+    }
+  }
+}
+
+void ShortcutCommand::print_help()
+{
+  std::cout << "\t" << _NAME << "\tCustomize rsc shortcuts.\n";
+  std::cout << "\t\t" << "-" << SET << " name" << "\tSet a shortcut." << "\n";
+  std::cout << "\t\t" << "-" << LIST << "\tList all the shortcuts." << "\n";
+  std::cout << "\t\t" << "-" << LIST << " name" << "\tList the specified shortcut." << "\n";
+  std::cout << "\t\t" << "-" << RESET << "\tReset to the default shortcuts." << "\n";
+  std::cout << "\n";
+}
+
+int ShortcutCommand::execute(ctrl_op_t & ops) 
+{
+  if(_opts.empty()) {
+    std::cerr << _NAME << " need at least one option.\n";
+    print_usage();
+    return 1;
+  }
+
+  if(_opts.front() == SET && _args.empty()) {
+    std::cerr << _NAME << " with option -" << SET << " need one argument.\n";
+    print_usage();
+    return 1;
+  }
+
+  int err = _on_opt[_opts.front()](this,ops);
+
+  return err;
+}
+
+int ShortcutCommand::set(ctrl_op_t & ops)
+{
+  return ops.set_shortcut(_args.front());
+}
+
+int ShortcutCommand::list(ctrl_op_t & ops)
+{
+  if(_args.empty()) return ops.list_shortcut();
+  else              return ops.list_shortcut(_args.front());
 }

@@ -2,17 +2,20 @@
 #include <util.hpp>
 #include <pc_list.hpp>
 #include <config.hpp>
+#include <combo.hpp>
 
 using rscui::ControllerOperation;
 using rscutil::PCList;
 using rscutil::PC;
+using rscutil::ComboShortcut;
 
 std::map<rsclocalcom::Message::AckCode, std::string> ControllerOperation::_err_msg =
   { 
-   { rsclocalcom::Message::DEFAULT, "An error occured\n"},
-   { rsclocalcom::Message::STARTED, "Already running\n" },
-   { rsclocalcom::Message::PAUSED, "Core is paused\n"},
-   { rsclocalcom::Message::FUTURE, "Not Implemented yet\n"},
+   { rsclocalcom::Message::DEFAULT, "An error occured"},
+   { rsclocalcom::Message::STARTED, "Already running" },
+   { rsclocalcom::Message::PAUSED, "Core is paused"},
+   { rsclocalcom::Message::FUTURE, "Not Implemented yet"},
+   { rsclocalcom::Message::IF_EXIST, "This is not a valid interface"},
   };
 
 int ControllerOperation::_send_cmd(const rsclocalcom::Message& msg)
@@ -42,7 +45,7 @@ int ControllerOperation::_send_cmd(const rsclocalcom::Message& msg)
     return ret;
   }
   else {
-    _ui->display_error("An error occured\n");
+    _ui->display_error("An error occured");
   }
 	      
   return -1;
@@ -55,6 +58,17 @@ int ControllerOperation::_getlist(PCList& list, const std::string& file_name)
   int err = _send_cmd(msg);
 
   if(!err) list.load(file_name);
+
+  return err;
+}
+
+int ControllerOperation::_get_shortcut(ComboShortcut::ComboShortcutList& list)
+{
+  rsclocalcom::Message msg(rsclocalcom::Message::SAVE_SHORTCUT);
+
+  int err = _send_cmd(msg);
+
+  if(!err) ComboShortcut::load(list);
 
   return err;
 }
@@ -229,4 +243,81 @@ int ControllerOperation::getif()
   }
 
   return 1;
+}
+
+int ControllerOperation::list_shortcut()
+{
+  ComboShortcut::ComboShortcutList list;
+
+  int err = _get_shortcut(list);
+  if(err) return err;
+
+  _ui->display_shortcut(list);
+  
+  return 0;
+}
+
+int ControllerOperation::list_shortcut(const std::string& name)
+{
+  ComboShortcut::ComboShortcutList list;
+
+  int err = _get_shortcut(list);
+  if(err) return err;
+
+  auto it = std::find_if(list.begin(),
+			 list.end(),
+			 [&name](const auto& a) { return name == a.get_name(); });
+
+  if(it == list.end()) {
+    _ui->display_error("This shortcut does not exist");
+    return 1;
+  }
+
+  _ui->display_shortcut(*it);
+
+  return 0;
+}
+
+int ControllerOperation::set_shortcut(const std::string& name)
+{
+  ComboShortcut::ComboShortcutList list;
+
+  int err = _get_shortcut(list);
+  if(err) return err;
+
+  auto it = std::find_if(list.begin(),
+			 list.end(),
+			 [&name](const auto& a) { return name == a.get_name(); });
+
+  if(it == list.end()) {
+    _ui->display_error("This shortcut does not exist");
+    return 1;
+  }
+
+  ComboShortcut new_combo(it->get_name(), it->get_description());
+
+  _ui->prepare_shortcut();
+  ComboShortcut::make_shortcut(new_combo);
+
+  bool validation = _ui->shortcut_validation(new_combo.to_string());
+
+  if(validation) {
+    list.emplace(it, new_combo);
+    list.erase(it);
+
+    ComboShortcut::save(list);
+
+    rsclocalcom::Message msg(rsclocalcom::Message::LOAD_SHORTCUT);
+    msg.add_arg(int{rsclocalcom::Message::LOAD_DEFAULT});
+    return _send_cmd(msg);
+  }
+  
+  return 0;
+}
+
+int ControllerOperation::reset_shortcut()
+{
+  rsclocalcom::Message msg(rsclocalcom::Message::LOAD_SHORTCUT);
+  msg.add_arg(int{rsclocalcom::Message::LOAD_RESET});
+  return _send_cmd(msg);
 }

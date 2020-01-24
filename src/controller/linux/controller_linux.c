@@ -372,13 +372,13 @@ static void handle_inotify(bool must_grab)
   }
 }
 
-int poll_controller(ControllerEvent * ce)
+int poll_controller(ControllerEvent * ce, int timeout)
 {
   const size_t event_len = event_file_info.size;
   const int RCTRL = 0x01;
   const int RINO = 0x02;
 
-  int p = poll(event_file_info.pfds, event_len, -1); // Passive waiting
+  int p = poll(event_file_info.pfds, event_len, timeout); // Passive waiting
   if(p < 0) return -1; // error
 
   size_t             i = 0;

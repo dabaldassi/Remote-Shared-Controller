@@ -10,7 +10,13 @@ int main(int argc, char *argv[])
   
   RSC rsc;
 
-  if(argc == 2) rsc.set_interface(atoi(argv[1]));
+  if(argc == 2) {
+    int if_index = atoi(argv[1]);
+    
+    if(rsc.set_interface(if_index)) {
+      throw std::invalid_argument("This is not a valid interface");
+    }
+  }
   
   rsc.init();
 

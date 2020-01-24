@@ -8,6 +8,7 @@
 
 #include <convkey.hpp>
 #include <config.hpp>
+#include <interface.h>
 
 void error(const char * s)
 {
@@ -22,34 +23,91 @@ void RSC::_th_safe_op(Mutex &m, Lambda &&l)
   l();
 }
 
+void RSC::save_shortcut() const
+{
+  using rscutil::ComboShortcut;
+  ComboShortcut::ComboShortcutList list;
+  
+  for(const auto& a: _shortcut) {
+    if(a->get_type() == ComboShortcut::TYPE) {
+      list.push_back(*static_cast<ComboShortcut*>(a.get()));
+    }
+  }
+
+  ComboShortcut::save(list);
+}
+
+void RSC::load_shortcut(bool reset)
+{
+  using rscutil::Combo;
+  using rscutil::ComboShortcut;
+
+  std::map<std::string, std::function<void(Combo*)>> _actions = {
+    { "right", [this](Combo * combo) { _transit(combo->get_way()); } },
+    { "left", [this](Combo * combo) { _transit(combo->get_way()); } },
+    { "quit", [this](Combo*) { _run = false; } }
+  };
+
+  _shortcut.erase(std::remove_if(_shortcut.begin(),
+				 _shortcut.end(),
+				 [](auto&& a) { return a->get_type() == ComboShortcut::TYPE; }),
+		  _shortcut.end());
+
+  ComboShortcut::ComboShortcutList list;
+  bool                             success = false;
+
+  if(!reset) success = ComboShortcut::load(list);
+  
+  if(success) {
+    for(auto& combo : list) {
+      combo.set_action(_actions[combo.get_name()]);
+      _shortcut.push_back(std::make_unique<ComboShortcut>(combo));
+    }
+  }
+  else {
+    // Default shortcut
+    auto right = ComboShortcut::make_ptr("right", "Move to the next computer on the right");
+
+    right->add_shortcut(KEY_LEFTCTRL, KEY_PRESSED);
+    right->add_shortcut(KEY_R, KEY_PRESSED);
+    right->add_shortcut(KEY_RIGHT, KEY_PRESSED);  
+    right->release_for_all();
+    right->set_action(_actions["right"]);
+
+    auto left = ComboShortcut::make_ptr("left", "Move to the next computer on the left",
+					Combo::Way::LEFT);
+
+    left->add_shortcut(KEY_LEFTCTRL, KEY_PRESSED);
+    left->add_shortcut(KEY_R, KEY_PRESSED);
+    left->add_shortcut(KEY_LEFT, KEY_PRESSED);  
+    left->release_for_all();
+    left->set_action(_actions["left"]);
+  
+    auto quit = ComboShortcut::make_ptr("quit", "Quit the service", Combo::Way::NONE);
+
+    for(int i = 0; i < 3; i++) {
+      quit->add_shortcut(KEY_ESC, KEY_PRESSED, 200);
+      quit->add_shortcut(KEY_ESC, KEY_RELEASED, 200);
+    }
+  
+    quit->set_action(_actions["quit"]);
+
+    _shortcut.push_back(std::move(right));
+    _shortcut.push_back(std::move(left));
+    _shortcut.push_back(std::move(quit));
+
+    if(reset) save_shortcut();
+  }
+}
+
 RSC::RSC(): _if(DEFAULT_IF), _next_pc_id{0},
 	      _com(rsclocalcom::RSCLocalCom::Contact::CORE),
 	      _state(State::HERE)
 {
   using namespace rscutil;
-  auto sh_ptr = ComboShortcut::make_ptr("right", "Move to the next computer on the right");
-
-  sh_ptr->add_shortcut(KEY_LEFTCTRL, KEY_PRESSED);
-  sh_ptr->add_shortcut(KEY_R, KEY_PRESSED);
-  sh_ptr->add_shortcut(KEY_RIGHT, KEY_PRESSED);  
-  sh_ptr->release_for_all();
-  sh_ptr->set_action([this](Combo * combo) {
-      _transit(combo->get_way());
-    });
   
-  _shortcut.push_back(std::move(sh_ptr));
+  load_shortcut(false);
   
-  auto quit_shortcut = ComboShortcut::make_ptr("quit", "Quit the service");
-
-  for(int i = 0; i < 3; i++) {
-    quit_shortcut->add_shortcut(KEY_ESC, KEY_PRESSED, 200);
-    quit_shortcut->add_shortcut(KEY_ESC, KEY_RELEASED, 200);
-  }
-  
-  quit_shortcut->set_action([this](Combo*) { _run = false; });
-  
-  _shortcut.push_back(std::move(quit_shortcut));
-    
   PC local_pc { _next_pc_id++, true, "localhost", {0}, {0,0}, {0,0}};
 
 #ifndef NO_CURSOR
@@ -105,8 +163,8 @@ void RSC::_transit(rscutil::Combo::Way way)
 {
   using Way = rscutil::Combo::Way;
   
-  if(way == Way::LEFT) _pc_list.previous_pc();
-  else                 _pc_list.next_pc();
+  if(way == Way::LEFT)       _pc_list.previous_pc();
+  else if(way == Way::RIGHT) _pc_list.next_pc();
 
   grab_controller(!_pc_list.get_current().local);
  
@@ -273,8 +331,9 @@ void RSC::_local_cmd()
   std::map<Message::Command, std::function<void(const Message&)>> on_msg = 
     {
       { Message::IF, [this,&ack](const Message& m) {
-	  set_interface(std::stoi(m.get_arg(0)));
-	  ack.add_arg(Message::OK, Message::DEFAULT);  }},
+	  int ret = set_interface(std::stoi(m.get_arg(0)));
+	  if(ret) ack.add_arg(Message::ERROR, Message::IF_EXIST);
+	  else    ack.add_arg(Message::OK, Message::DEFAULT);  }},
       { Message::GETIF, [this,&ack](const Message&) {
 	  ack.add_arg(Message::OK, _if);  }},
       { Message::GETLIST, [this, &ack](const Message& ) {
@@ -295,6 +354,15 @@ void RSC::_local_cmd()
 	}},
       { Message::PAUSE, [&pause_request, &ack](const Message&) {
 	  pause_request = true;
+	  ack.add_arg(Message::OK, Message::DEFAULT);
+	}},
+      { Message::SAVE_SHORTCUT, [this, &ack](const Message&) {
+	  save_shortcut();
+	  ack.add_arg(Message::OK, Message::DEFAULT);
+	}},
+      { Message::LOAD_SHORTCUT, [this, &ack](const Message& msg) {
+	  int arg = std::stoi(msg.get_arg(0));
+	  load_shortcut(arg == Message::LOAD_RESET);
 	  ack.add_arg(Message::OK, Message::DEFAULT);
 	}},
     };
@@ -347,11 +415,10 @@ void RSC::_send()
   while(_run) {
     c.grabbed = _state == State::AWAY;
     
-    int ret = poll_controller(&c);
+    int ret = poll_controller(&c, -1);
     if(!ret) continue;
     
     if(ret & 0x01) {
-
       for(auto&& s : _shortcut) s->update(c.code, c.value);
     
       switch(_state) {
@@ -394,12 +461,28 @@ void RSC::stop_requested()
   for(auto&& th : _threads) pthread_cancel(th.native_handle());
 }
 
-void RSC::set_interface(int index)
+int RSC::set_interface(int index)
 {
+  IF * interfaces = get_interfaces();
+  IF * i = interfaces;
+
+  while(!(i->if_name == nullptr && i->if_index == 0) && i->if_index != (unsigned)index)
+    ++i;
+
+  bool not_found = i->if_name == nullptr && i->if_index == 0;
+
+  free(interfaces);
+  i = nullptr;
+  interfaces = nullptr;
+  
+  if(not_found) return 1;
+  
   scnp_stop_session(_if);
   _if = index;
   _sock.if_index = index;
   scnp_start_session(_if);
+
+  return 0;
 }
 
 void RSC::wait_for_wakeup()

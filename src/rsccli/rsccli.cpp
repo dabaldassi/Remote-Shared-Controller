@@ -54,7 +54,7 @@ void RSCCli::display_if(const IF * interface)
 
 void RSCCli::display_error(const std::string& error)
 {
-  std::cerr << error << "\n";
+  std::cerr << "[ERROR] " << error << "\n";
 }
 
 void RSCCli::display_version(const std::string& version)
@@ -81,6 +81,7 @@ void RSCCli::display_help()
   StartCommand::print_help();
   StopCommand::print_help();
   PauseCommand::print_help();
+  ShortcutCommand::print_help();
 
   std::cout << "\n";
 }
@@ -89,4 +90,40 @@ void RSCCli::display_if(int if_index, const std::string &if_name)
 {
   std::cout << "The current network interface is : \n";
   std::cout << if_index << "\t" << if_name << "\n";
+}
+
+void RSCCli::display_shortcut(rscutil::ComboShortcut::ComboShortcutList& list)
+{
+  std::cout << "Shortcut list : " << "\n\n";
+
+  for(const auto& a : list) {
+    std::cout << a.get_name() << "\t"
+	      << a.get_description() << "\t"
+	      << a.to_string() << "\n";
+  }
+}
+
+void RSCCli::display_shortcut(rscutil::ComboShortcut& shortcut)
+{
+  std::cout << shortcut.get_name() << "\t"
+	    << shortcut.get_description() << "\t"
+	    << shortcut.to_string() << "\n";
+}
+
+bool RSCCli::shortcut_validation(const std::string & shortcut)
+{
+  std::cout << "Is this shortcut ok ?" << "\n";
+  std::cout << shortcut << "\n";
+  std::cout << "[y/N]" << "\n";
+
+  char c = std::getchar();
+  
+  std::cout << (c == 'y') << " " << c << "\n";
+  
+  return c == 'y';
+}
+
+void RSCCli::prepare_shortcut()
+{
+  std::cout << "Press S to start the shortcut : " << "\n";
 }

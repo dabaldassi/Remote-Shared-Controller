@@ -182,7 +182,7 @@ TEST_CASE("scnp_send") {
 
   SECTION("scnp_key") {
     /* send key */
-    struct scnp_key key = {SCNP_KEY, 0x1234, true};
+    struct scnp_key key = {SCNP_KEY, 0x1234, true, false};
     ssize_t bytes_sent = scnp_send (&send_sock, (struct scnp_packet *) &key, loopaddr);
     if (bytes_sent == 0) perror("Cannot send key");
     REQUIRE(bytes_sent == - KEY_LENGTH);
@@ -305,7 +305,7 @@ TEST_CASE("scnp_recv") {
 
   SECTION("scnp_key") {
     /* send key */
-    struct scnp_key sent_key = {SCNP_KEY, 0x0987, false};
+    struct scnp_key sent_key = {SCNP_KEY, 0x0987, false, true};
     ssize_t bytes_sent = scnp_send(&sock, (struct scnp_packet *) &sent_key, loopaddr);
     if (bytes_sent == 0) perror("Cannot send key");
     REQUIRE(bytes_sent == - KEY_LENGTH);
@@ -322,6 +322,7 @@ TEST_CASE("scnp_recv") {
     REQUIRE(recv_key.type == SCNP_KEY);
     REQUIRE(recv_key.code == sent_key.code);
     REQUIRE(recv_key.pressed == sent_key.pressed);
+    REQUIRE(recv_key.repeated == sent_key.repeated);
   }
 
   scnp_close_socket(&sock);

@@ -72,7 +72,8 @@ static int build_key_buffer(uint8_t * buf, const struct scnp_packet * packet)
   uint16_t code = htons(p->code);
   memcpy(buf, &code, sizeof(uint16_t));
   uint8_t pressed_flag = (p->pressed) << 7;
-  *(buf + sizeof(uint16_t)) = pressed_flag;
+  uint8_t repeated_flag = (p->repeated) << 6;
+  *(buf + sizeof(uint16_t)) = pressed_flag + repeated_flag;
 
   return 0;
 }
@@ -144,6 +145,7 @@ static int build_key_packet(struct scnp_packet * packet, const uint8_t * buf)
   memcpy(&key.code, buf, sizeof(uint16_t));
   key.code = ntohs(key.code);
   key.pressed = *(buf + sizeof(uint16_t)) >> 7;
+  key.repeated = *(buf + sizeof(uint16_t)) & (1 << 6);
 
   memcpy(packet, &key, sizeof(struct scnp_key));
 
@@ -169,7 +171,7 @@ static int build_out_packet(struct scnp_packet * packet, const uint8_t * buf)
   struct scnp_out out;
   out.type = SCNP_OUT;
   out.direction = *buf >> 7;
-  out.side = (*buf & (1 << 6)) >> 6;
+  out.side = *buf & (1 << 6);
   uint16_t height;
   memcpy(&height, buf + sizeof(uint8_t), sizeof(uint16_t));
   out.height = (float) ntohs(height) / ((1 << 16) - 1);

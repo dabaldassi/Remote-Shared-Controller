@@ -46,7 +46,8 @@ extern "C" {
   {
     uint8_t type;   // SCNP_KEY
     uint16_t code;  // Code associated to the key event
-    bool pressed;   // true if the key is pressed, false otherwise
+    bool pressed;   // true if the key is pressed, false otherwise (even if repeated is true)
+    bool repeated;  // true if the key is repeated, false otherwise
   };
 
   struct scnp_movement

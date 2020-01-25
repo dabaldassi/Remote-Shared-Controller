@@ -1,6 +1,6 @@
 # Remote-Shared-Controller
 
-[![pipeline status](https://gitlab.com/Sharkalash/Remote-Shared-Controller/badges/master/pipeline.svg)](https://gitlab.com/Sharkalash/Remote-Shared-Controller/commits/master)
+[![pipeline status](https://gitlab.com/Sharkalash/Remote-Shared-Controller/badges/dev/pipeline.svg)](https://gitlab.com/Sharkalash/Remote-Shared-Controller/commits/dev)
 
 Software which allow to share the mouse and keyboard of one computer with several others.
 

@@ -141,12 +141,12 @@ RSC::~RSC()
 
 int RSC::init()
 {
-  int err = scnp_create_socket(&_sock, _if);
+  int err = scnp_start(_if);
 
-  if(err) error("Can't create socket");
+  if(err) error("Cannot start SCNP session");
   
   err = init_controller();
-  if(err) error("Can't init controller");
+  if(err) error("Cannot init controller");
 
   _run = true;
   
@@ -156,7 +156,7 @@ int RSC::init()
 void RSC::exit()
 {
   exit_controller();
-  scnp_close_socket(&_sock);
+  scnp_stop();
 }
 
 void RSC::_transit(rscutil::Combo::Way way)
@@ -197,8 +197,7 @@ void RSC::_transit(rscutil::Combo::Way way, float height)
     pkt.direction = OUT_INGRESS;
     pkt.side = (way == Way::LEFT)? OUT_LEFT : OUT_RIGHT;
     pkt.height = height;
-    scnp_send(&_sock,
-	      reinterpret_cast<scnp_packet*>(&pkt),
+    scnp_send(reinterpret_cast<scnp_packet*>(&pkt),
 	      _pc_list.get_current().address);
 
   }
@@ -249,9 +248,7 @@ void RSC::_receive()
 		     pkt.side = (Combo::Way::RIGHT == way);
 		     pkt.direction = OUT_EGRESS;
 		     pkt.height = _cursor->pos_y / (float)_cursor->screen_size.height;
-		     scnp_send(&_sock,
-			       reinterpret_cast<struct scnp_packet *>(&pkt),
-			       addr_src);
+		     scnp_send(reinterpret_cast<struct scnp_packet *>(&pkt), addr_src);
 		     --can_update;
 		   });
 #endif
@@ -284,7 +281,7 @@ void RSC::_receive()
     };
 
   while(_run) {
-    int err = scnp_recv(&_sock, &packet, addr_src);
+    int err = scnp_recv(&packet, addr_src);
 
     if(err == -1) perror("scnp_recv");
     
@@ -308,13 +305,11 @@ void RSC::_send(const ControllerEvent &ev)
 {
   switch(ev.controller_type) {
   case MOUSE:
-    scnp_send(&_sock,
-	      ConvKey<struct scnp_packet, MOUSE>::get(ev),
+    scnp_send(ConvKey<struct scnp_packet, MOUSE>::get(ev),
 	      _pc_list.get_current().address);
     break;
   case KEY:
-    scnp_send(&_sock,
-	      ConvKey<struct scnp_packet, KEY>::get(ev),
+    scnp_send(ConvKey<struct scnp_packet, KEY>::get(ev),
 	      _pc_list.get_current().address);
     break;
   default:
@@ -433,8 +428,6 @@ void RSC::_send()
 
 void RSC::run()
 {
-  scnp_start_session(_if);
-  
   _pause = false;
   _run = true;
   
@@ -446,7 +439,6 @@ void RSC::run()
   for(auto&& th : _threads) th.join();
 
   _threads.clear();
-  scnp_stop_session(_if);
 }
 
 void RSC::pause_requested()
@@ -477,10 +469,9 @@ int RSC::set_interface(int index)
   
   if(not_found) return 1;
   
-  scnp_stop_session(_if);
+  scnp_stop();
   _if = index;
-  _sock.if_index = index;
-  scnp_start_session(_if);
+  if (scnp_start(_if)) return -1;
 
   return 0;
 }

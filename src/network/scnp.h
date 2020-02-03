@@ -30,108 +30,121 @@ extern "C" {
 #define OUT_RIGHT true
 #define OUT_LEFT false
 
-  struct scnp_socket
-  {
-    int fd;             // Socket used to send or receive SCNP packets
-    int if_index;       // Index of the interface used
-  };
 
-  struct scnp_packet
-  {
-    uint8_t type;                          // Type of the SCNP packet
-    uint8_t data[MAX_PACKET_LENGTH - 1];   // Data in the SCNP packet
-  };
+struct scnp_packet
+{
+  uint8_t type;                          // Type of the SCNP packet
+  uint8_t data[MAX_PACKET_LENGTH - 1];   // Data in the SCNP packet
+};
 
-  struct scnp_key
-  {
-    uint8_t type;   // SCNP_KEY
-    uint16_t code;  // Code associated to the key event
-    bool pressed;   // true if the key is pressed, false otherwise (even if repeated is true)
-    bool repeated;  // true if the key is repeated, false otherwise
-  };
+struct scnp_key
+{
+  uint8_t type;   // SCNP_KEY
+  uint16_t code;  // Code associated to the key event
+  bool pressed;   // true if the key is pressed, false otherwise (even if repeated is true)
+  bool repeated;  // true if the key is repeated, false otherwise
+};
 
-  struct scnp_movement
-  {
-    uint8_t type;     // SCNP_MOV
-    uint16_t code;    // Code associated to the movement event
-    int32_t value;    // Value of the movement
-  };
+struct scnp_movement
+{
+  uint8_t type;     // SCNP_MOV
+  uint16_t code;    // Code associated to the movement event
+  int32_t value;    // Value of the movement
+};
 
-  struct scnp_out
-  {
-    uint8_t type;         // SCNP_OUT
-    bool direction;       // true if the mouse is going from the host to the client, false otherwise
-    bool side;            // true if the mouse is located at the right border of the screen, false if it is on the left
-    float height;         // Height of the cursor relative to the size of the screen
-  };
+struct scnp_out
+{
+  uint8_t type;         // SCNP_OUT
+  bool direction;       // true if the mouse is going from the host to the client, false otherwise
+  bool side;            // true if the mouse is located at the right border of the screen, false if it is on the left
+  float height;         // Height of the cursor relative to the size of the screen
+};
 
-  struct scnp_management
-  {
-    uint8_t type;                     // SCNP_MNG
-    char hostname[HOSTNAME_LENGTH];   // Hostname label of the device linked with the source interface
-  };
+struct scnp_management
+{
+  uint8_t type;                     // SCNP_MNG
+  char hostname[HOSTNAME_LENGTH];   // Hostname label of the device linked with the source interface
+};
 
-  struct scnp_ack
-  {
-    uint8_t type;   // SCNP_ACK
-  };
+struct scnp_ack
+{
+  uint8_t type;   // SCNP_ACK
+};
 
-  /**
-   * @brief Create a new SCNP socket to send or receive SCNP packet.
-   * @param sock New SCNP socket.
-   * @param if_index Integer that identify the interface which will be used by the new socket.
-   * @return On success, returns 0. On error, returns -1.
-   */
+/**
+ * @fn int scnp_start(int if_index)
+ * @brief Start a SCNP session.
+ *
+ * Function that creates and runs threads required to send and receive
+ * SCNP packets. Also it begins to send periodic management packets.
+ * You cannot start multiple SCNP session in a same process.
+ *
+ * @param if_index Index of the network interface used to send
+ * and receive SCNP packets.
+ * @return On success, returns 0.
+ * On error, returns -1 and errno is set appropriately.
+ * @section Errors
+ * EACCES Permission denied. User must be root.
+ * EAGAIN Insufficient resources to create threads.
+ * EALREADY SCNP session already started. Stop the older one before with
+ * scnp_stop() or create a new process.
+ * EMFILE The per-process limit on the number of open file descriptors has
+ * been reached.
+ * ENETDOWN Interface is not up.
+ * ENFILE The system-wide limit on the total number of open files has been
+ * reached.
+ * ENOBUFS or ENOMEM Out of memory.
+ * ENODEV Unknown interface index.
+ * ENXIO Invalid interface index.
+ * EPERM Permission denied, user is not the superuser.
+ */
 
-  int scnp_create_socket(struct scnp_socket * sock, int if_index);
+int scnp_start(unsigned int if_index);
 
-  /**
-   * @brief Close a SCNP socket.
-   * @param sock SCNP socket to close.
-   * @return On success, returns 0. On error, returns -1.
-   */
+/**
+ * @fn int scnp_stop(void)
+ * @brief Stop a SCNP session.
+ *
+ * Function that stop all threads used to perform SCNP session. It is no more
+ * possible to send and receive SCNP packets after a call to this function.
+ * If no SCNP session is running when this function is called, no errors will
+ * be raised. This function cannot fail.
+ */
 
-  int scnp_close_socket(struct scnp_socket * sock);
+void scnp_stop(void);
 
-  /**
-   * @brief Send a SCNP packet.
-   * @param sock SCNP socket used to send the SCNP packet.
-   * @param dest_addr Destination address.
-   * @param packet SCNP packet to be sent.
-   * @return On success, returns the number of bytes sent. The return value is negative if the packet sent led to an
-   * acknowledgement in response and it was not received. The return value is positive otherwise. On error, returns 0.
-   */
+/**
+ * @fn int scnp_send(struct scnp_packet * packet, const uint8_t * dest_addr)
+ * @brief Send a SCNP packet.
+ *
+ * @param packet SCNP packet to be sent.
+ * @param dest_addr Destination ethernet address.
+ * @return On success, returns 0.
+ * On error, returns -1 and errno is set appropriately.
+ * @section Errors
+ * ENOMEM Out of memory.
+ * ESRCH No SCNP session running.
+ * ETIMEDOUT Packet sent and an acknowledgement was required but none was
+ * received.
+ * EXFULL Packet queue is full.
+ */
 
-  ssize_t scnp_send(struct scnp_socket * sock, const struct scnp_packet * packet, const uint8_t * dest_addr);
+int scnp_send(struct scnp_packet * packet, const uint8_t * dest_addr);
 
-  /**
-   * @brief Receive a SCNP packet and provide the source address of the message.
-   * @param sock SCNP socket used to receive the SCNP packet.
-   * @param packet  SCNP packet that will be fill with SCNP data.
-   * @param src_addr Source address of the SCNP packet.
-   * @return On success, returns the number of bytes received. On error, returns -1.
-   */
+/**
+ * @fn int scnp_recv(struct scnp_packet * packet, uint8_t * src_addr)
+ * @brief Receive a SCNP packet and provide the source address of
+ * the message.
+ *
+ * @param packet SCNP packet that will be fill with received SCNP data.
+ * @param src_addr Source address of the received SCNP packet.
+ * @return On success, returns 0.
+ * On error, returns -1 and errno is set appropriately.
+ * @section Errors
+ * ESRCH No SCNP session is running.
+ */
 
-  ssize_t scnp_recv(struct scnp_socket * sock, struct scnp_packet * packet, uint8_t * src_addr);
-
-  /**
-   * @brief Start a new SCNP session.
-   * Start sending SCNP management packets every second to advertise the broadcast domain about the existence of an SCNP
-   * session.
-   * @param if_index Integer that identify the interface on which the session will be started.
-   * @return On success, returns 0. On error, returns -1.
-   */
-
-  int scnp_start_session(int if_index);
-
-  /**
-   * @brief Stop a running SCNP session.
-   * Stop sending SCNP management packets every second.
-   * @param if_index Integer that identify the interface on which the session is running.
-   * @return On success, returns 0. On error, returns -1.
-   */
-
-  int scnp_stop_session(int if_index);
+int scnp_recv(struct scnp_packet * packet, uint8_t * src_addr);
 
 #ifdef __cplusplus
 }

@@ -20,7 +20,6 @@ struct ControllerEvent;
 
 class RSC
 {
-  using socket_t = struct scnp_socket;
   using clock_t = std::chrono::system_clock;
   using timestamp_t = std::chrono::time_point<RSC::clock_t>;
 
@@ -32,7 +31,6 @@ class RSC
   std::list<rscutil::Combo::ptr> _shortcut;
   rscutil::PCList                _pc_list;
   rscutil::PCList                _all_pc_list;
-  socket_t                       _sock;
   std::atomic_bool               _run, _pause;
   int                            _if;
   int                            _next_pc_id;

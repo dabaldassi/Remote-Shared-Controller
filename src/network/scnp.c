@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/time.h>
 #include <sys/socket.h>
 #include <netpacket/packet.h>
 #include <net/ethernet.h>
@@ -9,36 +8,16 @@
 #include <pthread.h>
 #include <errno.h>
 
+#include "queue.h"
+#include "interface.h"
 #include "scnp.h"
 
-
-#define ACK_TIMEOUT_S 0
-#define ACK_TIMEOUT_US 1000 // 5 us should be enough
+#define ACK_TIMEOUT_NS 1000000000
 #define ACK_MAX_TRIES 3
-
 #define SESSION_TIMEOUT 1
 
-static const uint8_t broadcast_ll_addr[] = {0xff,0xff,0xff,0xff,0xff,0xff};
 
-int scnp_create_socket(struct scnp_socket * sock, int if_index)
-{
-  /* create socket */
-  int fd = socket(AF_PACKET, SOCK_DGRAM, htons(ETH_P_SCNP));
-  if (fd == -1) return -1;
-
-  /* provide information in socket structure */
-  sock->fd = fd;
-  sock->if_index = if_index;
-
-  return 0;
-}
-
-int scnp_close_socket(struct scnp_socket * sock)
-{
-  return close(sock->fd);
-}
-
-static int scnp_is_ack_needed(const struct scnp_packet * packet)
+static int is_ack_needed(const struct scnp_packet * packet)
 {
   return packet->type != SCNP_ACK && packet->type != SCNP_MNG && packet->type != SCNP_MOV;
 }
@@ -71,8 +50,8 @@ static int build_key_buffer(uint8_t * buf, const struct scnp_packet * packet)
 
   uint16_t code = htons(p->code);
   memcpy(buf, &code, sizeof(uint16_t));
-  uint8_t pressed_flag = (p->pressed) << 7;
-  uint8_t repeated_flag = (p->repeated) << 6;
+  uint8_t pressed_flag = (p->pressed) << 7u;
+  uint8_t repeated_flag = (p->repeated) << 6u;
   *(buf + sizeof(uint16_t)) = pressed_flag + repeated_flag;
 
   return 0;
@@ -96,13 +75,13 @@ static int build_out_buffer(uint8_t * buf, const struct scnp_packet * packet)
   // TODO same as previous function
   struct scnp_out * p = (struct scnp_out *) packet;
 
-  uint8_t direction_flag = (p->direction) << 7;
-  uint8_t side_flag = (p->side) << 6;
+  uint8_t direction_flag = (p->direction) << 7u;
+  uint8_t side_flag = (p->side) << 6u;
   *buf = direction_flag + side_flag;
   if (p->height > 1 || p->height < 0) {
     p->height = 0.5f;
   }
-  uint16_t height = p->height * ((1 << 16) - 1);
+  uint16_t height = p->height * ((1u << 16u) - 1u);
   height = htons(height);
   memcpy(buf + sizeof(uint8_t), &height, sizeof(uint16_t));
 
@@ -144,8 +123,8 @@ static int build_key_packet(struct scnp_packet * packet, const uint8_t * buf)
   key.type = SCNP_KEY;
   memcpy(&key.code, buf, sizeof(uint16_t));
   key.code = ntohs(key.code);
-  key.pressed = *(buf + sizeof(uint16_t)) >> 7;
-  key.repeated = *(buf + sizeof(uint16_t)) & (1 << 6);
+  key.pressed = *(buf + sizeof(uint16_t)) >> 7u;
+  key.repeated = *(buf + sizeof(uint16_t)) & (1u << 6u);
 
   memcpy(packet, &key, sizeof(struct scnp_key));
 
@@ -170,11 +149,11 @@ static int build_out_packet(struct scnp_packet * packet, const uint8_t * buf)
 {
   struct scnp_out out;
   out.type = SCNP_OUT;
-  out.direction = *buf >> 7;
-  out.side = *buf & (1 << 6);
+  out.direction = *buf >> 7u;
+  out.side = *buf & (1u << 6u);
   uint16_t height;
   memcpy(&height, buf + sizeof(uint8_t), sizeof(uint16_t));
-  out.height = (float) ntohs(height) / ((1 << 16) - 1);
+  out.height = (float) ntohs(height) / ((1u << 16u) - 1u);
 
   memcpy(packet, &out, sizeof(struct scnp_out));
 
@@ -213,249 +192,284 @@ static int build_packet(struct scnp_packet * packet, const uint8_t * buf)
   return builders[map_type(*buf)](packet, buf + 1);
 }
 
-static ssize_t scnp_recv_ackless(struct scnp_socket * sock, struct scnp_packet * packet, uint8_t * src_addr)
+static struct
 {
-  /* init sock_addr */
-  socklen_t addrlen = sizeof(struct sockaddr_ll);
-  struct sockaddr_ll sock_addr;
-  memset(&sock_addr, 0, addrlen);
-  sock_addr.sll_protocol = htons(ETH_P_SCNP);
-  sock_addr.sll_ifindex = sock->if_index;
-
-  /* init buffer */
-  uint8_t buf[MAX_PACKET_LENGTH];
-  memset(buf, 0, MAX_PACKET_LENGTH);
-
-  /* receive packet */
-  ssize_t bytes_received = recvfrom(sock->fd, buf, sizeof(buf), 0, (struct sockaddr *) &sock_addr, &addrlen);
-  if (bytes_received == -1) return -1;
-
-  /* copy source address into parameter address */
-  memcpy(src_addr, sock_addr.sll_addr, ETHER_ADDR_LEN);
-
-  /* copy buffer into packet */
-  if (build_packet(packet, buf)) return -1;
-
-  return bytes_received;
-}
-
-ssize_t scnp_send(struct scnp_socket * sock, const struct scnp_packet * packet, const uint8_t * dest_addr)
-{
-  /* init sock_addr */
-  struct sockaddr_ll sock_addr;
-  memset(&sock_addr, 0, sizeof(struct sockaddr_ll));
-  sock_addr.sll_family = AF_PACKET;
-  memcpy(sock_addr.sll_addr, dest_addr, ETHER_ADDR_LEN);
-  sock_addr.sll_halen = ETHER_ADDR_LEN;
-  sock_addr.sll_ifindex = sock->if_index;
-  sock_addr.sll_protocol = htons(ETH_P_SCNP);
-
-  /* init buffer */
-  size_t buf_length;
-  uint8_t * buf = alloc_buffer(packet->type, &buf_length);
-  if (buf == NULL) return 0;
-  if (build_buffer(buf, packet)) return 0;
-  
-  /* send packet */
-  ssize_t bytes_sent = 0;
-  if (scnp_is_ack_needed(packet)) {
-
-    /* create socket to receive acknowledgment */
-    struct scnp_socket ack_sock;
-    bool build_failed = scnp_create_socket(&ack_sock, sock->if_index);
-
-    /* set acknowledgment timeout */
-    struct timeval ack_timeout;
-    ack_timeout.tv_sec = ACK_TIMEOUT_S;
-    ack_timeout.tv_usec = ACK_TIMEOUT_US;
-    build_failed = build_failed || setsockopt(ack_sock.fd, SOL_SOCKET, SO_RCVTIMEO, &ack_timeout, sizeof(ack_timeout));
-
-    /* bind socket on sending interface */
-    struct sockaddr_ll ack_addr;
-    memset(&ack_addr, 0, sizeof(struct sockaddr_ll));
-    ack_addr.sll_family = AF_PACKET;
-    ack_addr.sll_protocol = htons(ETH_P_SCNP);
-    ack_addr.sll_ifindex = sock->if_index;
-    build_failed = build_failed || bind(ack_sock.fd, (struct sockaddr *) &ack_addr, sizeof(ack_addr));
-
-    /* create response packet and response address */
-    struct scnp_packet response;
-    response.type = 0;
-    memset(response.data, 0, MAX_PACKET_LENGTH - 1);
-    uint8_t response_addr[ETHER_ADDR_LEN];
-
-    /* send packet and wait for acknowledgment */
-    int i = 0;
-    do {
-      bytes_sent = sendto(sock->fd, buf, buf_length, 0, (struct sockaddr *) &sock_addr, sizeof(sock_addr));
-      ssize_t bytes_received = 0;
-      while (!build_failed && bytes_sent != -1 && bytes_received != -1 && (response.type != SCNP_ACK || memcmp(response_addr, dest_addr, ETHER_ADDR_LEN) != 0)) {
-        bytes_received = scnp_recv_ackless(&ack_sock, &response, response_addr);
-      }
-    } while (!build_failed && bytes_sent != -1 && ++i < ACK_MAX_TRIES && (response.type != SCNP_ACK || memcmp(response_addr, dest_addr, ETHER_ADDR_LEN) != 0));
-    if (bytes_sent == -1) bytes_sent = 0;
-    if (bytes_sent > 0 && (errno == EAGAIN || response.type != SCNP_ACK || memcmp(response_addr, dest_addr, ETHER_ADDR_LEN) != 0)) {
-      errno = ETIMEDOUT;
-      bytes_sent *= -1;
-    }
-    if (ack_sock.fd >= 0) scnp_close_socket(&ack_sock);
-  }
-  else {
-    bytes_sent = sendto(sock->fd, buf, buf_length, 0, (struct sockaddr *) &sock_addr, sizeof(sock_addr));
-    if (bytes_sent == -1) bytes_sent = 0;
-  }
-  free(buf);
-
-  return bytes_sent;
-}
-
-static ssize_t scnp_send_ack(struct scnp_socket * sock, const uint8_t * dest_addr)
-{
-  /* init acknowledgement */
-  struct scnp_ack ack;
-  ack.type = SCNP_ACK;
-
-  /* send acknowledgement */
-  return scnp_send(sock, (struct scnp_packet *) &ack, dest_addr);
-}
-
-ssize_t scnp_recv(struct scnp_socket * sock, struct scnp_packet * packet, uint8_t * src_addr)
-{
-  /* init sock_addr */
-  socklen_t addrlen = sizeof(struct sockaddr_ll);
-  struct sockaddr_ll sock_addr;
-  memset(&sock_addr, 0, addrlen);
-  sock_addr.sll_protocol = ETH_P_SCNP;
-  sock_addr.sll_ifindex = sock->if_index;
-
-  /* init buffer */
-  uint8_t buf[MAX_PACKET_LENGTH];
-  memset(buf, 0, MAX_PACKET_LENGTH);
-
-  /* receive packet */
-  ssize_t bytes_received = recvfrom(sock->fd, buf, sizeof(buf), 0, (struct sockaddr *) &sock_addr, &addrlen);
-  if (bytes_received == -1) return -1;
-
-  /* copy source address into parameter address */
-  memcpy(src_addr, sock_addr.sll_addr, ETHER_ADDR_LEN);
-
-  /* copy buffer into packet */
-  if (build_packet(packet, buf)) return -1;
-
-  /* send ack */
-  if (scnp_is_ack_needed(packet)) {
-    scnp_send_ack(sock, sock_addr.sll_addr);
-  }
-
-  return bytes_received;
-}
-
-struct scnp_session                     // Doubly linked list containing SCNP session threads
-{
-  int if_index;                         // Index of the interface used to send SCNP packets
-  pthread_t session_thread;             // Pthread used to send SCNP management packets
-  int is_session_running;               // Boolean which tells the thread it has to be stopped
-  struct scnp_session * next_session;   // Pointer to the next session in the list
-  struct scnp_session * prev_session;   // Pointer to the previous session in the list
+  int socket;
+  uint64_t iface;
+  struct scnp_queue * rqueue;
+  struct scnp_queue * aqueue;
+  struct scnp_queue * squeue;
+  pthread_t rthread;
+  bool is_rthread_running;
+  pthread_t sthread;
+  bool is_sthread_running;
+  pthread_t mthread;
+  bool is_mthread_running;
+} thread_info = {
+    .socket = -1,
+    .iface = 0,
+    .rqueue = NULL,
+    .aqueue = NULL,
+    .squeue = NULL,
+    .is_rthread_running = false,
+    .is_sthread_running = false,
+    .is_mthread_running = false
 };
 
-static void insert_session(struct scnp_session ** head, struct scnp_session * new_session)
+void scnp_stop(void)
 {
-  new_session->prev_session = NULL;
-  new_session->next_session = *head;
-  if (*head != NULL)
-    (*head)->prev_session = new_session;
-  *head = new_session;
-}
+  thread_info.iface = 0;
 
-static void remove_session(struct scnp_session ** head, struct scnp_session * to_remove)
-{
-  if (to_remove->next_session != NULL)
-    to_remove->next_session->prev_session = to_remove->prev_session;
-  if (to_remove->prev_session != NULL)
-    to_remove->prev_session->next_session = to_remove->next_session;
-  else
-    *head = to_remove->next_session;
-}
-
-struct scnp_session * get_session(struct scnp_session * head, int if_index)
-{
-  struct scnp_session * current_session = head;
-
-  while (current_session != NULL && current_session->if_index != if_index) {
-    current_session = current_session->next_session;
+  if (thread_info.is_mthread_running) {
+    pthread_join(thread_info.mthread, NULL);
+  }
+  if (thread_info.is_rthread_running) {
+    pthread_cancel(thread_info.rthread);
+    pthread_join(thread_info.rthread, NULL);
+  }
+  if (thread_info.is_sthread_running) {
+    pthread_cancel(thread_info.sthread);
+    pthread_join(thread_info.sthread, NULL);
   }
 
-  return current_session;
+  free_queue(thread_info.rqueue);
+  free_queue(thread_info.aqueue);
+  free_queue(thread_info.squeue);
+
+  if (thread_info.socket >= 0) close(thread_info.socket);
+  thread_info.socket = -1;
 }
 
-struct scnp_session * session = NULL;  // Head of the session list
-
-static void * session_run(void * session_data)
+static void rcleanup(void * garbage)
 {
-  /* get the session */
-  struct scnp_session * current_session = (struct scnp_session *) session_data;
+  free(garbage);
+  thread_info.is_rthread_running = false;
+}
 
-  /* init socket */
-  struct scnp_socket session_sock;
-  if (scnp_create_socket(&session_sock, current_session->if_index) == 0) { // TODO return error by a pipe to the main thread
+static void * recv_packets(void * arg)
+{
+  thread_info.is_rthread_running = true;
+  uint64_t  if_index = (uint64_t) arg;
 
-    /* init data to send */
-    struct scnp_management packet;
-    packet.type = SCNP_MNG;
-    gethostname(packet.hostname, HOSTNAME_LENGTH); // Possible error
+  /* allocate memory for the buffer */
+  size_t packetlen = sizeof(struct scnp_packet);
+  uint8_t * buf = (uint8_t *) malloc(packetlen);
+  if (buf == NULL) {
+    thread_info.is_rthread_running = false;
+    scnp_stop();
+    return NULL;
+  }
+  pthread_cleanup_push(rcleanup, buf)
 
-    /* send I'm alive packet every SESSION_TIMEOUT */
-    while (current_session->is_session_running) {
-      scnp_send(&session_sock, (struct scnp_packet *) &packet, broadcast_ll_addr);
-      sleep(SESSION_TIMEOUT);
+  /* initialize the packet and the socket address */
+  struct scnp_packet packet;
+  socklen_t addrlen = sizeof(struct sockaddr_ll);
+  struct sockaddr_ll addr;
+  memset(&addr, 0, addrlen);
+  addr.sll_family = AF_PACKET;
+  addr.sll_protocol = htons(ETH_P_SCNP);
+  addr.sll_ifindex = if_index;
+
+  while (if_index == thread_info.iface) {
+    memset(&packet, 0, sizeof(struct scnp_packet));
+    memset(buf, 0, MAX_PACKET_LENGTH);
+    if (recvfrom(thread_info.socket, buf, packetlen, 0, (struct sockaddr *) &addr, &addrlen) == -1) {
+      thread_info.is_rthread_running = false;
+      scnp_stop();
     }
-
-    /* close socket */
-    scnp_close_socket(&session_sock);
+    if (build_packet(&packet, buf) == 0) {
+      if (packet.type == SCNP_ACK) push(thread_info.aqueue, &packet, addr.sll_addr);
+      else push(thread_info.rqueue, &packet, addr.sll_addr);
+    }
   }
+
+  pthread_cleanup_pop(1);
 
   return NULL;
 }
 
-int scnp_start_session(int if_index)
+static void scleanup(void * garbage)
 {
-  /* init the new session */
-  struct scnp_session * new_session;
+  free(garbage);
+  thread_info.is_sthread_running = false;
+}
 
-  /* allocate new session if it does not already exist */
-  if (get_session(session, if_index) != NULL) return -1;
-  new_session = (struct scnp_session *) malloc(sizeof(struct scnp_session));
+static void * send_packets(void * arg)
+{
+  thread_info.is_sthread_running = true;
+  uint64_t if_index = (uint64_t) arg;
 
-  /* fill session structure */
-  new_session->if_index = if_index;
-  new_session->is_session_running = 1;
+  /* initialize the packet and the socket address */
+  struct scnp_packet packet;
+  socklen_t addrlen = sizeof(struct sockaddr_ll);
+  struct sockaddr_ll addr;
+  memset(&addr, 0, addrlen);
+  addr.sll_family = AF_PACKET;
+  addr.sll_protocol = htons(ETH_P_SCNP);
+  addr.sll_ifindex = if_index;
+  addr.sll_halen = ETHER_ADDR_LEN;
 
-  /* add the new session in the list */
-  insert_session(&session, new_session);
+  /* initialize the queue timeout */
+  int64_t timeout = -1;
 
-  /* run session thread */
-  if (pthread_create(&(new_session->session_thread), NULL, session_run, (void *) new_session) == -1) return -1;
+  while(if_index == thread_info.iface) {
+    pull(thread_info.squeue, &packet, addr.sll_addr, timeout);
+    size_t buf_length;
+    uint8_t * buf = alloc_buffer(packet.type, &buf_length);
+    pthread_cleanup_push(scleanup, buf)
+    if (buf == NULL && errno != EBADMSG) {
+      thread_info.is_sthread_running = false;
+      scnp_stop();
+    }
+    if (buf != NULL && build_buffer(buf, &packet) == 0)
+      sendto(thread_info.socket, buf, buf_length, 0, (struct sockaddr *) &addr, addrlen);
+    pthread_cleanup_pop(0);
+    free(buf);
+  }
+
+  thread_info.is_sthread_running = false;
+
+  return NULL;
+}
+
+static void * run_session(void * arg)
+{
+  thread_info.is_mthread_running = true;
+  uint64_t if_index = (uint64_t) arg;
+
+  /* initialize management packet */
+  uint8_t broadcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+  struct scnp_management mng;
+  mng.type = SCNP_MNG;
+  memset(mng.hostname, 0, HOSTNAME_LENGTH);
+  if (gethostname(mng.hostname, HOSTNAME_LENGTH)) {
+    mng.hostname[HOSTNAME_LENGTH - 1] = 0;
+    errno = 0;
+  }
+
+  while (if_index == thread_info.iface) {
+    if (scnp_send((struct scnp_packet *) &mng, broadcast) && (errno == ENOMEM || errno == ESRCH)) {
+      thread_info.is_mthread_running = false;
+      scnp_stop();
+      return NULL;
+    }
+    sleep(SESSION_TIMEOUT);
+  }
+
+  thread_info.is_mthread_running = false;
+
+  return NULL;
+}
+
+static int stop_and_fail(void)
+{
+  scnp_stop();
+  return -1;
+}
+
+int scnp_start(unsigned int if_index)
+{
+  /* do not start if it is already started */
+  if (
+    thread_info.iface > 0 ||
+    thread_info.socket >= 0 ||
+    thread_info.is_rthread_running ||
+    thread_info.is_sthread_running ||
+    thread_info.is_mthread_running ||
+    thread_info.rqueue != NULL ||
+    thread_info.aqueue != NULL ||
+    thread_info.squeue != NULL
+  ) {
+    errno = EALREADY;
+    return -1;
+  }
+
+  if (!interface_exists(if_index)) {
+    if (errno == 0) errno = ENODEV;
+    return -1;
+  }
+
+  /* create a socket to send and receive SCNP data */
+  thread_info.socket = socket(AF_PACKET, SOCK_DGRAM, htons(ETH_P_SCNP));
+  if (thread_info.socket < 0) return -1;
+
+  /* bind the socket to the interface */
+  struct sockaddr_ll addr;
+  socklen_t addrlen = sizeof(struct sockaddr_ll);
+  memset(&addr, 0, addrlen);
+  addr.sll_family = AF_PACKET;
+  addr.sll_protocol = htons(ETH_P_SCNP);
+  addr.sll_ifindex = (int) if_index;
+  if (bind(thread_info.socket, (struct sockaddr *) &addr, addrlen)) {
+    return stop_and_fail();
+  }
+  thread_info.iface = if_index;
+
+  /* initialize the receiving queue and the sending queue */
+  thread_info.rqueue = init_queue();
+  thread_info.aqueue = init_queue();
+  thread_info.squeue = init_queue();
+  if (thread_info.rqueue == NULL || thread_info.aqueue == NULL || thread_info.squeue == NULL) {
+    return stop_and_fail();
+  }
+
+  /* create the receiving thread and the sending thread */
+  if (pthread_create(&thread_info.rthread, NULL, recv_packets, (void *) thread_info.iface)) {
+    return stop_and_fail();
+  }
+  if (pthread_create(&thread_info.sthread, NULL, send_packets, (void *) thread_info.iface)) {
+    return stop_and_fail();
+  }
+
+  /* create the management thread */
+  if (pthread_create(&thread_info.mthread, NULL, run_session, (void *) thread_info.iface)) {
+    return stop_and_fail();
+  }
 
   return 0;
 }
 
-int scnp_stop_session(int if_index)
+int scnp_send(struct scnp_packet * packet, const uint8_t * dest_addr)
 {
-  /* get the session to stop */
-  struct scnp_session * running_session = get_session(session, if_index);
+  if (!thread_info.is_sthread_running) {
+    errno = ESRCH;
+    return -1;
+  }
 
-  if (running_session == NULL) return -1;
+  if (is_ack_needed(packet)) {
+    struct scnp_packet ack;
+    ack.type = 0;
+    uint8_t ack_addr[ETHER_ADDR_LEN];
+    memset(ack_addr, 0, ETHER_ADDR_LEN);
+    int tries = 0;
+    do {
+      if (push(thread_info.squeue, packet, dest_addr)) return -1;
+      ++tries;
+      pull(thread_info.aqueue, &ack, ack_addr, ACK_TIMEOUT_NS);
+    } while (tries < ACK_MAX_TRIES && (ack.type != SCNP_ACK || memcmp(ack_addr, dest_addr, ETHER_ADDR_LEN) != 0));
+    if (ack.type != SCNP_ACK || memcmp(ack_addr, dest_addr, ETHER_ADDR_LEN) != 0) return -1;
+  }
+  else {
+    if (push(thread_info.squeue, packet, dest_addr)) return -1;
+  }
 
-  /* stop the session */
-  running_session->is_session_running = 0;
-  pthread_join(running_session->session_thread, NULL);
+  return 0;
+}
 
-  /* remove the session from the list */
-  remove_session(&session, running_session);
+int scnp_recv(struct scnp_packet * packet, uint8_t * src_addr)
+{
+  if (!thread_info.is_rthread_running)  {
+    errno = ESRCH;
+    return -1;
+  }
 
-  /* free the session */
-  free(running_session);
+  if (pull(thread_info.rqueue, packet, src_addr, -1)) return -1;
+
+  if (is_ack_needed(packet)) {
+    struct scnp_ack ack;
+    ack.type = SCNP_ACK;
+    scnp_send((struct scnp_packet *) &ack, src_addr);
+  }
 
   return 0;
 }

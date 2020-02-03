@@ -30,6 +30,8 @@ extern "C" {
 
   void free_interfaces(IF * interfaces);
 
+  int interface_exists(unsigned int if_index);
+
 #ifdef __cplusplus
 }
 #endif

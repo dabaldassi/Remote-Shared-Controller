@@ -160,7 +160,7 @@ TEST_CASE("scnp_session") {
   loopaddr.sll_protocol = htons(ETH_P_SCNP);
   loopaddr.sll_ifindex = LOOP_INDEX;
   REQUIRE(bind(fd, (struct sockaddr *) &loopaddr, addrlen) == 0);
-  struct timeval timeout = {1, 0};
+  struct timeval timeout = {3, 0};
   REQUIRE(setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == 0);
   struct sockaddr_ll raddr{};
   memset(&raddr, 0, addrlen);
@@ -169,6 +169,7 @@ TEST_CASE("scnp_session") {
   raddr.sll_ifindex = LOOP_INDEX;
   uint8_t rbuf[MAX_PACKET_LENGTH + ETHER_HDR_LEN];
   ssize_t bytes_received = recvfrom(fd, rbuf, sizeof(rbuf), 0, (struct sockaddr *) &raddr, &addrlen);
+  if (bytes_received == -1) perror("Cannot receive packet");
   REQUIRE(bytes_received == MNG_LENGTH + ETHER_HDR_LEN);
   uint8_t loopback[] = {0, 0, 0, 0, 0, 0};
   uint8_t broadcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};

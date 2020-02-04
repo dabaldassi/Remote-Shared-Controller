@@ -15,10 +15,11 @@ void free_interfaces(IF * interfaces)
 int interface_exists(unsigned int if_index)
 {
   IF * interfaces = get_interfaces();
-  while (interfaces != NULL && interfaces->if_index != if_index) {
-    ++interfaces;
+  IF * i = interfaces;
+  while (i->if_index != 0 && i->if_name != NULL && i->if_index != if_index) {
+    ++i;
   }
-  int return_value = interfaces != NULL;
+  int return_value = (i->if_index != 0 && i->if_name != NULL);
   free_interfaces(interfaces);
   return return_value;
 }

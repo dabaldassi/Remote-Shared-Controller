@@ -149,7 +149,9 @@ TEST_CASE("pull") {
 }
 
 TEST_CASE("scnp_session") {
+  REQUIRE(scnp_start(42) == -1);
   REQUIRE(scnp_start(LOOP_INDEX) == 0);
   sleep(1);
+  REQUIRE(scnp_start(LOOP_INDEX) == -1);
   scnp_stop();
 }

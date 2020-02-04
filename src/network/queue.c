@@ -26,6 +26,7 @@ struct scnp_queue * init_queue(void)
 void free_queue(struct scnp_queue * queue)
 {
   if (queue != NULL) {
+    pthread_mutex_lock(&queue->__mutex);
     /* remove and free elements in the queue */
     queue_elt * e = queue->head;
     while (e != NULL) {
@@ -35,6 +36,7 @@ void free_queue(struct scnp_queue * queue)
       free(x);
     }
 
+    pthread_mutex_unlock(&queue->__mutex);
     /* destroy and free the queue */
     pthread_mutex_destroy(&queue->__mutex);
     sem_destroy(&queue->__sem);

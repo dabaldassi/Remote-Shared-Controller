@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <errno.h>
+#include <semaphore.h>
 
 #include "queue.h"
 #include "interface.h"
@@ -195,7 +196,6 @@ static int build_packet(struct scnp_packet * packet, const uint8_t * buf)
 static struct
 {
   int socket;
-  uint64_t iface;
   struct scnp_queue * rqueue;
   struct scnp_queue * aqueue;
   struct scnp_queue * squeue;
@@ -203,38 +203,33 @@ static struct
   bool is_rthread_running;
   pthread_t sthread;
   bool is_sthread_running;
-  pthread_t mthread;
-  bool is_mthread_running;
+  bool stop_mthread;
 } thread_info = {
     .socket = -1,
-    .iface = 0,
     .rqueue = NULL,
     .aqueue = NULL,
     .squeue = NULL,
     .is_rthread_running = false,
     .is_sthread_running = false,
-    .is_mthread_running = false
+    .stop_mthread = true
 };
+
+typedef struct
+{
+  int if_index;
+  sem_t thread_cnt;
+} param_t;
 
 void scnp_stop(void)
 {
-  thread_info.iface = 0;
-
-  if (thread_info.is_mthread_running) {
-    pthread_join(thread_info.mthread, NULL);
-  }
   if (thread_info.is_rthread_running) {
     pthread_cancel(thread_info.rthread);
-    pthread_join(thread_info.rthread, NULL);
   }
+  pthread_join(thread_info.rthread, NULL);
   if (thread_info.is_sthread_running) {
     pthread_cancel(thread_info.sthread);
-    pthread_join(thread_info.sthread, NULL);
   }
-
-  free_queue(thread_info.rqueue);
-  free_queue(thread_info.aqueue);
-  free_queue(thread_info.squeue);
+  pthread_join(thread_info.sthread, NULL);
 
   if (thread_info.socket >= 0) close(thread_info.socket);
   thread_info.socket = -1;
@@ -242,24 +237,38 @@ void scnp_stop(void)
 
 static void rcleanup(void * garbage)
 {
-  free(garbage);
+  if (garbage != NULL) free(garbage);
+  free_queue(thread_info.rqueue);
+  thread_info.rqueue = NULL;
+  free_queue(thread_info.aqueue);
+  thread_info.aqueue = NULL;
   thread_info.is_rthread_running = false;
 }
 
 static void * recv_packets(void * arg)
 {
   thread_info.is_rthread_running = true;
-  uint64_t  if_index = (uint64_t) arg;
+  param_t * param = (param_t *) arg;
+  int if_index = param->if_index;
+  bool stop = false;
 
   /* allocate memory for the buffer */
   size_t packetlen = sizeof(struct scnp_packet);
   uint8_t * buf = (uint8_t *) malloc(packetlen);
   if (buf == NULL) {
-    thread_info.is_rthread_running = false;
-    scnp_stop();
-    return NULL;
+    stop = true;
   }
+
   pthread_cleanup_push(rcleanup, buf)
+
+  sem_post(&param->thread_cnt);
+
+  /* initialize receive and ack queue */
+  thread_info.rqueue = init_queue();
+  thread_info.aqueue = init_queue();
+  if (thread_info.rqueue == NULL || thread_info.aqueue == NULL) {
+    stop = true;
+  }
 
   /* initialize the packet and the socket address */
   struct scnp_packet packet;
@@ -270,16 +279,19 @@ static void * recv_packets(void * arg)
   addr.sll_protocol = htons(ETH_P_SCNP);
   addr.sll_ifindex = if_index;
 
-  while (if_index == thread_info.iface) {
+  while (!stop) {
     memset(&packet, 0, sizeof(struct scnp_packet));
     memset(buf, 0, MAX_PACKET_LENGTH);
     if (recvfrom(thread_info.socket, buf, packetlen, 0, (struct sockaddr *) &addr, &addrlen) == -1) {
-      thread_info.is_rthread_running = false;
-      scnp_stop();
+      stop = true;
     }
     if (build_packet(&packet, buf) == 0) {
-      if (packet.type == SCNP_ACK) push(thread_info.aqueue, &packet, addr.sll_addr);
-      else push(thread_info.rqueue, &packet, addr.sll_addr);
+      if (packet.type == SCNP_ACK) {
+        push(thread_info.aqueue, &packet, addr.sll_addr);
+      }
+      else {
+        push(thread_info.rqueue, &packet, addr.sll_addr);
+      }
     }
   }
 
@@ -288,16 +300,70 @@ static void * recv_packets(void * arg)
   return NULL;
 }
 
+static void * manage(void * arg)
+{
+  arg = (void *) arg;
+
+  /* initialize management packet */
+  uint8_t broadcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+  struct scnp_management mng;
+  mng.type = SCNP_MNG;
+  memset(mng.hostname, 0, HOSTNAME_LENGTH);
+  if (gethostname(mng.hostname, HOSTNAME_LENGTH)) {
+    mng.hostname[HOSTNAME_LENGTH - 1] = 0;
+    errno = 0;
+  }
+
+  while (!thread_info.stop_mthread) {
+    if (scnp_send((struct scnp_packet *) &mng, broadcast) && (errno == ENOMEM || errno == ESRCH)) {
+      return NULL;
+    }
+    sleep(SESSION_TIMEOUT);
+  }
+
+  return NULL;
+}
+
+struct waste_t
+{
+  uint8_t * buf;
+  pthread_t mthread;
+};
+
 static void scleanup(void * garbage)
 {
-  free(garbage);
+  struct waste_t * waste = (struct waste_t *) garbage;
+  free(waste->buf);
+  thread_info.stop_mthread = true;
+  pthread_join(waste->mthread, NULL);
+  free_queue(thread_info.squeue);
+  thread_info.squeue = NULL;
   thread_info.is_sthread_running = false;
 }
 
 static void * send_packets(void * arg)
 {
   thread_info.is_sthread_running = true;
-  uint64_t if_index = (uint64_t) arg;
+  param_t * param = (param_t *) arg;
+  int if_index = param->if_index;
+  bool stop = false;
+
+  struct waste_t waste;
+  waste.buf = NULL;
+  thread_info.stop_mthread = false;
+  if (pthread_create(&waste.mthread, NULL, manage, NULL)) {
+    stop = true;
+  }
+
+  pthread_cleanup_push(scleanup, &waste)
+
+  sem_post(&param->thread_cnt);
+
+  /* initialize sending queue */
+  thread_info.squeue = init_queue();
+  if (thread_info.squeue == NULL) {
+    stop = true;
+  }
 
   /* initialize the packet and the socket address */
   struct scnp_packet packet;
@@ -312,51 +378,25 @@ static void * send_packets(void * arg)
   /* initialize the queue timeout */
   int64_t timeout = -1;
 
-  while(if_index == thread_info.iface) {
-    pull(thread_info.squeue, &packet, addr.sll_addr, timeout);
+  while(!stop) {
+    if (pull(thread_info.squeue, &packet, addr.sll_addr, timeout)) {
+      stop = true;
+    }
     size_t buf_length;
-    uint8_t * buf = alloc_buffer(packet.type, &buf_length);
-    pthread_cleanup_push(scleanup, buf)
-    if (buf == NULL && errno != EBADMSG) {
-      thread_info.is_sthread_running = false;
-      scnp_stop();
+    waste.buf = alloc_buffer(packet.type, &buf_length);
+    if (waste.buf == NULL && errno != EBADMSG) {
+      stop = true;
     }
-    if (buf != NULL && build_buffer(buf, &packet) == 0)
-      sendto(thread_info.socket, buf, buf_length, 0, (struct sockaddr *) &addr, addrlen);
-    pthread_cleanup_pop(0);
-    free(buf);
-  }
-
-  thread_info.is_sthread_running = false;
-
-  return NULL;
-}
-
-static void * run_session(void * arg)
-{
-  thread_info.is_mthread_running = true;
-  uint64_t if_index = (uint64_t) arg;
-
-  /* initialize management packet */
-  uint8_t broadcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-  struct scnp_management mng;
-  mng.type = SCNP_MNG;
-  memset(mng.hostname, 0, HOSTNAME_LENGTH);
-  if (gethostname(mng.hostname, HOSTNAME_LENGTH)) {
-    mng.hostname[HOSTNAME_LENGTH - 1] = 0;
-    errno = 0;
-  }
-
-  while (if_index == thread_info.iface) {
-    if (scnp_send((struct scnp_packet *) &mng, broadcast) && (errno == ENOMEM || errno == ESRCH)) {
-      thread_info.is_mthread_running = false;
-      scnp_stop();
-      return NULL;
+    if (waste.buf != NULL && build_buffer(waste.buf, &packet) == 0) {
+      if (sendto(thread_info.socket, waste.buf, buf_length, 0, (struct sockaddr *) &addr, addrlen) <= 0) {
+        stop = true;
+      }
     }
-    sleep(SESSION_TIMEOUT);
+    free(waste.buf);
+    waste.buf = NULL;
   }
 
-  thread_info.is_mthread_running = false;
+  pthread_cleanup_pop(1);
 
   return NULL;
 }
@@ -371,27 +411,25 @@ int scnp_start(unsigned int if_index)
 {
   /* do not start if it is already started */
   if (
-    thread_info.iface > 0 ||
     thread_info.socket >= 0 ||
     thread_info.is_rthread_running ||
-    thread_info.is_sthread_running ||
-    thread_info.is_mthread_running ||
-    thread_info.rqueue != NULL ||
-    thread_info.aqueue != NULL ||
-    thread_info.squeue != NULL
+    thread_info.is_sthread_running
   ) {
     errno = EALREADY;
     return -1;
   }
 
+  /* verify interface existence */
   if (!interface_exists(if_index)) {
     if (errno == 0) errno = ENODEV;
     return -1;
   }
 
-  /* create a socket to send and receive SCNP data */
+  /* open a socket to send and receive SCNP data */
   thread_info.socket = socket(AF_PACKET, SOCK_DGRAM, htons(ETH_P_SCNP));
-  if (thread_info.socket < 0) return -1;
+  if (thread_info.socket < 0) {
+    return -1;
+  }
 
   /* bind the socket to the interface */
   struct sockaddr_ll addr;
@@ -403,28 +441,23 @@ int scnp_start(unsigned int if_index)
   if (bind(thread_info.socket, (struct sockaddr *) &addr, addrlen)) {
     return stop_and_fail();
   }
-  thread_info.iface = if_index;
 
-  /* initialize the receiving queue and the sending queue */
-  thread_info.rqueue = init_queue();
-  thread_info.aqueue = init_queue();
-  thread_info.squeue = init_queue();
-  if (thread_info.rqueue == NULL || thread_info.aqueue == NULL || thread_info.squeue == NULL) {
-    return stop_and_fail();
-  }
+  param_t param;
+  param.if_index = (int) if_index;
+  sem_init(&param.thread_cnt, 0, 0);
 
   /* create the receiving thread and the sending thread */
-  if (pthread_create(&thread_info.rthread, NULL, recv_packets, (void *) thread_info.iface)) {
+  if (pthread_create(&thread_info.rthread, NULL, recv_packets, (void *) &param)) {
+    sem_destroy(&param.thread_cnt);
     return stop_and_fail();
   }
-  if (pthread_create(&thread_info.sthread, NULL, send_packets, (void *) thread_info.iface)) {
+  sem_wait(&param.thread_cnt);
+  if (pthread_create(&thread_info.sthread, NULL, send_packets, (void *) &param)) {
+    sem_destroy(&param.thread_cnt);
     return stop_and_fail();
   }
-
-  /* create the management thread */
-  if (pthread_create(&thread_info.mthread, NULL, run_session, (void *) thread_info.iface)) {
-    return stop_and_fail();
-  }
+  sem_wait(&param.thread_cnt);
+  sem_destroy(&param.thread_cnt);
 
   return 0;
 }

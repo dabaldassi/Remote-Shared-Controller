@@ -13,6 +13,7 @@ void PC::save(std::ofstream &ofs) const
 {  
   ofs.write((char*)&id, sizeof(id));
   ofs.write((char*)&local, sizeof(local));
+  ofs.write((char*)&focus, sizeof(focus));
   rscutil::serialize_string(ofs, name);
   ofs.write((char*)address, sizeof(*address) * LEN_ADDR);
   ofs.write((char*)&resolution, sizeof(resolution));
@@ -23,6 +24,7 @@ void PC::load(std::ifstream& ifs)
 {
   ifs.read((char*)&id, sizeof(id));
   ifs.read((char*)&local, sizeof(local));
+  ifs.read((char*)&focus, sizeof(focus));
   rscutil::deserialize_string(ifs, name);
   ifs.read((char*)address, sizeof(*address) * LEN_ADDR);
   ifs.read((char*)&resolution, sizeof(resolution));
@@ -33,6 +35,7 @@ bool PC::operator==(const PC& other) const
 {
   return id == other.id
     && local == other.local
+    && focus == other.focus
     && name == other.name
     && resolution.h == other.resolution.h
     && resolution.w == other.resolution.w
@@ -43,6 +46,8 @@ bool PC::operator==(const PC& other) const
 
 std::ostream& operator<<(std::ostream& os, const PC& pc)
 {
+  if(pc.focus) os << "* ";
+  
   os << "id : " << pc.id << "\n"
      << "Name : " << pc.name << "\n"
      << "Resolution : "  << pc.resolution.w << "x" << pc.resolution.h << "\n"

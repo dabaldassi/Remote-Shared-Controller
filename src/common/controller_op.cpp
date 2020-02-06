@@ -23,7 +23,10 @@ int ControllerOperation::_send_cmd(const rsclocalcom::Message& msg)
   using namespace rsclocalcom;
   Message     m;
 
-  if(!rscutil::is_core_running()) throw std::runtime_error("Core is not running");
+  if(!rscutil::is_core_running()) {
+    _ui->display_error("Core is not running");
+    return 1;
+  }
 
   RSCLocalCom com(RSCLocalCom::Contact::CLIENT);
 
@@ -80,7 +83,7 @@ int ControllerOperation::listcurrent(bool all)
 
   if(err) return err;
   
-  _ui->display_pc(list, all);
+  _ui->display_current_pc(list, all);
   
   return 0;
 }
@@ -92,7 +95,7 @@ int ControllerOperation::listrefresh(bool all)
 
   if(err) return err;
   
-  _ui->display_pc(list, all);
+  _ui->display_all_pc(list, all);
   
   return 0;
 }
@@ -320,4 +323,18 @@ int ControllerOperation::reset_shortcut()
   rsclocalcom::Message msg(rsclocalcom::Message::LOAD_SHORTCUT);
   msg.add_arg(int{rsclocalcom::Message::LOAD_RESET});
   return _send_cmd(msg);
+}
+
+int ControllerOperation::swap(int id1, int id2)
+{
+   PCList current_list;
+   int    err = _getlist(current_list, CURRENT_PC_LIST);
+
+   if(err) return err;
+
+   current_list.swap(id1,id2);
+  
+   current_list.save(CURRENT_PC_LIST);
+   rsclocalcom::Message msg(rsclocalcom::Message::SETLIST);
+   return _send_cmd(msg);
 }

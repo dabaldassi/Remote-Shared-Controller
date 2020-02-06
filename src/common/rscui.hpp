@@ -17,7 +17,8 @@ namespace rscui {
   {
   public:
 
-    virtual void display_pc(rscutil::PCList& list, bool all) = 0;
+    virtual void display_current_pc(rscutil::PCList& list, bool all) = 0;
+    virtual void display_all_pc(rscutil::PCList& list, bool all) = 0;
     virtual void display_if(const IF * interface) = 0;
     virtual void display_if(int if_index, const std::string& if_name) = 0;
     virtual void display_error(const std::string& error) = 0;

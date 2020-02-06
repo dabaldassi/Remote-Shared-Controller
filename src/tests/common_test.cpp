@@ -14,8 +14,8 @@
 
 TEST_CASE("PC") {
   using namespace rscutil;
-  PC pc1 { 1, false, "pc", { 5,0x23,0,0,0,0 }, {10,0} ,{8,5} },
-    pc2 { 1, false, "pc", { 5,0x23,0,0,0,0 }, {10,0} ,{8,5} };
+  PC pc1 { 1, false, false, "pc", { 5,0x23,0,0,0,0 }, {10,0} ,{8,5} },
+    pc2 { 1, false, false, "pc", { 5,0x23,0,0,0,0 }, {10,0} ,{8,5} };
 
   REQUIRE(pc1 == pc2);
 
@@ -41,10 +41,10 @@ TEST_CASE("PC") {
 
 TEST_CASE("PC List") {
   using namespace rscutil;
-  PC pc1 { 1, true, "pc1", { 0,0,0,0,0,0 }, {1920,1080} ,{0,0} };
-  PC pc2 { 2, false, "pc2", { 5,0x23,0x45,0x74,0x12,0x01 }, {1024,720} ,{8,5} };
-  PC pc3 { 3, false, "pc3", { 5,0x23,0x54,0x47,0x47,0x12 }, {640,480} ,{84,50} };
-  PC pc4 { 4, false, "pc4", { 0x04,0x43,0xff,0x47,0x47,0x12 }, {640,480} ,{84,50} };
+  PC pc1 { 1, true, true, "pc1", { 0,0,0,0,0,0 }, {1920,1080} ,{0,0} };
+  PC pc2 { 2, false, false, "pc2", { 5,0x23,0x45,0x74,0x12,0x01 }, {1024,720} ,{8,5} };
+  PC pc3 { 3, false, false, "pc3", { 5,0x23,0x54,0x47,0x47,0x12 }, {640,480} ,{84,50} };
+  PC pc4 { 4, false, false, "pc4", { 0x04,0x43,0xff,0x47,0x47,0x12 }, {640,480} ,{84,50} };
 
   PCList list;
 

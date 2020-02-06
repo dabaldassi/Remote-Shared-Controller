@@ -23,7 +23,9 @@ namespace rscui {
   
     int run(int argc, char * argv[]);
 
-    void display_pc(rscutil::PCList& list, bool all) override;
+    void display_pc(const std::string& msg, rscutil::PCList& list, bool all);
+    void display_current_pc(rscutil::PCList& list, bool all) override;
+    void display_all_pc(rscutil::PCList& list, bool all) override;
     void display_if(const IF * interface) override;
     void display_if(int if_index, const std::string& if_name) override;
     void display_error(const std::string& error) override;

@@ -111,7 +111,7 @@ public:
    *\return 1 if there was an error. 0 otherwise.
    */
   
-  int  init();
+  int  init(int if_indexma);
 
   /**
    *\brief Release everything that need to be in the object

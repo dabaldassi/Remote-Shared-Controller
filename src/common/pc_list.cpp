@@ -108,3 +108,19 @@ void PCList::load(const std::string &file_name)
   }
   else throw std::runtime_error("Can't open " + file_name);
 }
+
+void PCList::swap(int id1, int id2)
+{
+  auto it1 = std::find_if_not(_pc_list.begin(),
+			      _pc_list.end(),
+			      [&id1](const PC& p) { return p.id == id1; });
+
+  auto it2 = std::find_if_not(_pc_list.begin(),
+			      _pc_list.end(),
+			      [&id2](const PC& p) { return p.id == id2; });
+
+  if(it1 == _pc_list.end() || it2 == _pc_list.end())
+    throw std::runtime_error("Id must exist");
+
+  std::iter_swap(it1, it2);
+}

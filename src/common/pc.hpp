@@ -11,6 +11,7 @@ namespace rscutil {
   
     int                      id;
     bool                     local;
+    bool                     focus;
     std::string              name;
     uint8_t                  address[LEN_ADDR];
     struct { int w; int h; } resolution;

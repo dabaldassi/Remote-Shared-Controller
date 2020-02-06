@@ -1,8 +1,10 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.1.3)
 
 project(remote-shared-controller)
 
 find_package(Threads REQUIRED)
+
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories(
   src/network
@@ -11,6 +13,7 @@ include_directories(
   src/rsclocal_com
   src/rsccli
   src/common
+  src/rscgui
   src/
   ) 
  
@@ -56,8 +59,8 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
       set(controller_libs ${X11_LIBRAIRIES} ${X11_X11_LIB} ${X11_Xfixes_LIB})
       file(GLOB_RECURSE controller_sources src/controller/linux/*.c)
     else()
-      message(STATUS "X11 is not found, assuming there is no graphic server")
-      message(STATUS "You must install X11 and X11 fixes to use X11 features")
+      message(WARNING "X11 is not found, assuming there is no graphic server\n"
+	 "You must install X11 and X11 fixes to use X11 features")
       add_compile_options(-DNO_CURSOR)
       file(GLOB_RECURSE controller_sources
 	src/controller/linux/translate.c
@@ -89,7 +92,7 @@ target_link_libraries(network pthread)
 file(GLOB_RECURSE common_sources src/common/*.cpp)
 file(GLOB_RECURSE common_headers src/common/*.hpp)
 add_library(common ${common_sources} ${common_headers})
-target_link_libraries(common controller)
+target_link_libraries(common controller rsclocal_com network)
 
 file(GLOB_RECURSE core_sources src/core/*.cpp)
 file(GLOB_RECURSE core_headers src/core/*.hpp)
@@ -108,8 +111,26 @@ add_executable(rsccli ${rsccli_sources} ${rsccli_headers})
 target_link_libraries(rsccli
   common
   network
-  rsclocal_com
   )
+
+find_package(Qt5Widgets)
+
+if( ${Qt5Widgets_FOUND} )
+  message(STATUS "Qt5 found")
+  message(STATUS "Configuring to build rscgui")
+
+  file(GLOB rscgui_sources src/rscgui/*.cpp)
+  file(GLOB rscgui_headers src/rscgui/*.hpp)
+
+  add_executable(rscgui ${rscgui_sources} ${rscgui_headers})
+  target_include_directories(rscgui PUBLIC ${Qt5Widgets_INCLUDE_DIRS})
+  target_link_libraries(rscgui common)
+  set_target_properties(rscgui PROPERTIES AUTOMOC TRUE)
+  qt5_use_modules(rscgui Widgets)
+else()
+  message(WARNING "Qt5 not found.\n"
+    "If you want to use rscgui, please install Qt5.")
+endif()
 
 if(INCLUDE_TEST)
   include(CTest)

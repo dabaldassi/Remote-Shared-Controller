@@ -27,9 +27,9 @@ int RSCCli::run(int argc, char **argv)
   return cmd->execute(_ops);
 }
 
-void RSCCli::display_pc(rscutil::PCList& list, bool all)
+void RSCCli::display_pc(const std::string& msg, rscutil::PCList& list, bool all)
 {
-  std::cout << "List of current PC :" << "\n";
+  std::cout << msg << "\n";
   
   for(size_t i = 0; i < list.size(); i++) {
     const rscutil::PC& pc = list.get_current();
@@ -39,6 +39,16 @@ void RSCCli::display_pc(rscutil::PCList& list, bool all)
     
     list.next_pc();
   }
+}
+
+void RSCCli::display_all_pc(rscutil::PCList &list, bool all)
+{
+  display_pc("List of current PC :", list, all);
+}
+
+void RSCCli::display_current_pc(rscutil::PCList& list, bool all)
+{
+  display_pc("List of all available PC :", list, all);
 }
 
 void RSCCli::display_if(const IF * interface)

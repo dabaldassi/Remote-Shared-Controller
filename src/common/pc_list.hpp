@@ -36,7 +36,8 @@ namespace rscutil {
 
     template<typename Pred>
     bool exist(Pred&& p) const;
-  
+
+    void swap(int id1, int id2);
     void next_pc();
     void previous_pc();
     size_t size() const { return _pc_list.size(); }
@@ -45,6 +46,8 @@ namespace rscutil {
     void load(const std::string & file_name);
   
     const PC& get_current() const;
+    PC& get_current() { return _pc_list[_current]; }
+    
     const PC& get_local() const;
     const PC& get(int id) const;
 

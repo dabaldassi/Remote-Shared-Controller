@@ -10,6 +10,8 @@
 #include <config.hpp>
 #include <interface.h>
 
+#include <iostream>
+
 void error(const char * s)
 {
   perror(s);
@@ -108,7 +110,7 @@ RSC::RSC(): _if(DEFAULT_IF), _next_pc_id{0},
   
   load_shortcut(false);
   
-  PC local_pc { _next_pc_id++, true, "localhost", {0}, {0,0}, {0,0}};
+  PC local_pc { _next_pc_id++, true, true, "localhost", {0}, {0,0}, {0,0}};
 
 #ifndef NO_CURSOR
   _cursor = open_cursor_info();
@@ -139,8 +141,9 @@ RSC::~RSC()
 #endif
 }
 
-int RSC::init()
+int RSC::init(int if_index)
 {
+  _if = if_index;
   int err = scnp_start(_if);
 
   if(err) error("Cannot start SCNP session");
@@ -162,10 +165,14 @@ void RSC::exit()
 void RSC::_transit(rscutil::Combo::Way way)
 {
   using Way = rscutil::Combo::Way;
+
+  _pc_list.get_current().focus = false;
   
   if(way == Way::LEFT)       _pc_list.previous_pc();
   else if(way == Way::RIGHT) _pc_list.next_pc();
 
+  _pc_list.get_current().focus = true;
+  
   grab_controller(!_pc_list.get_current().local);
  
   _state = (_pc_list.get_current().local)? State::HERE : State::AWAY;
@@ -212,7 +219,7 @@ void RSC::add_pc(const uint8_t *addr, const std::string& hostname)
 				    return !memcmp(addr, pc.address, PC::LEN_ADDR);
 				  });
   if(!exist) {
-    PC pc{ _next_pc_id++, false, hostname, {0}, { 0,0 }, { 0,0 }}; 
+    PC pc{ _next_pc_id++, false, false, hostname, {0}, { 0,0 }, { 0,0 }}; 
 
     memcpy(pc.address, addr, PC::LEN_ADDR);
     

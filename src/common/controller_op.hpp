@@ -144,6 +144,8 @@ namespace rscui {
 
     int set_shortcut(const std::string& name);
     int reset_shortcut();
+
+    int swap(int id1, int id2);
   };
 
 

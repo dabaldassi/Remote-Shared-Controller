@@ -2,5 +2,6 @@ project/
 *~
 *#*
 build/
+buildnocursor/
 .idea/
 doc/

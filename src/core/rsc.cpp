@@ -10,8 +10,6 @@
 #include <config.hpp>
 #include <interface.h>
 
-#include <iostream>
-
 void error(const char * s)
 {
   perror(s);
@@ -39,14 +37,30 @@ void RSC::save_shortcut() const
   ComboShortcut::save(list);
 }
 
+void RSC::_send_release(rscutil::Combo* combo)
+{
+  using rscutil::ComboShortcut;
+  
+  auto * c = static_cast<ComboShortcut *>(combo);
+
+  c->for_each([this](ComboShortcut::shortcut_t& s) {
+      int code = std::get<0>(s);
+
+      ControllerEvent e = { false, KEY, EV_KEY, KEY_RELEASED, 0};
+      e.code = code;
+
+      _send(e);
+    });
+}
+
 void RSC::load_shortcut(bool reset)
 {
   using rscutil::Combo;
   using rscutil::ComboShortcut;
 
   std::map<std::string, std::function<void(Combo*)>> _actions = {
-    { "right", [this](Combo * combo) { _transit(combo->get_way()); } },
-    { "left", [this](Combo * combo) { _transit(combo->get_way()); } },
+    { "right", [this](Combo * combo) { _send_release(combo); _transit(combo->get_way()); } },
+    { "left", [this](Combo * combo) { _send_release(combo); _transit(combo->get_way()); } },
     { "quit", [this](Combo*) { _run = false; } }
   };
 
@@ -177,9 +191,15 @@ void RSC::_transit(rscutil::Combo::Way way)
  
   _state = (_pc_list.get_current().local)? State::HERE : State::AWAY;
 
+  _waiting_for_egress = _state != State::HERE;
+  
 #ifndef NO_CURSOR
   if(_state == State::AWAY) hide_cursor(_cursor);
   else                      show_cursor(_cursor);
+
+  _cursor->pos_x = _cursor->screen_size.width >> 1;
+  _cursor->pos_y = _cursor->screen_size.height >> 1;
+  set_cursor_position(_cursor);
 #endif
 }
 
@@ -189,8 +209,13 @@ void RSC::_transit(rscutil::Combo::Way way, float height)
 {
   using Way = rscutil::Combo::Way;
   
-  _transit(way);
+  _pc_list.get_current().focus = false;
   
+  if(way == Way::LEFT)       _pc_list.previous_pc();
+  else if(way == Way::RIGHT) _pc_list.next_pc();
+
+  _pc_list.get_current().focus = true;
+
   if(_pc_list.get_current().local) {
     if(_pc_list.size() > 1) {
       _cursor->pos_x = (way == Way::RIGHT)?10:_cursor->screen_size.width-10;
@@ -206,8 +231,16 @@ void RSC::_transit(rscutil::Combo::Way way, float height)
     pkt.height = height;
     scnp_send(reinterpret_cast<scnp_packet*>(&pkt),
 	      _pc_list.get_current().address);
-
+    _waiting_for_egress = true;
   }
+
+  _state = (_pc_list.get_current().local)? State::HERE : State::AWAY;
+
+  if(_state == State::AWAY) hide_cursor(_cursor);
+  else                      show_cursor(_cursor);
+
+  // grab controller is very slow
+  grab_controller(_state == State::AWAY);
 }
 
 #endif
@@ -241,7 +274,6 @@ void RSC::_receive()
   struct scnp_packet   packet;
   ControllerEvent    * ev = nullptr;
   uint8_t              addr_src[rscutil::PC::LEN_ADDR];
-  int                  can_update = 0;
     
 #ifndef NO_CURSOR
   const rscutil::PC&   local_pc = _pc_list.get_local();
@@ -256,7 +288,6 @@ void RSC::_receive()
 		     pkt.direction = OUT_EGRESS;
 		     pkt.height = _cursor->pos_y / (float)_cursor->screen_size.height;
 		     scnp_send(reinterpret_cast<struct scnp_packet *>(&pkt), addr_src);
-		     --can_update;
 		   });
 #endif
 
@@ -264,11 +295,14 @@ void RSC::_receive()
     {
      { SCNP_KEY, [&packet]() { return ConvKey<ControllerEvent,KEY>::get(packet); }},
      { SCNP_MOV, [&packet]() { return ConvKey<ControllerEvent,MOUSE>::get(packet); }},
-     { SCNP_OUT, [&packet,this,&can_update]() {
+     { SCNP_OUT, [&packet,this]() {
 #ifndef NO_CURSOR
 		   auto * pkt = reinterpret_cast<struct scnp_out*>(&packet);
 		   
 		   if(pkt->direction == OUT_EGRESS) {
+		     if(_waiting_for_egress) _waiting_for_egress = false;
+		     else                    return nullptr;
+		     
 		     if(!pkt->side) _transit(Combo::Way::LEFT, pkt->height);
 		     else           _transit(Combo::Way::RIGHT, pkt->height);		     
 		   }
@@ -276,7 +310,6 @@ void RSC::_receive()
 		     _cursor->pos_x = (pkt->side == OUT_RIGHT)?10:_cursor->screen_size.width-10;
 		     _cursor->pos_y = pkt->height * _cursor->screen_size.height;
 		     set_cursor_position(_cursor);
-		     ++can_update;
 		   }
 #endif
 		   return nullptr;
@@ -297,7 +330,7 @@ void RSC::_receive()
     if(it != on_packet.end()) ev = it->second();
     else                      ev = nullptr;
     
-    if(ev && can_update) {
+    if(ev) {
       write_controller(ev);
 
 #ifndef NO_CURSOR

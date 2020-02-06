@@ -308,8 +308,13 @@ void exit_controller(void)
 
 void grab_controller(bool t)
 {
-  for(size_t i = 1; i < event_file_info.size ; ++i) {
-    ioctl(event_file_info.pfds[i].fd, EVIOCGRAB, t);
+  static bool grabbed = false;
+
+  if(t != grabbed) {
+    grabbed = t;
+    for(size_t i = 1; i < event_file_info.size ; ++i) {
+      ioctl(event_file_info.pfds[i].fd, EVIOCGRAB, grabbed);
+    }
   }
 }
 
@@ -319,11 +324,7 @@ void write_controller(const ControllerEvent * ce)
   emit(uinput_file_descriptor, EV_SYN, SYN_REPORT, 0);
 }
 
-/* Read all available inotify events from the file descriptor 'fd'.
-   wd is the table of watch descriptors for the directories in argv.
-   argc is the length of wd and argv.
-   argv is the list of watched directories.
-   Entry 0 of wd and argv is unused. */
+/* Read all available inotify events */
 
 static void handle_inotify(bool must_grab)
 {

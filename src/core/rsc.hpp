@@ -31,7 +31,7 @@ class RSC
   std::list<rscutil::Combo::ptr> _shortcut;
   rscutil::PCList                _pc_list;
   rscutil::PCList                _all_pc_list;
-  std::atomic_bool               _run, _pause;
+  std::atomic_bool               _run, _pause, _waiting_for_egress;
   int                            _if;
   int                            _next_pc_id;
   CursorInfo *                   _cursor;
@@ -41,6 +41,7 @@ class RSC
   std::mutex               _pc_list_mutex;
   std::mutex               _all_pc_list_mutex;
   std::mutex               _alive_mutex;
+  std::mutex               _transit_mutex;
 
   /**
    *\brief Lock a mutex to execute safely an operation
@@ -86,6 +87,8 @@ class RSC
    *\brief Get the next pc in the list.
    *\param way If this is the next or previous pc.
    */
+
+  void _send_release(rscutil::Combo* s);
   
   void _transit(rscutil::Combo::Way way);
 

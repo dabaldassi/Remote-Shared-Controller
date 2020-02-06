@@ -53,8 +53,10 @@ namespace rscutil {
 
   class ComboShortcut : public Combo, public Ptr<ComboShortcut>
   {
+  public:
     using shortcut_t = std::tuple<int,int,int>;
-  
+
+  private:
     std::list<shortcut_t>           _shortcut_list;
     std::list<shortcut_t>::iterator _current;
 
@@ -89,6 +91,8 @@ namespace rscutil {
      */
     
     void add_shortcut(int code, int value, int timeout_ms = DEFAULT_TIMEOUT);
+
+    void for_each(const std::function<void(shortcut_t&)>& f);
 
     /**
      *\brief Add a release key for every key in the list at the end. This way, we wait until the user release all the key before changing screen. 

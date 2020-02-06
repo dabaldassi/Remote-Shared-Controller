@@ -1,6 +1,7 @@
 #include <chrono>
 #include <fstream>
 #include <sstream>
+#include <algorithm>
 
 #include <combo.hpp>
 #include <config.hpp>
@@ -45,7 +46,7 @@ ComboShortcut& ComboShortcut::operator=(const ComboShortcut& other)
     _current = _shortcut_list.end();
     _action = other._action;
   }
-  
+
   return *this;
 }
     
@@ -71,6 +72,11 @@ void ComboShortcut::release_for_all()
   std::fill_n(std::back_inserter(_shortcut_list),
 	      _shortcut_list.size(),
 	      std::make_tuple(int{ANY},0,-1));
+}
+
+void ComboShortcut::for_each(const std::function<void(shortcut_t&)> &f)
+{
+  std::for_each(_shortcut_list.begin(), _shortcut_list.end(), f);
 }
 
 bool ComboShortcut::update(int code, int value)

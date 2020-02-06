@@ -94,10 +94,10 @@ namespace rsclocalcom {
     }
     
     template<typename T>
-    void add_arg(T&& t) {
-      size_t nb_args = std::get<1>(_commands[_cmd]);
-      
+    void add_arg(T&& t) {      
       if(_cmd == NA) throw std::runtime_error("Command is N/A");
+
+      size_t nb_args = std::get<1>(_commands[_cmd]);;
       if(_args.size() >= nb_args)
 	throw std::range_error("Too much arguments : expecting " + std::to_string(nb_args));
 

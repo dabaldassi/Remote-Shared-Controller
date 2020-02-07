@@ -44,10 +44,12 @@ namespace rscutil {
      *\brief Update the combo with a new entry
      *\param code The key code
      *\param value The corresponding value
+     *\param x The cursor position on the x-axis
+     *\param u The cursor position on the y-axis
      *\return true if the combo is a success. false otherwise.
      */
     
-    virtual bool update(int code, int value) = 0;
+    virtual bool update(int code, int value, int x, int y) = 0;
     virtual const std::string& get_type() const { return TYPE; }
   };
 
@@ -102,7 +104,7 @@ namespace rscutil {
   
     ~ComboShortcut() = default;
   
-    bool update(int code, int value) override;
+    bool update(int code, int value, int x = 0, int y = 0) override;
     std::string to_string() const;
 
     /**
@@ -166,18 +168,17 @@ namespace rscutil {
   class ComboMouse : public Combo, public Ptr<ComboMouse>
   {
     size_t       _width, _height;
-    CursorInfo * _cursor;
 
   public:
     using Ptr<ComboMouse>::ptr;
 
     static const std::string TYPE;
   
-    explicit ComboMouse(size_t width, size_t height, CursorInfo * cursor);
+    explicit ComboMouse(size_t width, size_t height);
     
     ~ComboMouse() = default;
   
-    bool update(int code, int value) override;
+    bool update(int code, int value, int x, int y) override;
     const std::string& get_type() const override { return TYPE; }
   };
 

@@ -79,7 +79,7 @@ void ComboShortcut::for_each(const std::function<void(shortcut_t&)> &f)
   std::for_each(_shortcut_list.begin(), _shortcut_list.end(), f);
 }
 
-bool ComboShortcut::update(int code, int value)
+bool ComboShortcut::update(int code, int value, int, int)
 {
   using namespace std::chrono_literals;
   
@@ -259,31 +259,23 @@ void ComboShortcut::make_shortcut(ComboShortcut& combo)
 ///////////////////////////////////////////////////////////////////////////////
 
 #ifndef NO_CURSOR
-#include <cursor.h>
 
 using rscutil::ComboMouse;
 const std::string ComboMouse::TYPE = "ComboMouse";
 
-ComboMouse::ComboMouse(size_t width, size_t height, CursorInfo * cursor) : _width(width),
-									   _height(height),
-									   _cursor(cursor)
+ComboMouse::ComboMouse(size_t width, size_t height) : _width(width),
+						      _height(height)
 {
-  if(!_cursor) throw std::runtime_error("Cursor can't be null");
 }
 
-bool ComboMouse::update(int /* code */, int /* value */)
+bool ComboMouse::update(int, int, int x, int /*y*/)
 {
-  if(_cursor->visible) {
-    get_cursor_position(_cursor);
+  if(x <= 0)                       _way = Way::LEFT;
+  else if((size_t)x >= _width - 1) _way = Way::RIGHT;
+  else                             _way = Way::NONE;
 
-    if(_cursor->pos_x <= 0)                       _way = Way::LEFT;
-    else if((size_t)_cursor->pos_x >= _width - 1) _way = Way::RIGHT;
-    else                                          _way = Way::NONE;
+  if(_way != Way::NONE && _action) _action(this);
 
-    if(_way != Way::NONE && _action) _action(this);
-  }
-  else _way = Way::NONE;
-  
   return _way != Way::NONE;
 }
 

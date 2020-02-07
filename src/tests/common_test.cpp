@@ -170,11 +170,9 @@ TEST_CASE("Combo") {
   }
   
 #ifndef NO_CURSOR
-  SECTION("Mouse") {
-    REQUIRE_THROWS(ComboMouse(100,100, nullptr));
-    
+  SECTION("Mouse") {    
     CursorInfo * cursor = open_cursor_info();
-    ComboMouse   combo(100,100,cursor);
+    ComboMouse   combo(100,100);
     bool         action = false;
 
     combo.set_action([&action](Combo*) { action = true; });
@@ -182,13 +180,13 @@ TEST_CASE("Combo") {
     cursor->pos_x = 50;
     cursor->pos_y = 50;
     set_cursor_position(cursor);
-    REQUIRE_FALSE(combo.update(0,0));
+    REQUIRE_FALSE(combo.update(0,0,cursor->pos_x,cursor->pos_y));
     REQUIRE(combo.get_way() == Combo::Way::NONE);
 
     cursor->pos_x = 0;
     cursor->pos_y = 50;
     set_cursor_position(cursor);
-    REQUIRE(combo.update(0,0));
+    REQUIRE(combo.update(0,0,cursor->pos_x,cursor->pos_y));
     REQUIRE(combo.get_way() == Combo::Way::LEFT);
     REQUIRE(action);
     
@@ -196,14 +194,14 @@ TEST_CASE("Combo") {
     cursor->pos_x = 100;
     cursor->pos_y = 50;
     set_cursor_position(cursor);
-    REQUIRE(combo.update(0,0));
+    REQUIRE(combo.update(0,0,cursor->pos_x,cursor->pos_y));
     REQUIRE(combo.get_way() == Combo::Way::RIGHT);
     REQUIRE(action);
 
     cursor->pos_x = 50;
     cursor->pos_y = 50;
     set_cursor_position(cursor);
-    REQUIRE_FALSE(combo.update(0,0));
+    REQUIRE_FALSE(combo.update(0,0,cursor->pos_x,cursor->pos_y));
     REQUIRE(combo.get_way() == Combo::Way::NONE);
     
     close_cursor_info(cursor);

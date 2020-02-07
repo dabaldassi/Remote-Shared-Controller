@@ -23,99 +23,6 @@ void RSC::_th_safe_op(Mutex &m, Lambda &&l)
   l();
 }
 
-void RSC::save_shortcut() const
-{
-  using rscutil::ComboShortcut;
-  ComboShortcut::ComboShortcutList list;
-  
-  for(const auto& a: _shortcut) {
-    if(a->get_type() == ComboShortcut::TYPE) {
-      list.push_back(*static_cast<ComboShortcut*>(a.get()));
-    }
-  }
-
-  ComboShortcut::save(list);
-}
-
-void RSC::_send_release(rscutil::Combo* combo)
-{
-  using rscutil::ComboShortcut;
-  
-  auto * c = static_cast<ComboShortcut *>(combo);
-
-  c->for_each([this](ComboShortcut::shortcut_t& s) {
-      int code = std::get<0>(s);
-
-      ControllerEvent e = { false, KEY, EV_KEY, KEY_RELEASED, 0};
-      e.code = code;
-
-      _send(e);
-    });
-}
-
-void RSC::load_shortcut(bool reset)
-{
-  using rscutil::Combo;
-  using rscutil::ComboShortcut;
-
-  std::map<std::string, std::function<void(Combo*)>> _actions = {
-    { "right", [this](Combo * combo) { _send_release(combo); _transit(combo->get_way()); } },
-    { "left", [this](Combo * combo) { _send_release(combo); _transit(combo->get_way()); } },
-    { "quit", [this](Combo*) { _run = false; } }
-  };
-
-  _shortcut.erase(std::remove_if(_shortcut.begin(),
-				 _shortcut.end(),
-				 [](auto&& a) { return a->get_type() == ComboShortcut::TYPE; }),
-		  _shortcut.end());
-
-  ComboShortcut::ComboShortcutList list;
-  bool                             success = false;
-
-  if(!reset) success = ComboShortcut::load(list);
-  
-  if(success) {
-    for(auto& combo : list) {
-      combo.set_action(_actions[combo.get_name()]);
-      _shortcut.push_back(std::make_unique<ComboShortcut>(combo));
-    }
-  }
-  else {
-    // Default shortcut
-    auto right = ComboShortcut::make_ptr("right", "Move to the next computer on the right");
-
-    right->add_shortcut(KEY_LEFTCTRL, KEY_PRESSED);
-    right->add_shortcut(KEY_R, KEY_PRESSED);
-    right->add_shortcut(KEY_RIGHT, KEY_PRESSED);  
-    right->release_for_all();
-    right->set_action(_actions["right"]);
-
-    auto left = ComboShortcut::make_ptr("left", "Move to the next computer on the left",
-					Combo::Way::LEFT);
-
-    left->add_shortcut(KEY_LEFTCTRL, KEY_PRESSED);
-    left->add_shortcut(KEY_R, KEY_PRESSED);
-    left->add_shortcut(KEY_LEFT, KEY_PRESSED);  
-    left->release_for_all();
-    left->set_action(_actions["left"]);
-  
-    auto quit = ComboShortcut::make_ptr("quit", "Quit the service", Combo::Way::NONE);
-
-    for(int i = 0; i < 3; i++) {
-      quit->add_shortcut(KEY_ESC, KEY_PRESSED, 200);
-      quit->add_shortcut(KEY_ESC, KEY_RELEASED, 200);
-    }
-  
-    quit->set_action(_actions["quit"]);
-
-    _shortcut.push_back(std::move(right));
-    _shortcut.push_back(std::move(left));
-    _shortcut.push_back(std::move(quit));
-
-    if(reset) save_shortcut();
-  }
-}
-
 RSC::RSC(): _if(DEFAULT_IF), _next_pc_id{0},
 	      _com(rsclocalcom::RSCLocalCom::Contact::CORE),
 	      _state(State::HERE)
@@ -134,11 +41,11 @@ RSC::RSC(): _if(DEFAULT_IF), _next_pc_id{0},
   
   if(_cursor) {
     _shortcut.push_back(ComboMouse::make_ptr(local_pc.resolution.w,
-					     local_pc.resolution.h,
-					     _cursor));
+					     local_pc.resolution.h));
     _shortcut.back()->set_action([this](Combo* combo) {
-	float height = (float) _cursor->pos_y /
-	  _cursor->screen_size.height;
+	_cursor_mutex.lock();
+	float height = (float) _cursor->pos_y / _cursor->screen_size.height;
+	_cursor_mutex.unlock();
 	_transit(combo->get_way(), height);
       });
     
@@ -180,20 +87,28 @@ void RSC::_transit(rscutil::Combo::Way way)
 {
   using Way = rscutil::Combo::Way;
 
-  _pc_list.get_current().focus = false;
-  
-  if(way == Way::LEFT)       _pc_list.previous_pc();
-  else if(way == Way::RIGHT) _pc_list.next_pc();
-
-  _pc_list.get_current().focus = true;
+   _th_safe_op(_pc_list_mutex, [this, &way]() {
+       _pc_list.get_current().focus = false;
+       if(way == Way::LEFT)       _pc_list.previous_pc();
+       else if(way == Way::RIGHT) _pc_list.next_pc();
+       _pc_list.get_current().focus = true;	
+     });
   
   grab_controller(!_pc_list.get_current().local);
  
-  _state = (_pc_list.get_current().local)? State::HERE : State::AWAY;
+  _th_safe_op(_state_mutex, [this]() {
+      _state = (_pc_list.get_current().local)? State::HERE : State::AWAY;
+    });
 
-  _waiting_for_egress = _state != State::HERE;
+  _th_safe_op(_egress_mutex, [this](){
+      _waiting_for_egress.first = _state != State::HERE;
+      memcpy(_waiting_for_egress.second,
+	     _pc_list.get_current().address,
+	     rscutil::PC::LEN_ADDR);
+    });
   
 #ifndef NO_CURSOR
+  std::unique_lock<std::mutex> lock(_cursor_mutex);
   if(_state == State::AWAY) hide_cursor(_cursor);
   else                      show_cursor(_cursor);
 
@@ -208,16 +123,17 @@ void RSC::_transit(rscutil::Combo::Way way)
 void RSC::_transit(rscutil::Combo::Way way, float height)
 {
   using Way = rscutil::Combo::Way;
-  
-  _pc_list.get_current().focus = false;
-  
-  if(way == Way::LEFT)       _pc_list.previous_pc();
-  else if(way == Way::RIGHT) _pc_list.next_pc();
 
-  _pc_list.get_current().focus = true;
+  _th_safe_op(_pc_list_mutex, [this, &way]() {
+      _pc_list.get_current().focus = false;
+      if(way == Way::LEFT)       _pc_list.previous_pc();
+      else if(way == Way::RIGHT) _pc_list.next_pc();
+      _pc_list.get_current().focus = true;	
+    });
 
   if(_pc_list.get_current().local) {
     if(_pc_list.size() > 1) {
+      std::unique_lock<std::mutex> lock(_cursor_mutex);
       _cursor->pos_x = (way == Way::RIGHT)?10:_cursor->screen_size.width-10;
       _cursor->pos_y = height * _cursor->screen_size.height;
       set_cursor_position(_cursor);
@@ -231,13 +147,23 @@ void RSC::_transit(rscutil::Combo::Way way, float height)
     pkt.height = height;
     scnp_send(reinterpret_cast<scnp_packet*>(&pkt),
 	      _pc_list.get_current().address);
-    _waiting_for_egress = true;
+
+    _th_safe_op(_egress_mutex, [this]() {
+	_waiting_for_egress.first = true;
+	memcpy(_waiting_for_egress.second,
+	       _pc_list.get_current().address,
+	       rscutil::PC::LEN_ADDR);
+      });
   }
 
-  _state = (_pc_list.get_current().local)? State::HERE : State::AWAY;
+  _th_safe_op(_state_mutex, [this]() {
+      _state = (_pc_list.get_current().local)? State::HERE : State::AWAY;
+    });
 
-  if(_state == State::AWAY) hide_cursor(_cursor);
-  else                      show_cursor(_cursor);
+  _th_safe_op(_cursor_mutex, [this]() {
+      if(_state == State::AWAY) hide_cursor(_cursor);
+      else                      show_cursor(_cursor);
+    });
 
   // grab controller is very slow
   grab_controller(_state == State::AWAY);
@@ -277,7 +203,7 @@ void RSC::_receive()
     
 #ifndef NO_CURSOR
   const rscutil::PC&   local_pc = _pc_list.get_local();
-  rscutil::ComboMouse  mouse(local_pc.resolution.w, local_pc.resolution.h,_cursor);
+  rscutil::ComboMouse  mouse(local_pc.resolution.w, local_pc.resolution.h);
   
   mouse.set_action([&](Combo* combo) {
 		     auto way = combo->get_way();
@@ -286,7 +212,11 @@ void RSC::_receive()
 		     pkt.type = SCNP_OUT;
 		     pkt.side = (Combo::Way::RIGHT == way);
 		     pkt.direction = OUT_EGRESS;
+		     
+		     _cursor_mutex.lock();
 		     pkt.height = _cursor->pos_y / (float)_cursor->screen_size.height;
+		     _cursor_mutex.unlock();
+		     
 		     scnp_send(reinterpret_cast<struct scnp_packet *>(&pkt), addr_src);
 		   });
 #endif
@@ -295,18 +225,24 @@ void RSC::_receive()
     {
      { SCNP_KEY, [&packet]() { return ConvKey<ControllerEvent,KEY>::get(packet); }},
      { SCNP_MOV, [&packet]() { return ConvKey<ControllerEvent,MOUSE>::get(packet); }},
-     { SCNP_OUT, [&packet,this]() {
+     { SCNP_OUT, [&packet, &addr_src,this]() {
 #ifndef NO_CURSOR
 		   auto * pkt = reinterpret_cast<struct scnp_out*>(&packet);
 		   
 		   if(pkt->direction == OUT_EGRESS) {
-		     if(_waiting_for_egress) _waiting_for_egress = false;
-		     else                    return nullptr;
+		     const int l = rscutil::PC::LEN_ADDR;
+		     
+		     if(_waiting_for_egress.first &&
+			!memcmp(_waiting_for_egress.second,addr_src,l)) {
+		       _waiting_for_egress.first = false;
+		     }
+		     else return nullptr;
 		     
 		     if(!pkt->side) _transit(Combo::Way::LEFT, pkt->height);
 		     else           _transit(Combo::Way::RIGHT, pkt->height);		     
 		   }
 		   else {
+		     std::unique_lock<std::mutex> lock(_cursor_mutex);
 		     _cursor->pos_x = (pkt->side == OUT_RIGHT)?10:_cursor->screen_size.width-10;
 		     _cursor->pos_y = pkt->height * _cursor->screen_size.height;
 		     set_cursor_position(_cursor);
@@ -334,7 +270,13 @@ void RSC::_receive()
       write_controller(ev);
 
 #ifndef NO_CURSOR
-      if(ev->controller_type == MOUSE) mouse.update(ev->code, ev->value);
+      int x = 0, y = 0;
+      _th_safe_op(_cursor_mutex, [this, &x, &y](){
+	  get_cursor_position(_cursor);
+	  x = _cursor->pos_x;
+	  y = _cursor->pos_y;
+	});
+      if(ev->controller_type == MOUSE) mouse.update(ev->code, ev->value, x, y);
 #endif
     }
   }
@@ -343,14 +285,18 @@ void RSC::_receive()
 
 void RSC::_send(const ControllerEvent &ev)
 {
+  uint8_t * address;
+
+  _th_safe_op(_pc_list_mutex, [this, &address]() {
+      address = _pc_list.get_current().address;
+    });
+  
   switch(ev.controller_type) {
   case MOUSE:
-    scnp_send(ConvKey<struct scnp_packet, MOUSE>::get(ev),
-	      _pc_list.get_current().address);
+    scnp_send(ConvKey<struct scnp_packet, MOUSE>::get(ev), address);
     break;
   case KEY:
-    scnp_send(ConvKey<struct scnp_packet, KEY>::get(ev),
-	      _pc_list.get_current().address);
+    scnp_send(ConvKey<struct scnp_packet, KEY>::get(ev), address);
     break;
   default:
     break;
@@ -446,20 +392,37 @@ void RSC::_keep_alive()
 void RSC::_send()
 {
   ControllerEvent c;
+  int             x = 0, y = 0;
   
-  while(_run) {
-    c.grabbed = _state == State::AWAY;
-    
+  while(_run) {    
     int ret = poll_controller(&c, -1);
     if(!ret) continue;
     
     if(ret & 0x01) {
-      for(auto&& s : _shortcut) s->update(c.code, c.value);
-    
+
+#ifndef NO_CURSOR
+      _th_safe_op(_cursor_mutex, [this, &x, &y](){	  
+	  if(_cursor->visible) {
+	    get_cursor_position(_cursor);
+	    x = _cursor->pos_x;
+	    y = _cursor->pos_y;
+	  }
+	  else {
+	    x = 1;
+	    y = 1;
+	  }
+
+	});
+#endif
+      
+      for(auto&& s : _shortcut) s->update(c.code, c.value, x, y);
+
+      std::unique_lock<std::mutex> lock(_state_mutex);
       switch(_state) {
       case State::HERE:           break;
       case State::AWAY: _send(c); break;
       }
+      c.grabbed = _state == State::AWAY;
     }
   }
 

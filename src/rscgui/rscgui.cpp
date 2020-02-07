@@ -97,8 +97,10 @@ void RSCGui::display_current_pc(rscutil::PCList& list, bool)
 
       if(pc.name != "localhost") {
 	int j = 0;
-	while((*_lobby)[j]->get_name().toStdString() != pc.name) ++j;
-	(*_lobby)[j]->set_used(true);
+	while(j < _lobby->count_pc() && (*_lobby)[j]->get_name().toStdString() != pc.name)
+	  ++j;
+
+	if(j < _lobby->count_pc()) (*_lobby)[j]->set_used(true);
       }
       
       _pc_panel->add_pc(pcwidget);

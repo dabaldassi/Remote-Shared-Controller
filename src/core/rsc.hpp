@@ -31,7 +31,8 @@ class RSC
   std::list<rscutil::Combo::ptr> _shortcut;
   rscutil::PCList                _pc_list;
   rscutil::PCList                _all_pc_list;
-  std::atomic_bool               _run, _pause, _waiting_for_egress;
+  std::atomic_bool               _run, _pause;
+  std::pair<bool, uint8_t[6]>    _waiting_for_egress;
   int                            _if;
   int                            _next_pc_id;
   CursorInfo *                   _cursor;
@@ -41,7 +42,9 @@ class RSC
   std::mutex               _pc_list_mutex;
   std::mutex               _all_pc_list_mutex;
   std::mutex               _alive_mutex;
-  std::mutex               _transit_mutex;
+  std::mutex               _state_mutex;
+  std::mutex               _cursor_mutex;
+  std::mutex               _egress_mutex;
 
   /**
    *\brief Lock a mutex to execute safely an operation

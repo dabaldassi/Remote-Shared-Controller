@@ -75,6 +75,7 @@ namespace rscui {
      */
     
     void on_timeout();
+    void on_pc_removed(int id);
   };
 
 }  // rscui

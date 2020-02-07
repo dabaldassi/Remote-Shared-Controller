@@ -145,6 +145,7 @@ void PCPanel::add_pc(PCWidget *pc)
 void PCPanel::on_remove(int id)
 {
   _ops.remove(std::to_string(id));
+  emit pc_removed(id);
 }
 
 void PCPanel::on_swapped(int id1, int id2)

@@ -101,6 +101,9 @@ namespace rscui {
     
     void add_pc(PCWidget * pc);
 
+  signals:
+    void pc_removed(int id);
+			      
   private slots:
     
     /**

@@ -139,12 +139,15 @@ namespace rscui {
     
     int count_pc() const { return _pc_list->count(); }
 
-    const PCWidgetItem * operator[](int ind) const {
-      return static_cast<PCWidgetItem *>(_pc_list->itemAt(ind, 0));
+
+    PCWidgetItem * get(const QString& name);
+
+    const PCWidgetItem * operator[](unsigned ind) const {
+      return static_cast<PCWidgetItem *>(_pc_list->item(ind));
     }
 
-    PCWidgetItem * operator[](int ind) {
-      return static_cast<PCWidgetItem *>(_pc_list->itemAt(ind, 0));
+    PCWidgetItem * operator[](unsigned ind) {
+      return static_cast<PCWidgetItem *>(_pc_list->item(ind));
     }
 
     /**

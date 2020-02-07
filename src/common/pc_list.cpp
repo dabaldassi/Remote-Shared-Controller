@@ -111,13 +111,13 @@ void PCList::load(const std::string &file_name)
 
 void PCList::swap(int id1, int id2)
 {
-  auto it1 = std::find_if_not(_pc_list.begin(),
-			      _pc_list.end(),
-			      [&id1](const PC& p) { return p.id == id1; });
+  auto it1 = std::find_if(_pc_list.begin(),
+			  _pc_list.end(),
+			  [&id1](const PC& p) { return p.id == id1; });
 
-  auto it2 = std::find_if_not(_pc_list.begin(),
-			      _pc_list.end(),
-			      [&id2](const PC& p) { return p.id == id2; });
+  auto it2 = std::find_if(_pc_list.begin(),
+			  _pc_list.end(),
+			  [&id2](const PC& p) { return p.id == id2; });
 
   if(it1 == _pc_list.end() || it2 == _pc_list.end())
     throw std::runtime_error("Id must exist");

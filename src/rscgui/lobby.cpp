@@ -14,7 +14,8 @@ using rscui::Lobby;
 ///////////////////////////////////////////////////////////////////////////////
 
 PCWidgetItem::PCWidgetItem(QListWidget * parent) : QListWidgetItem(parent)
-{  
+{
+  set_used(false);
 }
 
 void PCWidgetItem::print_tooltip()
@@ -37,7 +38,7 @@ PCWidgetItem::PCWidgetItem(const QString& name, QListWidget * parent)
 void PCWidgetItem::set_used(bool t)
 {
   _used = t;
-  
+ 
   if(t) setCheckState(Qt::CheckState::Checked);
   else  setCheckState(Qt::CheckState::Unchecked);
 }
@@ -104,4 +105,13 @@ void Lobby::on_refresh_clicked()
 void Lobby::on_item_activated(QListWidgetItem * item)
 {
   _selection = static_cast<PCWidgetItem *>(item);
+}
+
+PCWidgetItem * Lobby::get(const QString &name)
+{
+  auto res = _pc_list->findItems(name, Qt::MatchExactly);
+
+  if(res.empty()) return nullptr;
+
+  return static_cast<PCWidgetItem *>(res.front());
 }

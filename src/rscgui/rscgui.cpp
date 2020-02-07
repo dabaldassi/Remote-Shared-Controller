@@ -46,6 +46,7 @@ RSCGui::RSCGui(QWidget * parent) : QMainWindow(parent),
   auto * hbox = new QHBoxLayout;
 
   _pc_panel = new PCPanel(_ops, this);
+  connect(_pc_panel, &PCPanel::pc_removed, this, &RSCGui::on_pc_removed);
   hbox->addLayout(_pc_panel, 7);
 
   auto * button_panel = new QVBoxLayout();
@@ -95,13 +96,9 @@ void RSCGui::display_current_pc(rscutil::PCList& list, bool)
 
       pcwidget->focus(pc.focus);
 
-      if(pc.name != "localhost") {
-	int j = 0;
-	while(j < _lobby->count_pc() && (*_lobby)[j]->get_name().toStdString() != pc.name)
-	  ++j;
+      auto * pc_lobby = _lobby->get(pc.name.c_str());
 
-	if(j < _lobby->count_pc()) (*_lobby)[j]->set_used(true);
-      }
+      if(pc_lobby) pc_lobby->set_used(true);
       
       _pc_panel->add_pc(pcwidget);
       list.next_pc();      
@@ -256,5 +253,13 @@ void RSCGui::closeEvent(QCloseEvent *)
     _shortcut_window->close();
     delete _shortcut_window;
     _shortcut_window = nullptr;
+  }
+}
+
+void RSCGui::on_pc_removed(int id)
+{
+  for(int i = 0; i < _lobby->count_pc(); ++i) {
+    auto * pc = (*_lobby)[i];
+    if(pc->get_id() == id) pc->set_used(false);
   }
 }

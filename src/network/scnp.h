@@ -17,11 +17,11 @@ extern "C" {
 #define SCNP_MNG 0xfe
 #define SCNP_ACK 0xff
 
-#define KEY_LENGTH 4
+#define KEY_LENGTH 8
 #define MOV_LENGTH 7
-#define OUT_LENGTH 4
+#define OUT_LENGTH 8
 #define MNG_LENGTH 65
-#define ACK_LENGTH 1
+#define ACK_LENGTH 5
 
 #define MAX_PACKET_LENGTH 127
 #define HOSTNAME_LENGTH 64
@@ -40,6 +40,7 @@ struct scnp_packet
 struct scnp_key
 {
   uint8_t type;   // SCNP_KEY
+  uint32_t id;    // identifier
   uint16_t code;  // Code associated to the key event
   bool pressed;   // true if the key is pressed, false otherwise (even if repeated is true)
   bool repeated;  // true if the key is repeated, false otherwise
@@ -55,6 +56,7 @@ struct scnp_movement
 struct scnp_out
 {
   uint8_t type;         // SCNP_OUT
+  uint32_t id;          // identifier
   bool direction;       // true if the mouse is going from the host to the client, false otherwise
   bool side;            // true if the mouse is located at the right border of the screen, false if it is on the left
   float height;         // Height of the cursor relative to the size of the screen
@@ -69,6 +71,7 @@ struct scnp_management
 struct scnp_ack
 {
   uint8_t type;   // SCNP_ACK
+  uint32_t id;    //identifier
 };
 
 /**

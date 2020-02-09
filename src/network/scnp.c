@@ -8,19 +8,23 @@
 #include <pthread.h>
 #include <errno.h>
 #include <semaphore.h>
+#include <stdio.h>
 
 #include "queue.h"
 #include "interface.h"
 #include "scnp.h"
 
+#define ID_MAX_INCR 0x100000
 #define ACK_TIMEOUT_NS 1000000000
 #define ACK_MAX_TRIES 3
 #define SESSION_TIMEOUT 1
 
 
+uint32_t current_id;
+
 static int is_ack_needed(const struct scnp_packet * packet)
 {
-  return packet->type != SCNP_ACK && packet->type != SCNP_MNG && packet->type != SCNP_MOV;
+  return packet->type == SCNP_KEY  || packet->type == SCNP_OUT;
 }
 
 static int map_type(uint8_t type)
@@ -32,7 +36,7 @@ static int map_type(uint8_t type)
 static uint8_t * alloc_buffer(uint8_t type, size_t * length)
 {
   uint8_t * buffer = NULL;
-  size_t packet_sizes[] = {KEY_LENGTH, MOV_LENGTH, OUT_LENGTH, MNG_LENGTH, ACK_LENGTH};
+  size_t packet_sizes[] = { KEY_LENGTH, MOV_LENGTH, OUT_LENGTH, MNG_LENGTH, ACK_LENGTH };
   if (type == SCNP_KEY || type == SCNP_MOV || type == SCNP_OUT || type == SCNP_MNG || type == SCNP_ACK) {
     *length = packet_sizes[map_type(type)];
     buffer = (uint8_t *) malloc(*length);
@@ -49,11 +53,13 @@ static int build_key_buffer(uint8_t * buf, const struct scnp_packet * packet)
   // TODO condition with sizeof scnp key and scnp packet
   struct scnp_key * p = (struct scnp_key *) packet;
 
+  uint32_t id = htonl(current_id += random() % ID_MAX_INCR);
+  memcpy(buf, &id, sizeof(uint32_t));
   uint16_t code = htons(p->code);
-  memcpy(buf, &code, sizeof(uint16_t));
+  memcpy(buf + sizeof(uint32_t), &code, sizeof(uint16_t));
   uint8_t pressed_flag = (p->pressed) << 7u;
   uint8_t repeated_flag = (p->repeated) << 6u;
-  *(buf + sizeof(uint16_t)) = pressed_flag + repeated_flag;
+  *(buf + sizeof(uint32_t) + sizeof(uint16_t)) = pressed_flag + repeated_flag;
 
   return 0;
 }
@@ -76,15 +82,17 @@ static int build_out_buffer(uint8_t * buf, const struct scnp_packet * packet)
   // TODO same as previous function
   struct scnp_out * p = (struct scnp_out *) packet;
 
+  uint32_t id = htonl(current_id += random() % ID_MAX_INCR);
+  memcpy(buf, &id, sizeof(uint32_t));
   uint8_t direction_flag = (p->direction) << 7u;
   uint8_t side_flag = (p->side) << 6u;
-  *buf = direction_flag + side_flag;
+  *(buf + sizeof(uint32_t)) = direction_flag + side_flag;
   if (p->height > 1 || p->height < 0) {
     p->height = 0.5f;
   }
   uint16_t height = p->height * ((1u << 16u) - 1u);
   height = htons(height);
-  memcpy(buf + sizeof(uint8_t), &height, sizeof(uint16_t));
+  memcpy(buf + sizeof(uint32_t) + sizeof(uint8_t), &height, sizeof(uint16_t));
 
   return 0;
 }
@@ -101,6 +109,12 @@ static int build_mng_buffer(uint8_t * buf, const struct scnp_packet * packet)
 
 static int build_ack_buffer(uint8_t * buf, const struct scnp_packet * packet)
 {
+  // TODO same as previous function
+  struct scnp_ack * p = (struct scnp_ack *) packet;
+
+  uint32_t id = htonl(p->id);
+  memcpy(buf, &id, sizeof(uint32_t));
+
   return 0;
 }
 
@@ -122,10 +136,12 @@ static int build_key_packet(struct scnp_packet * packet, const uint8_t * buf)
 {
   struct scnp_key key;
   key.type = SCNP_KEY;
-  memcpy(&key.code, buf, sizeof(uint16_t));
+  memcpy(&key.id, buf, sizeof(uint32_t));
+  key.id = ntohl(key.id);
+  memcpy(&key.code, buf + sizeof(uint32_t), sizeof(uint16_t));
   key.code = ntohs(key.code);
-  key.pressed = *(buf + sizeof(uint16_t)) >> 7u;
-  key.repeated = *(buf + sizeof(uint16_t)) & (1u << 6u);
+  key.pressed = *(buf + sizeof(uint32_t) + sizeof(uint16_t)) >> 7u;
+  key.repeated = *(buf + sizeof(uint32_t) + sizeof(uint16_t)) & (1u << 6u);
 
   memcpy(packet, &key, sizeof(struct scnp_key));
 
@@ -150,10 +166,12 @@ static int build_out_packet(struct scnp_packet * packet, const uint8_t * buf)
 {
   struct scnp_out out;
   out.type = SCNP_OUT;
-  out.direction = *buf >> 7u;
-  out.side = *buf & (1u << 6u);
+  memcpy(&out.id, buf, sizeof(uint32_t));
+  out.id = ntohl(out.id);
+  out.direction = *(buf + sizeof(uint32_t)) >> 7u;
+  out.side = *(buf + sizeof(uint32_t)) & (1u << 6u);
   uint16_t height;
-  memcpy(&height, buf + sizeof(uint8_t), sizeof(uint16_t));
+  memcpy(&height, buf + sizeof(uint32_t) + sizeof(uint8_t), sizeof(uint16_t));
   out.height = (float) ntohs(height) / ((1u << 16u) - 1u);
 
   memcpy(packet, &out, sizeof(struct scnp_out));
@@ -174,7 +192,12 @@ static int build_mng_packet(struct scnp_packet * packet, const uint8_t * buf)
 
 static int build_ack_packet(struct scnp_packet * packet, const uint8_t * buf)
 {
-  packet->type = SCNP_ACK;
+  struct scnp_ack ack;
+  ack.type = SCNP_ACK;
+  memcpy(&ack.id, buf, sizeof(uint32_t));
+  ack.id = ntohl(ack.id);
+
+  memcpy(packet, &ack, sizeof(struct scnp_ack));
 
   return 0;
 }
@@ -267,6 +290,7 @@ static void * recv_packets(void * arg)
   thread_info.rqueue = init_queue();
   thread_info.aqueue = init_queue();
   if (thread_info.rqueue == NULL || thread_info.aqueue == NULL) {
+    puts("coucou\n");
     stop = true;
   }
 
@@ -287,9 +311,11 @@ static void * recv_packets(void * arg)
     }
     if (build_packet(&packet, buf) == 0) {
       if (packet.type == SCNP_ACK) {
+        //puts("a\n");
         push(thread_info.aqueue, &packet, addr.sll_addr);
       }
       else {
+        //puts("b\n");
         push(thread_info.rqueue, &packet, addr.sll_addr);
       }
     }
@@ -348,6 +374,12 @@ static void * send_packets(void * arg)
   int if_index = param->if_index;
   bool stop = false;
 
+  /* initialize sending queue */
+  thread_info.squeue = init_queue();
+  if (thread_info.squeue == NULL) {
+    stop = true;
+  }
+
   struct waste_t waste;
   waste.buf = NULL;
   thread_info.stop_mthread = false;
@@ -358,12 +390,6 @@ static void * send_packets(void * arg)
   pthread_cleanup_push(scleanup, &waste)
 
   sem_post(&param->thread_cnt);
-
-  /* initialize sending queue */
-  thread_info.squeue = init_queue();
-  if (thread_info.squeue == NULL) {
-    stop = true;
-  }
 
   /* initialize the packet and the socket address */
   struct scnp_packet packet;
@@ -442,6 +468,8 @@ int scnp_start(unsigned int if_index)
     return stop_and_fail();
   }
 
+  srandom(time(NULL));
+  current_id = random();
   param_t param;
   param.if_index = (int) if_index;
   sem_init(&param.thread_cnt, 0, 0);
@@ -462,6 +490,31 @@ int scnp_start(unsigned int if_index)
   return 0;
 }
 
+static uint32_t get_id_from_packet(const struct scnp_packet * packet)
+{
+  switch (packet->type) {
+    case SCNP_KEY:
+    {
+      struct scnp_key * key = (struct scnp_key *) packet;
+      return key->id;
+    }
+    case SCNP_OUT:
+    {
+      struct scnp_out * out = (struct scnp_out *) packet;
+      return out->id;
+    }
+    default:
+      errno = EBADMSG;
+  }
+
+  return 0;
+}
+
+static bool is_ack_correct(const struct scnp_packet * sent, const uint8_t * dest_addr, const struct scnp_packet * received, const uint8_t * src_addr)
+{
+  return (received->type == SCNP_ACK && get_id_from_packet(sent) == get_id_from_packet(received) && memcmp(src_addr, dest_addr, ETHER_ADDR_LEN) == 0);
+}
+
 int scnp_send(struct scnp_packet * packet, const uint8_t * dest_addr)
 {
   if (!thread_info.is_sthread_running) {
@@ -478,9 +531,10 @@ int scnp_send(struct scnp_packet * packet, const uint8_t * dest_addr)
     do {
       if (push(thread_info.squeue, packet, dest_addr)) return -1;
       ++tries;
+      if (thread_info.aqueue == NULL) puts("gfcvbhjfcv\n");
       pull(thread_info.aqueue, &ack, ack_addr, ACK_TIMEOUT_NS);
-    } while (tries < ACK_MAX_TRIES && (ack.type != SCNP_ACK || memcmp(ack_addr, dest_addr, ETHER_ADDR_LEN) != 0));
-    if (ack.type != SCNP_ACK || memcmp(ack_addr, dest_addr, ETHER_ADDR_LEN) != 0) return -1;
+    } while (tries < ACK_MAX_TRIES && !is_ack_correct(packet, dest_addr, &ack, ack_addr));
+    if (!is_ack_correct(packet, dest_addr, &ack, ack_addr)) return -1;
   }
   else {
     if (push(thread_info.squeue, packet, dest_addr)) return -1;
@@ -501,6 +555,7 @@ int scnp_recv(struct scnp_packet * packet, uint8_t * src_addr)
   if (is_ack_needed(packet)) {
     struct scnp_ack ack;
     ack.type = SCNP_ACK;
+    ack.id = get_id_from_packet(packet);
     scnp_send((struct scnp_packet *) &ack, src_addr);
   }
 

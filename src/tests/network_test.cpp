@@ -157,3 +157,118 @@ TEST_CASE("scnp_session") {
   REQUIRE(scnp_start(LOOP_INDEX) == 0);
   scnp_stop();
 }
+
+TEST_CASE("scnp_packets") {
+  REQUIRE(scnp_start(LOOP_INDEX) == 0);
+  int fd = socket(AF_PACKET, SOCK_DGRAM, htons(ETH_P_SCNP));
+  REQUIRE(fd > 0);
+  uint8_t loopaddr[] = { 0, 0, 0, 0, 0, 0 };
+  socklen_t addrlen = sizeof(struct sockaddr_ll);
+  struct sockaddr_ll addr{};
+  memset(&addr, 0, addrlen);
+  addr.sll_family = AF_PACKET;
+  addr.sll_protocol = htons(ETH_P_SCNP);
+  addr.sll_ifindex = LOOP_INDEX;
+  memcpy(addr.sll_addr, loopaddr, ETHER_ADDR_LEN);
+  addr.sll_halen = ETHER_ADDR_LEN;
+
+  int b;
+  uint8_t addr_r[] = { 1, 1, 1, 1, 1, 1 };
+  auto * packet = static_cast<scnp_packet *>(malloc(sizeof(struct scnp_packet)));
+  REQUIRE(packet != NULL);
+
+  /* scnp_management */
+  memset(packet, 0, sizeof(struct scnp_packet));
+  REQUIRE(scnp_recv(packet, addr_r) == 0);
+
+  auto * mng = reinterpret_cast<scnp_management *>(packet);
+  REQUIRE(mng->type == SCNP_MNG);
+  char hostname[HOSTNAME_LENGTH];
+  memset(hostname, 0, HOSTNAME_LENGTH);
+  gethostname(hostname, HOSTNAME_LENGTH);
+  hostname[HOSTNAME_LENGTH - 1] = 0;
+  REQUIRE(memcmp(mng->hostname, hostname, HOSTNAME_LENGTH) == 0);
+
+  /* scnp_out */
+  uint8_t out_buf[] = { SCNP_OUT, 0x12, 0x34, 0x56, 0x78, 0x80, 0x99, 0x99 };
+
+  b = sendto(fd, out_buf, OUT_LENGTH, 0, (struct sockaddr *) &addr, addrlen);
+  REQUIRE(b == OUT_LENGTH);
+
+  memset(packet, 0, sizeof(struct scnp_packet));
+  memset(addr_r, 1, ETHER_ADDR_LEN);
+  while (packet->type != SCNP_OUT) {
+    REQUIRE(scnp_recv(packet, addr_r) == 0);
+  }
+
+  REQUIRE(memcmp(addr_r, loopaddr, ETHER_ADDR_LEN) == 0);
+  auto * out = reinterpret_cast<scnp_out *>(packet);
+  REQUIRE(out->type == SCNP_OUT);
+  REQUIRE(out->id == 0x12345678);
+  REQUIRE(out->direction);
+  REQUIRE(!out->side);
+  REQUIRE(out->height == 0.6f);
+
+  /* scnp_movement */
+  uint8_t mov_buf[] = { SCNP_MOV, 0x12, 0x34, 0x56, 0x78, 0x90, 0x12 };
+
+  b = sendto(fd, mov_buf, MOV_LENGTH, 0, (struct sockaddr *) &addr, addrlen);
+  REQUIRE(b == MOV_LENGTH);
+
+  memset(packet, 0, sizeof(struct scnp_packet));
+  memset(addr_r, 1, ETHER_ADDR_LEN);
+  while (packet->type != SCNP_MOV) {
+    REQUIRE(scnp_recv(packet, addr_r) == 0);
+  }
+
+  REQUIRE(memcmp(addr_r, loopaddr, ETHER_ADDR_LEN) == 0);
+  auto * mov = reinterpret_cast<scnp_movement *>(packet);
+  REQUIRE(mov->type == SCNP_MOV);
+  REQUIRE(mov->code == 0x1234);
+  REQUIRE(mov->value == 0x56789012);
+
+  /* scnp_key */
+  uint8_t key_buf[] = { SCNP_KEY, 0x12, 0x34, 0x56, 0x78, 0x90, 0x12, 0xc0 };
+
+  b = sendto(fd, key_buf, KEY_LENGTH, 0, (struct sockaddr *) &addr, addrlen);
+  REQUIRE(b == KEY_LENGTH);
+
+  memset(packet, 0, sizeof(struct scnp_packet));
+  memset(addr_r, 1, ETHER_ADDR_LEN);
+  while (packet->type != SCNP_KEY) {
+    REQUIRE(scnp_recv(packet, addr_r) == 0);
+  }
+
+  REQUIRE(memcmp(addr_r, loopaddr, ETHER_ADDR_LEN) == 0);
+  auto * key = reinterpret_cast<scnp_key *>(packet);
+  REQUIRE(key->type == SCNP_KEY);
+  REQUIRE(key->id == 0x12345678);
+  REQUIRE(key->code == 0x9012);
+  REQUIRE(key->pressed);
+  REQUIRE(key->repeated);
+
+  free(packet);
+  close(fd);
+  scnp_stop();
+}
+
+void recv_and_ack()
+{
+  struct scnp_packet packet{};
+  packet.type = 0;
+  uint8_t addr[ETHER_ADDR_LEN];
+  while (packet.type != SCNP_KEY) {
+    scnp_recv(&packet, addr);
+  }
+}
+
+TEST_CASE("scnp_ack") {
+  REQUIRE(scnp_start(LOOP_INDEX) == 0);
+  std::thread t(recv_and_ack);
+  struct scnp_key key = { SCNP_KEY, 0, 0xabcd, true, true };
+  uint8_t loopaddr[] = { 0, 0, 0, 0, 0, 0 };
+  REQUIRE(scnp_send((struct scnp_packet *) &key, loopaddr) == 0);
+  t.join();
+  REQUIRE(scnp_send((struct scnp_packet *) &key, loopaddr) == -1);
+  scnp_stop();
+}

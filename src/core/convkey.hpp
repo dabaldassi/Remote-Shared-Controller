@@ -68,12 +68,20 @@ struct ConvKey<T, KEY> : public ConvKeyBase<ConvKey<T,KEY>,T,struct scnp_key>
   
   template<typename U>
   static void set_value(const U& val) {
-    key.pressed = val.value == KEY_PRESSED;
+    if(val.value == KEY_REPEATED) {
+      key.pressed = true;
+      key.repeated = true;
+    }
+    else {
+      key.pressed = val.value == KEY_PRESSED;
+      key.repeated = false;
+    }
   }
 
   template<typename U>
   static void set_value(const U * val) {
-    key.value = val->pressed;
+    if(val->repeated) key.value = KEY_REPEATED;
+    else              key.value = val->pressed;
   }
 };
 

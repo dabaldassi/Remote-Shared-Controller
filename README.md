@@ -1,6 +1,6 @@
 # Remote-Shared-Controller
 
-[![pipeline status](https://gitlab.com/Sharkalash/Remote-Shared-Controller/badges/dev/pipeline.svg)](https://gitlab.com/Sharkalash/Remote-Shared-Controller/commits/dev)
+[![pipeline status](https://gitlab.com/Sharkalash/Remote-Shared-Controller/badges/master/pipeline.svg)](https://gitlab.com/Sharkalash/Remote-Shared-Controller/commits/dev)
 
 Software which allow to share the mouse and keyboard of one computer with several others.
 
@@ -70,6 +70,30 @@ To see all the available commands :
 
 You need to be root to use rsccli.
 
+## rscgui
+
+rscgui is graphic user interface designed to use remote-shared-controller.
+
+You can just run rscgui from the build directory with the following :
+
+```bash
+
+./rscgui
+
+```
+
+For now, you will need to do the following in order to have icon (from the build directory):
+
+```
+
+ln -s ../icon
+
+```
+
+This step will be removed later when the installation wil be automatic.
+
+You need to be root to run rscgui.
+
 ## Remarks
 
 This project only works on Linux at the moment.
@@ -77,4 +101,5 @@ This project only works on Linux at the moment.
 ## Authors
 
 [alpapin](https://github.com/alpapin/)
+
 [dabaldassi](https://github.com/dabaldassi/)

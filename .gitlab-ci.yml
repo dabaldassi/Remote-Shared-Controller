@@ -7,16 +7,13 @@ workflow:
       when: always
     - when: never
 
-image: celforyon/debian-buster-amd64
+image: stalhrim/build-essential
 
 stages:
   - build
   - test
 
-before_script:
-  - apt-get -qq update && apt-get -qqy install libx11-dev libxfixes-dev
-
-building:
+build-nox:
   stage: build
   script:
     - mkdir build
@@ -29,12 +26,22 @@ building:
     when: on_success
     expire_in: 5 min
 
-building_cursor:
+build-nogui:
   stage: build
+  image: stalhrim/build-x11
   script:
     - mkdir build
     - cd build
-    - cmake -DINCLUDE_TEST=ON ..
+    - cmake -DINCLUDE_TEST=OFF ..
+    - make -j$(nproc)
+
+build-full:
+  stage: build
+  image: stalhrim/build-x11-qt5
+  script:
+    - mkdir build
+    - cd build
+    - cmake -DINCLUDE_TEST=OFF ..
     - make -j$(nproc)
 
 event_testing:
@@ -45,22 +52,26 @@ event_testing:
 
 network_testing:
   stage: test
+  needs: ["build-nox"]
   script:
     - build/src/tests/network_test
 
 localcom_testing:
   stage: test
+  needs: ["build-nox"]
   script:
     - mkdir -p /var/rsc/localcom
     - build/src/tests/localcom_test
 
 common_testing:
   stage: test
+  needs: ["build-nox"]
   script:
     - mkdir -p /var/rsc/localcom
     - build/src/tests/common_test
 
 rsccli_testing:
   stage: test
+  needs: ["build-nox"]
   script:
     - build/src/tests/rsccli_test

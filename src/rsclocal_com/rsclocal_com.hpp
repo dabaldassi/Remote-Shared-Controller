@@ -14,6 +14,14 @@ namespace rsclocalcom {
   
 }  // rsclocalcom
 
+#else
+
+#include <windows/fifo.hpp>
+
+namespace rsclocalcom {
+    using IPC = Fifo;
+}
+
 #endif
 
 namespace rsclocalcom {

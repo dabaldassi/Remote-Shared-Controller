@@ -8,9 +8,7 @@
 extern "C" {
 #endif
 
-#if defined(__gnu_linux__)
-#include <linux/input-event-codes.h>  
-#endif
+#include <input-event-codes.h>  
 
   /*
    * Id for controller type

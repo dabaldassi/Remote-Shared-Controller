@@ -8,9 +8,6 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-/* EtherType */
-#define ETH_P_SCNP 0x8888
-
 /* Types */
 #define SCNP_KEY 0x01
 #define SCNP_MOV 0x02

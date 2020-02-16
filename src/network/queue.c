@@ -1,9 +1,17 @@
 #include <stdlib.h>
 #include <errno.h>
-#include <values.h>
 #include <string.h>
 #include <time.h>
 
+#ifdef __gnu_linux__
+
+#include <values.h>
+
+#else
+
+#define EXFULL ENOSPC
+
+#endif
 
 #include "queue.h"
 

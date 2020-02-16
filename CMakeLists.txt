@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.1.3)
 
 project(remote-shared-controller)
 
-find_package(Threads REQUIRED)
-
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories(
@@ -45,11 +43,24 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL Windows)
-  message(FATAL_ERROR "${CMAKE_SYSTEM_NAME} is not handled")
-  file(GLOB_RECURSE controller_sources src/controller/windows/*.c)
-  file(GLOB_RECURSE controller_sources src/rsclocal_com/windows/*.cpp)
+  find_package(pthreads REQUIRED)
+
+  file(GLOB controller_sources src/controller/windows/*.cpp)
+  file(GLOB network_src src/network/windows/*.c)
+  file(GLOB rsclocal_com_sources src/rsclocal_com/windows/*.cpp)
+
+  include_directories(
+      ${PThreads4W_INCLUDE_DIR}
+      external/npcap/Include
+  )
+
+  file(COPY external/npcap/Lib/x64/wpcap.lib external/npcap/Lib/x64/Packet.lib DESTINATION ${CMAKE_BINARY_DIR})
+
 elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
+  find_package(Threads REQUIRED)
+
   file(GLOB_RECURSE rsclocal_com_sources src/rsclocal_com/linux/*.cpp)
+  file(GLOB network_src src/network/linux/*.c)
 
   if(NOT NOCURSOR)
     find_package(X11 COMPONENTS Xfixes)
@@ -80,12 +91,11 @@ endif()
 add_library(controller ${controller_sources})
 target_link_libraries(controller ${controller_libs})
 
-file(GLOB_RECURSE rsclocal_com_header src/rsclocal_com/*.hpp)
-file(GLOB rsclocal_com_src src/rsclocal_com/*.cpp)
-list(APPEND rsclocal_com_sources ${rsclocal_com_src})
+file(GLOB rsclocal_com_header src/rsclocal_com/*.hpp)
 add_library(rsclocal_com ${rsclocal_com_sources} ${rsclocal_com_header})
 
-file(GLOB_RECURSE network_sources src/network/*.c)
+file(GLOB network_sources src/network/*.c)
+list(APPEND network_sources ${network_src})
 add_library(network ${network_sources})
 target_link_libraries(network pthread)
 
@@ -102,7 +112,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
   network
   common
   rsclocal_com
-  Threads::Threads
+  pthread
   )
 
 file(GLOB_RECURSE rsccli_sources src/rsccli/*.cpp)
@@ -114,6 +124,7 @@ target_link_libraries(rsccli
   )
 
 find_package(Qt5Widgets)
+# find_package(Qt5Widgets CONFIG REQUIRED)
 
 if( ${Qt5Widgets_FOUND} )
   message(STATUS "Qt5 found")

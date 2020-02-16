@@ -4,7 +4,6 @@
 #include <rsc.hpp>
 #include <util.hpp>
 
-#include <unistd.h>
 
 int main(int argc, char *argv[])
 {
@@ -18,7 +17,6 @@ int main(int argc, char *argv[])
   }
   
   rsc.init(if_index);
-  sleep(1);
   
   do {
     rsc.run();

@@ -5,14 +5,27 @@
 extern "C" {
 #endif
 
+#ifdef __gnu__linux__
 #include <net/if.h>
 
-  /**
-   * @brief Structure that contain the name of an interface and its index.
-   * Alias for struct if_nameindex in net/if.h
-   */
+/**
+ * @brief Structure that contain the name of an interface and its index.
+ * Alias for struct if_nameindex in net/if.h
+ */
 
-  typedef struct if_nameindex IF;
+    typedef struct if_nameindex IF;
+#else
+#include<stdint.h>
+
+    typedef struct 
+    {
+        int     if_index;
+        char*   if_name;
+        char*   if_win_name;
+        uint8_t if_addr[6];
+    } IF;
+#endif
+
 
   /**
    * @brief Returns the name and the index of all interfaces.

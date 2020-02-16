@@ -50,8 +50,8 @@ event_testing:
     - build/src/tests/event_test
   when: manual # unable to use uinput module
   except:
-  - refs:
-    - windows
+    refs:
+      - windows
 
 network_testing:
   stage: test
@@ -59,8 +59,8 @@ network_testing:
   script:
     - build/src/tests/network_test
   except:
-  - refs:
-    - windows
+    refs:
+      - windows
 
 localcom_testing:
   stage: test
@@ -69,8 +69,8 @@ localcom_testing:
     - mkdir -p /var/rsc/localcom
     - build/src/tests/localcom_test
   except:
-  - refs:
-    - windows
+    refs:
+      - windows
 
 common_testing:
   stage: test
@@ -79,8 +79,8 @@ common_testing:
     - mkdir -p /var/rsc/localcom
     - build/src/tests/common_test
   except:
-  - refs:
-    - windows
+    refs:
+      - windows
 
 rsccli_testing:
   stage: test
@@ -88,5 +88,5 @@ rsccli_testing:
   script:
     - build/src/tests/rsccli_test
   except:
-  - refs:
-    - windows
+    refs:
+      - windows

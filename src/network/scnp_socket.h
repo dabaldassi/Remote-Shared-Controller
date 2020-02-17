@@ -13,6 +13,9 @@ extern "C" {
 
 #ifdef __gnu_linux__
 #include <net/ethernet.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+
 
     struct scnp_socket
     {
@@ -23,7 +26,8 @@ extern "C" {
 #else
 
 #include <pcap.h>
-
+#include <winsock2.h>
+  
 #define ETHER_ADDR_LEN 6
 
     struct scnp_socket

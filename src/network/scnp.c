@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <scnp_socket.h>
 #include <pthread.h>
 #include <errno.h>
 #include <semaphore.h>

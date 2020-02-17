@@ -7,6 +7,7 @@ extern "C" {
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <scnp_socket.h>
 
 /* Types */
 #define SCNP_KEY 0x01

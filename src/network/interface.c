@@ -2,7 +2,7 @@
 
 #include "interface.h"
 
-#ifdef __gnu__linux__
+#ifdef __gnu_linux__
 
 IF * get_interfaces()
 {
@@ -95,6 +95,8 @@ void free_interfaces(IF* interfaces)
     }
 }
 
+#endif
+
 int interface_exists(unsigned int if_index)
 {
     IF* interfaces = get_interfaces();
@@ -106,5 +108,3 @@ int interface_exists(unsigned int if_index)
     free_interfaces(interfaces);
     return return_value;
 }
-
-#endif

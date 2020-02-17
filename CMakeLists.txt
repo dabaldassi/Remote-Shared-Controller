@@ -47,7 +47,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL Windows)
 
   file(GLOB controller_sources src/controller/windows/*.cpp)
   file(GLOB network_src src/network/windows/*.c)
-  file(GLOB rsclocal_com_sources src/rsclocal_com/windows/*.cpp)
+  file(GLOB rsclocal_com_src src/rsclocal_com/windows/*.cpp)
 
   include_directories(
       ${PThreads4W_INCLUDE_DIR}
@@ -59,7 +59,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL Windows)
 elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
   find_package(Threads REQUIRED)
 
-  file(GLOB_RECURSE rsclocal_com_sources src/rsclocal_com/linux/*.cpp)
+  file(GLOB_RECURSE rsclocal_com_src src/rsclocal_com/linux/*.cpp)
   file(GLOB network_src src/network/linux/*.c)
 
   if(NOT NOCURSOR)
@@ -92,6 +92,8 @@ add_library(controller ${controller_sources})
 target_link_libraries(controller ${controller_libs})
 
 file(GLOB rsclocal_com_header src/rsclocal_com/*.hpp)
+file(GLOB rsclocal_com_sources src/rsclocal_com/*.cpp)
+list(APPEND rsclocal_com_sources ${rsclocal_com_src})
 add_library(rsclocal_com ${rsclocal_com_sources} ${rsclocal_com_header})
 
 file(GLOB network_sources src/network/*.c)

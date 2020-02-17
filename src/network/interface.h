@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#ifdef __gnu__linux__
+#ifdef __gnu_linux__
 #include <net/if.h>
 
 /**

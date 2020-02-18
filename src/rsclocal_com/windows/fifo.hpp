@@ -2,67 +2,76 @@
 #define WIN_FIFO_H
 
 #include <string>
+#include <Windows.h>
 
-class Fifo 
-{
-public:
-	enum class Contact { CORE, CLIENT }; // Possible contact
+namespace rsclocalcom {
 
-private:
+    class Fifo
+    {
+    public:
+        enum class Contact { CORE, CLIENT }; // Possible contact
 
+    private:
+        static constexpr char PIPE_NAME[] = "\\\\.\\pipe\\fifo_win";
+        static constexpr size_t BUFSIZE = 1024;
 
-public:
+        HANDLE  _pipe;
+        Contact _contact;
+        BOOL    _connected;
 
-    explicit Fifo(Contact c);
+    public:
 
-    /**
-     *\brief Open the right file for the communication
-     *\return 1 if there was an error. 0 otherwise
-     */
+        explicit Fifo(Contact c);
 
-    int  open();
+        /**
+         *\brief Open the right file for the communication
+         *\return 1 if there was an error. 0 otherwise
+         */
 
-    /**
-     *\brief Send a message to a contact.
-     *\param c The contact
-     *\param msg The message as std::string
-     *\return Negative value if error. The number of bytes written otherwise.
-     */
+        int  open();
 
-    int  send_to(Contact c, const std::string& msg);
+        /**
+         *\brief Send a message to a contact.
+         *\param c The contact
+         *\param msg The message as std::string
+         *\return Negative value if error. The number of bytes written otherwise.
+         */
 
-    /**
-     *\brief Read a message from a contact
-     *\param c The contact
-     *\param msg The buffer in which will be stored the message
-     *\return Negative value if error. The number of bytes read otherwise.
-     */
+        int  send_to(Contact c, const std::string& msg);
 
-    int  read_from(Contact c, std::string& answer);
+        /**
+         *\brief Read a message from a contact
+         *\param c The contact
+         *\param msg The buffer in which will be stored the message
+         *\return Negative value if error. The number of bytes read otherwise.
+         */
 
-    /**
-     *\brief Send a message to the other side of the fifo.
-     *\param msg The message as std::string
-     *\return Negative value if error. The number of bytes written otherwise.
-     */
+        int  read_from(Contact c, std::string& answer);
 
-    int send(const std::string& msg);
+        /**
+         *\brief Send a message to the other side of the fifo.
+         *\param msg The message as std::string
+         *\return Negative value if error. The number of bytes written otherwise.
+         */
 
-    /**
-     *\brief Read a message from the other side of the fifo
-     *\param msg The buffer in which will be stored the message
-     *\return Negative value if error. The number of bytes read otherwise.
-     */
+        int send(const std::string& msg);
 
-    int read(std::string& answer);
+        /**
+         *\brief Read a message from the other side of the fifo
+         *\param msg The buffer in which will be stored the message
+         *\return Negative value if error. The number of bytes read otherwise.
+         */
 
-    /**
-     *\brief Close the connection
-     */
+        int read(std::string& answer);
 
-    void close();
+        /**
+         *\brief Close the connection
+         */
 
-    ~Fifo();
-};
+        void close();
+
+        ~Fifo();
+    };
+}
 
 #endif // !WIN_FIFO_H

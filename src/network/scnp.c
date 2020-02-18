@@ -14,6 +14,9 @@
 #define ACK_MAX_TRIES 3
 #define SESSION_TIMEOUT 1
 
+#ifdef _WIN32
+#define sleep Sleep
+#endif
 
 /* information used by all threads */
 static struct
@@ -80,8 +83,8 @@ int scnp_start(unsigned int if_index)
   }
 
   /* initialize the current identifier */
-  srandom(time(NULL));
-  current_id = random();
+  srand(time(NULL));
+  current_id = rand();
 
   /* initialize threads parameters */
   param_t param;
@@ -316,7 +319,7 @@ static int build_key_buffer(uint8_t * buf, const struct scnp_packet * packet)
   struct scnp_key * p = (struct scnp_key *) packet;
 
   /* id */
-  uint32_t id = htonl(current_id += random() % ID_MAX_INCR);
+  uint32_t id = htonl(current_id += rand() % ID_MAX_INCR);
   memcpy(buf, &id, sizeof(uint32_t));
   /* code */
   uint16_t code = htons(p->code);
@@ -353,7 +356,7 @@ static int build_out_buffer(uint8_t * buf, const struct scnp_packet * packet)
   struct scnp_out * p = (struct scnp_out *) packet;
 
   /* id */
-  uint32_t id = htonl(current_id += random() % ID_MAX_INCR);
+  uint32_t id = htonl(current_id += rand() % ID_MAX_INCR);
   memcpy(buf, &id, sizeof(uint32_t));
   /* flags */
   uint8_t direction_flag = (p->direction) << 7u;

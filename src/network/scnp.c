@@ -217,11 +217,13 @@ static int build_mov_packet(struct scnp_packet * packet, const uint8_t * buf)
   struct scnp_movement mov;
   /* type */
   mov.type = SCNP_MOV;
+  /* move_type */
+  mov.move_type = *buf >> 7u;
   /* code */
-  memcpy(&mov.code, buf, sizeof(uint16_t));
+  memcpy(&mov.code, buf + sizeof(uint8_t), sizeof(uint16_t));
   mov.code = ntohs(mov.code);
   /* value */
-  memcpy(&mov.value, buf + sizeof(uint16_t), sizeof(uint32_t));
+  memcpy(&mov.value, buf + sizeof(uint8_t) + sizeof(uint16_t), sizeof(uint32_t));
   mov.value = ntohl(mov.value);
 
   memcpy(packet, &mov, sizeof(struct scnp_movement));
@@ -332,12 +334,15 @@ static int build_mov_buffer(uint8_t * buf, const struct scnp_packet * packet)
   // TODO same as previous function
   struct scnp_movement * p = (struct scnp_movement *) packet;
 
+  /* move_type */
+  uint8_t type_flag = (p->move_type) << 7u;
+  memcpy(buf, &type_flag, sizeof(uint8_t));
   /* code */
   uint16_t code = htons(p->code);
-  memcpy(buf, &code, sizeof(uint16_t));
+  memcpy(buf + sizeof(uint8_t), &code, sizeof(uint16_t));
   /* value */
   uint32_t value = htonl(p->value);
-  memcpy(buf + sizeof(uint16_t), &value, sizeof(uint32_t));
+  memcpy(buf + sizeof(uint8_t) + sizeof(uint16_t), &value, sizeof(uint32_t));
 
   return 0;
 }
@@ -548,7 +553,7 @@ static void * send_packets(void * arg)
     waste.buf = NULL;
   }
 
-  /* exxecute scleanup */
+  /* execute scleanup */
   pthread_cleanup_pop(1);
 
   return NULL;

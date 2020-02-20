@@ -1,7 +1,8 @@
+#include <controller_op.hpp>
+
 #include <QApplication>
 
 #include <menu_bar.hpp>
-#include <controller_op.hpp>
 #include <config-gui.hpp>
 
 using namespace rscui;

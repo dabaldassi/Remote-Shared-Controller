@@ -118,6 +118,12 @@ int Fifo::read(std::string& answer)
     BOOL success = ReadFile(_pipe, buf, BUFSIZE, &bytes_read, NULL);
     if (!success) {
         _connected = FALSE;
+        
+        if (_contact == Contact::CORE) {
+            FlushFileBuffers(_pipe);
+            DisconnectNamedPipe(_pipe);
+        }
+
         return -1;
     }
 

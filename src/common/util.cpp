@@ -56,7 +56,15 @@ void rscutil::register_pid()
 
 #else
 
-#error "System not handled"
+bool rscutil::is_core_running()
+{
+    return true;
+}
+
+void rscutil::register_pid()
+{
+
+}
 
 #endif
 

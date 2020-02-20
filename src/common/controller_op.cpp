@@ -1,8 +1,9 @@
-#include <controller_op.hpp>
 #include <util.hpp>
 #include <pc_list.hpp>
 #include <config.hpp>
 #include <combo.hpp>
+
+#include <controller_op.hpp>
 
 using rscui::ControllerOperation;
 using rscutil::PCList;
@@ -30,7 +31,11 @@ int ControllerOperation::_send_cmd(const rsclocalcom::Message& msg)
 
   RSCLocalCom com(RSCLocalCom::Contact::CLIENT);
 
-  com.send(msg);
+  if (com.send(msg) < 0) {
+      _ui->display_error("Can't send message to rsc core");
+      return -1;
+  }
+
   m.reset();
   com.read(m);
 

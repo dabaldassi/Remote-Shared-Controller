@@ -10,6 +10,13 @@
 #include <config.hpp>
 #include <interface.h>
 
+#ifdef _WIN32
+
+#define pthread_cancel(T) TerminateThread(T, 0)
+#undef ERROR
+
+#endif
+
 void error(const char * s)
 {
   perror(s);
@@ -69,8 +76,7 @@ int RSC::init(int if_index)
 
   if(err) error("Cannot start SCNP session");
   
-  err = init_controller();
-  if(err) error("Cannot init controller");
+  // if(err) error("Cannot init controller");
 
   _run = true;
   
@@ -351,7 +357,9 @@ void RSC::_local_cmd()
   while(_run) {
     ack.reset(Message::ACK);
    
-    _com.read(msg);
+    int ret = _com.read(msg);
+    if (ret <= 0) continue;
+
     on_msg[msg.get_cmd()](msg);
     _com.send(ack);
 
@@ -397,13 +405,14 @@ void RSC::_send()
 {
   ControllerEvent c;
   int             x = 0, y = 0;
+
+  int err = init_controller();
   
   while(_run) {    
     int ret = poll_controller(&c, -1);
     if(!ret) continue;
     
     if(ret & 0x01) {
-
 #ifndef NO_CURSOR
       _th_safe_op(_cursor_mutex, [this, &x, &y](){	  
 	  if(_cursor->visible) {
@@ -451,7 +460,7 @@ void RSC::run()
 void RSC::pause_requested()
 {
   _pause = true;
-  for(auto&& th : _threads) pthread_cancel(th.native_handle());  
+  for(auto&& th : _threads) pthread_cancel(th.native_handle()); 
 }
 
 void RSC::stop_requested()

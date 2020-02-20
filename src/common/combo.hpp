@@ -157,7 +157,7 @@ namespace rscutil {
     const std::string& get_type() const override { return TYPE; }
 
     ComboShortcut(const ComboShortcut& other);
-    ComboShortcut(ComboShortcut&& other);
+    ComboShortcut(ComboShortcut&& other) noexcept;
     
     ComboShortcut& operator=(const ComboShortcut& other);
     ComboShortcut& operator=(ComboShortcut&& other) noexcept;

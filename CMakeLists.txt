@@ -22,6 +22,9 @@ option(NOCURSOR OFF)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_C_STANDARD 99)
 
+find_package(Threads REQUIRED)
+
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	set(CMAKE_CXX_FLAGS "-fdiagnostics-color=always ${CMAKE_CXX_FLAGS}")
 	if(CMAKE_BUILD_TYPE MATCHES Release)
@@ -54,13 +57,15 @@ if(CMAKE_SYSTEM_NAME STREQUAL Windows)
       external/npcap/Include
   )
 
+  set(NETWORK_LIB ${PThreads4W_LIBRARY} wpcap.lib Packet.lib)
+
   file(COPY external/npcap/Lib/x64/wpcap.lib external/npcap/Lib/x64/Packet.lib DESTINATION ${CMAKE_BINARY_DIR})
 
 elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
-  find_package(Threads REQUIRED)
 
   file(GLOB_RECURSE rsclocal_com_src src/rsclocal_com/linux/*.cpp)
   file(GLOB network_src src/network/linux/*.c)
+  set(NETWORK_LIB pthread)
 
   if(NOT NOCURSOR)
     find_package(X11 COMPONENTS Xfixes)
@@ -99,7 +104,7 @@ add_library(rsclocal_com ${rsclocal_com_sources} ${rsclocal_com_header})
 file(GLOB network_sources src/network/*.c)
 list(APPEND network_sources ${network_src})
 add_library(network ${network_sources})
-target_link_libraries(network pthread)
+target_link_libraries(network ${NETWORK_LIB})
 
 file(GLOB_RECURSE common_sources src/common/*.cpp)
 file(GLOB_RECURSE common_headers src/common/*.hpp)
@@ -114,7 +119,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
   network
   common
   rsclocal_com
-  pthread
+  Threads::Threads
   )
 
 file(GLOB_RECURSE rsccli_sources src/rsccli/*.cpp)
@@ -123,6 +128,7 @@ add_executable(rsccli ${rsccli_sources} ${rsccli_headers})
 target_link_libraries(rsccli
   common
   network
+  rsclocal_com
   )
 
 find_package(Qt5Widgets)

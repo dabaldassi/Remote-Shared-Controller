@@ -15,7 +15,8 @@
 #define SESSION_TIMEOUT 1
 
 #ifdef _WIN32
-#define sleep Sleep
+#pragma comment(lib, "Ws2_32.lib")
+#define sleep(S) Sleep(S * 1000)
 #endif
 
 /* information used by all threads */
@@ -83,7 +84,7 @@ int scnp_start(unsigned int if_index)
   }
 
   /* initialize the current identifier */
-  srand(time(NULL));
+  srand((unsigned int)time(NULL));
   current_id = rand();
 
   /* initialize threads parameters */

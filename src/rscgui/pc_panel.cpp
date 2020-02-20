@@ -1,3 +1,5 @@
+#include <controller_op.hpp>
+
 #include <QLabel>
 #include <QtGui>
 #include <QDrag>
@@ -5,10 +7,10 @@
 #include <QMenu>
 
 #include <pc_panel.hpp>
-#include <controller_op.hpp>
 
 using rscui::PCWidget;
 using rscui::PCPanel;
+using rscui::ControllerOperation;
 
 ///////////////////////////////////////////////////////////////////////////////
 //                                  PCWidget                                 //

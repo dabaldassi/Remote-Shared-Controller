@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cstring>
-#include <scnp.h>
 #include <rsc.hpp>
+#include <scnp.h>
 #include <util.hpp>
 
 
@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
   rscutil::register_pid();
   
   RSC rsc;
-  int if_index = 1;
+  int if_index = 10;
 
   if(argc == 2) {
     if_index = atoi(argv[1]);

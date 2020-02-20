@@ -7,6 +7,9 @@
 static HHOOK keyboard_hook = NULL;
 static HHOOK mouse_hook = NULL;
 
+#define KEY_MSG 5
+#define MOUSE_MSG 8
+
 LRESULT CALLBACK LowLevelKeyboardProc(
     _In_ int    nCode,
     _In_ WPARAM wParam,
@@ -14,8 +17,7 @@ LRESULT CALLBACK LowLevelKeyboardProc(
 )
 {
     if (nCode < 0) return CallNextHookEx(NULL, nCode, wParam, lParam);
-
-    PostMessage(NULL, KEY, wParam, lParam);
+    PostMessage(NULL, KEY_MSG, wParam, lParam);
 
     return CallNextHookEx(NULL, nCode, wParam, lParam);
 }
@@ -29,7 +31,7 @@ LRESULT CALLBACK LowLevelMouseProc(
 {
     if (nCode < 0) return CallNextHookEx(NULL, nCode, wParam, lParam);
 
-    PostMessage(NULL, MOUSE, wParam, lParam);
+    PostMessage(NULL, MOUSE_MSG, wParam, lParam);
 
     return CallNextHookEx(NULL, nCode, wParam, lParam);
 }
@@ -118,15 +120,14 @@ int poll_controller(ControllerEvent* ev, int timeout)
 {
     MSG  msg;
     int  quit = 0;
-    
+
     while (!quit) {
         int err = GetMessage(&msg, NULL, 0, 0);
-
         if (err <= 0) return -1;
 
         TranslateMessage(&msg);
        
-        if (msg.message == KEY) {
+        if (msg.message == KEY_MSG) {
             KBDLLHOOKSTRUCT key = *(KBDLLHOOKSTRUCT*)msg.lParam;
             bool pressed = (msg.wParam == WM_KEYDOWN || msg.wParam == WM_SYSKEYDOWN);
             bool released = (WM_KEYUP == msg.wParam || msg.wParam == WM_SYSKEYUP);
@@ -139,7 +140,7 @@ int poll_controller(ControllerEvent* ev, int timeout)
                 quit = 1;
             }
         }
-        else if (msg.message == MOUSE) {
+        else if (msg.message == MOUSE_MSG) {
             MSLLHOOKSTRUCT mouse = *(MSLLHOOKSTRUCT*)msg.lParam;
             WPARAM         mouse_ev = msg.wParam;
 

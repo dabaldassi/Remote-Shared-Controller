@@ -2,7 +2,9 @@
 #define WIN_FIFO_H
 
 #include <string>
-#include <Windows.h>
+
+typedef void* HANDLE;
+typedef int BOOL;
 
 namespace rsclocalcom {
 

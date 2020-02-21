@@ -19,16 +19,18 @@ void RSC::_send_release(rscutil::Combo* combo)
 {
   using rscutil::ComboShortcut;
   
-  auto * c = static_cast<ComboShortcut *>(combo);
+  if (_pc_list.size() > 1) {
+      auto* c = static_cast<ComboShortcut*>(combo);
 
-  c->for_each([this](ComboShortcut::shortcut_t& s) {
-      int code = std::get<0>(s);
+      c->for_each([this](ComboShortcut::shortcut_t& s) {
+          int code = std::get<0>(s);
 
-      ControllerEvent e = { false, KEY, EV_KEY, KEY_RELEASED, 0};
-      e.code = code;
+          ControllerEvent e = { false, KEY, EV_KEY, KEY_RELEASED, 0 };
+          e.code = code;
 
-      _send(e);
-    });
+          _send(e);
+          });
+  }
 }
 
 void RSC::load_shortcut(bool reset)
@@ -61,7 +63,7 @@ void RSC::load_shortcut(bool reset)
   else {
     // Default shortcut
     auto right = ComboShortcut::make_ptr("right", "Move to the next computer on the right");
-
+    
     right->add_shortcut(KEY_LEFTCTRL, KEY_PRESSED);
     right->add_shortcut(KEY_R, KEY_PRESSED);
     right->add_shortcut(KEY_RIGHT, KEY_PRESSED);  

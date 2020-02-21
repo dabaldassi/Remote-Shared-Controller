@@ -174,6 +174,8 @@
 #define KEY_SYSRQ		99
 #define KEY_RIGHTALT		100
 #define KEY_LINEFEED		101
+
+#ifdef __gnu_linux__
 #define KEY_HOME		102
 #define KEY_UP			103
 #define KEY_PAGEUP		104
@@ -182,6 +184,17 @@
 #define KEY_END			107
 #define KEY_DOWN		108
 #define KEY_PAGEDOWN		109
+#else
+#define KEY_HOME		KEY_KP7
+#define KEY_UP			KEY_KP8
+#define KEY_PAGEUP		KEY_KP9
+#define KEY_LEFT		KEY_KP4
+#define KEY_RIGHT		KEY_KP6
+#define KEY_END			KEY_KP1
+#define KEY_DOWN		KEY_KP2
+#define KEY_PAGEDOWN    KEY_KP3
+#endif
+
 #define KEY_INSERT		110
 #define KEY_DELETE		111
 #define KEY_MACRO		112

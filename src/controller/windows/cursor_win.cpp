@@ -14,9 +14,13 @@ CursorInfo* open_cursor_info()
 	RECT resolution;
 	GetWindowRect(GetDesktopWindow(), &resolution);
 
+	CURSORINFO cursor_info;
+	cursor_info.cbSize = sizeof(CURSORINFO);
+	GetCursorInfo(&cursor_info);
+
 	cursor->screen_size.width = resolution.right;
 	cursor->screen_size.height = resolution.bottom;
-	cursor->visible = true;
+	cursor->visible = cursor_info.flags & CURSOR_SHOWING;
 	
 	return cursor;
 }

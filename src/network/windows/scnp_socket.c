@@ -20,11 +20,11 @@ int scnp_socket_open(struct scnp_socket* socket, int if_index)
 
 	free_interfaces(interfaces);
 
-    socket->fp = pcap_open(pcap_name,
-                           100 /*snaplen*/,
-                           PCAP_OPENFLAG_PROMISCUOUS /*flags*/,
-                           5000 /*read timeout*/,
-                           NULL /* remote authentication */,
+    socket->fp = pcap_open_live(pcap_name,
+                           65535,
+                           PCAP_OPENFLAG_NOCAPTURE_LOCAL,
+                           50,
+                           NULL,
                            errbuf);
 
     if(socket->fp == NULL) {
@@ -62,7 +62,6 @@ ssize_t scnp_socket_recvfrom(struct scnp_socket* socket, void* buf, size_t len, 
         int res = pcap_next_ex(socket->fp, &header, &pkt_data);
 
         if (res == 0 || !memcmp(socket->src_addr, pkt_data + ETHER_ADDR_LEN, ETHER_ADDR_LEN)) {
-            // puts("TIMEOUT");
             continue;
         }
 
@@ -70,11 +69,7 @@ ssize_t scnp_socket_recvfrom(struct scnp_socket* socket, void* buf, size_t len, 
             return -1;
         }
 
-       /* for (int i = 0; i < 2*ETHER_ADDR_LEN + 2; ++i) {
-            printf("%2x ", pkt_data[i]);
-        }*/
 
-        // puts("AH");
         memcpy(&ethtype, pkt_data + 2 * ETHER_ADDR_LEN, sizeof(ethtype));
     }
 

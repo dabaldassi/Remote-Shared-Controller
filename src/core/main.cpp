@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
   rscutil::register_pid();
   
   RSC rsc;
-  int if_index = 10;
+  int if_index = 8;
 
   if(argc == 2) {
     if_index = atoi(argv[1]);

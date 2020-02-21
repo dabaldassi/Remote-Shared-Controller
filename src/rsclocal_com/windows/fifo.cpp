@@ -15,7 +15,8 @@ int Fifo::open()
     if (_contact == Contact::CORE) {
         _pipe = CreateNamedPipe(
             PIPE_NAME,             // pipe name 
-            PIPE_ACCESS_DUPLEX,       // read/write access 
+            PIPE_ACCESS_DUPLEX |      // read/write access 
+            WRITE_OWNER | WRITE_DAC,
             PIPE_TYPE_MESSAGE |       // message type pipe 
             PIPE_READMODE_MESSAGE |   // message-read mode 
             PIPE_WAIT,                // blocking mode 
@@ -23,7 +24,7 @@ int Fifo::open()
             BUFSIZE,                  // output buffer size 
             BUFSIZE,                  // input buffer size 
             0,                        // client time-out 
-            NULL);                    // default security 
+            NULL);                    // default security
     }
     else {
         BOOL quit = FALSE;

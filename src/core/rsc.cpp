@@ -10,6 +10,8 @@
 #include <config.hpp>
 #include <interface.h>
 
+#include <iostream>
+
 #ifdef _WIN32
 
 #define pthread_cancel(T) TerminateThread(T, 0)
@@ -386,13 +388,18 @@ void RSC::_keep_alive()
 			});
 
       if(it != _alive.end()) {
-	if(_pc_list.get(it->first) == _pc_list.get_current()) {
-	  while(!_pc_list.get_current().local) _transit(rscutil::Combo::Way::RIGHT);
-	}
+        try {
+            if (_pc_list.get(it->first) == _pc_list.get_current()) {
+                while (!_pc_list.get_current().local) _transit(rscutil::Combo::Way::RIGHT);
+            }
+        } catch (std::runtime_error&) {
+            
+        }
 	
 	_th_safe_op(_pc_list_mutex, [&it,this]() {_pc_list.remove(it->first); });
 	_th_safe_op(_all_pc_list_mutex, [&it, this]() { _all_pc_list.remove(it->first); });
 	_th_safe_op(_alive_mutex, [&it, this]() { _alive.erase(it); } );
+    it = _alive.begin();
       }
       
     } while(it != _alive.end());

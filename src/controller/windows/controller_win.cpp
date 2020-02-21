@@ -158,7 +158,12 @@ int poll_controller(ControllerEvent* ev, int timeout)
 
 void grab_controller(bool t)
 {
-    BlockInput(t);
+    static bool state = false;
+
+    if (state != t) {
+        BlockInput(t);
+        state = t;
+    }
 }
 
 

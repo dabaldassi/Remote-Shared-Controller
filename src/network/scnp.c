@@ -11,6 +11,7 @@
 
 #include "queue.h"
 #include "interface.h"
+#include "crypto.h"
 #include "scnp.h"
 
 #define ID_MAX_INCR 0x100000
@@ -42,6 +43,7 @@ static struct
 };
 
 uint32_t current_id; // current identifier for packet that need acknowledgement
+uint8_t cypher_key[] = {0, 0};
 
 /* parameters of the sending and receiving threads */
 typedef struct
@@ -60,7 +62,7 @@ static void * recv_packets(void * arg);
 static void * send_packets(void * arg);
 static void * manage(void * arg);
 
-int scnp_start(unsigned int if_index)
+int scnp_start(unsigned int if_index, const char * key)
 {
   /* do not start if it is already started */
   if (
@@ -104,6 +106,9 @@ int scnp_start(unsigned int if_index)
   param.if_index = (int) if_index;
   sem_init(&param.thread_cnt, 0, 0);
 
+  /* set cyphering key */
+  if (key != NULL) memcpy(cypher_key, key, sizeof(cypher_key));
+
   /* create the receiving thread */
   if (pthread_create(&thread_info.rthread, NULL, recv_packets, (void *) &param)) {
     sem_destroy(&param.thread_cnt);
@@ -137,6 +142,9 @@ void scnp_stop(void)
     pthread_cancel(thread_info.rthread);
   }
   pthread_join(thread_info.rthread, NULL);
+
+  /* reset cyphering key to zero */
+  memset(cypher_key, 0, sizeof(cypher_key));
 
   /* close the socket */
   if (thread_info.socket >= 0) close(thread_info.socket);
@@ -217,7 +225,10 @@ static int build_key_packet(struct scnp_packet * packet, const uint8_t * buf)
   memcpy(&key.id, buf, sizeof(uint32_t));
   key.id = ntohl(key.id);
   /* code */
-  memcpy(&key.code, buf + sizeof(uint32_t), sizeof(uint16_t));
+  uint8_t payload[2];
+  memcpy(payload, buf + sizeof(uint32_t), sizeof(payload));
+  if (decrypt(payload, 2, cypher_key, 2)) return -1;
+  memcpy(&key.code, payload, sizeof(uint16_t));
   key.code = ntohs(key.code);
   /* pressed */
   key.pressed = *(buf + sizeof(uint32_t) + sizeof(uint16_t)) >> 7u;
@@ -335,6 +346,7 @@ static int build_key_buffer(uint8_t * buf, const struct scnp_packet * packet)
   /* code */
   uint16_t code = htons(p->code);
   memcpy(buf + sizeof(uint32_t), &code, sizeof(uint16_t));
+  if (encrypt(buf + sizeof(uint32_t), 2, cypher_key, 2)) return -1;
   /* flags */
   uint8_t pressed_flag = (p->pressed) << 7u;
   uint8_t repeated_flag = (p->repeated) << 6u;

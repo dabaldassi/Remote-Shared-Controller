@@ -171,6 +171,8 @@ struct scnp_ack
  *
  * @param if_index Index of the network interface used to send
  * and receive SCNP packets.
+ * @param key Key used to encrypt input data that will be transferes through
+ * the network. The key need at least two characters.
  * @return On success, returns 0.
  * On error, returns -1 and errno is set appropriately.
  * @section Errors
@@ -189,7 +191,7 @@ struct scnp_ack
  * EPERM Permission denied, user is not the superuser.
  */
 
-int scnp_start(unsigned int if_index);
+int scnp_start(unsigned int if_index, const char * key);
 
 /**
  * @fn int scnp_stop(void)

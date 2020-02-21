@@ -65,7 +65,7 @@ RSC::~RSC()
 int RSC::init(int if_index)
 {
   _if = if_index;
-  int err = scnp_start(_if);
+  int err = scnp_start(_if, nullptr);
 
   if(err) error("Cannot start SCNP session");
   
@@ -478,7 +478,7 @@ int RSC::set_interface(int index)
   
   scnp_stop();
   _if = index;
-  if (scnp_start(_if)) return -1;
+  if (scnp_start(_if, nullptr)) return -1;
 
   return 0;
 }

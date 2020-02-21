@@ -149,17 +149,17 @@ TEST_CASE("pull") {
 }
 
 TEST_CASE("scnp_session") {
-  REQUIRE(scnp_start(42) == -1);
-  REQUIRE(scnp_start(LOOP_INDEX) == 0);
-  REQUIRE(scnp_start(LOOP_INDEX) == -1);
+  REQUIRE(scnp_start(42, nullptr) == -1);
+  REQUIRE(scnp_start(LOOP_INDEX, nullptr) == 0);
+  REQUIRE(scnp_start(LOOP_INDEX, nullptr) == -1);
   sleep(2);
   scnp_stop();
-  REQUIRE(scnp_start(LOOP_INDEX) == 0);
+  REQUIRE(scnp_start(LOOP_INDEX, nullptr) == 0);
   scnp_stop();
 }
 
 TEST_CASE("scnp_packets") {
-  REQUIRE(scnp_start(LOOP_INDEX) == 0);
+  REQUIRE(scnp_start(LOOP_INDEX, nullptr) == 0);
   int fd = socket(AF_PACKET, SOCK_DGRAM, htons(ETH_P_SCNP));
   REQUIRE(fd > 0);
   uint8_t loopaddr[] = { 0, 0, 0, 0, 0, 0 };
@@ -263,12 +263,40 @@ void recv_and_ack()
 }
 
 TEST_CASE("scnp_ack") {
-  REQUIRE(scnp_start(LOOP_INDEX) == 0);
+  REQUIRE(scnp_start(LOOP_INDEX, nullptr) == 0);
   std::thread t(recv_and_ack);
   struct scnp_key key = { SCNP_KEY, 0, 0xabcd, true, true };
   uint8_t loopaddr[] = { 0, 0, 0, 0, 0, 0 };
   REQUIRE(scnp_send((struct scnp_packet *) &key, loopaddr) == 0);
   t.join();
   REQUIRE(scnp_send((struct scnp_packet *) &key, loopaddr) == -1);
+  scnp_stop();
+}
+
+void send_encrypted()
+{
+  struct scnp_key key = {SCNP_KEY, 0, 0xabcd, true, true};
+  uint8_t loopaddr[] = { 0, 0, 0, 0, 0, 0 };
+  scnp_send(reinterpret_cast<scnp_packet *>(&key), loopaddr);
+}
+
+TEST_CASE("crypto") {
+  REQUIRE(scnp_start(LOOP_INDEX, "test") == 0);
+
+  auto * packet = static_cast<scnp_packet *>(malloc(sizeof(struct scnp_packet)));
+  REQUIRE(packet != NULL);
+  packet->type = 0;
+  uint8_t addr[ETHER_ADDR_LEN];
+
+  std::thread t(send_encrypted);
+  int i = 0;
+  while (i++ < 3 && packet->type != SCNP_KEY) {
+    REQUIRE(scnp_recv(packet, addr) == 0);
+  }
+  t.join();
+  auto * key = reinterpret_cast<scnp_key *>(packet);
+  REQUIRE(key->code == 0xabcd);
+
+  free(packet);
   scnp_stop();
 }

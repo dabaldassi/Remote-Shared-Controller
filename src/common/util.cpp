@@ -56,9 +56,30 @@ void rscutil::register_pid()
 
 #else
 
+#include <windows.h>
+#include <psapi.h>
+#include <iostream>
+
 bool rscutil::is_core_running()
 {
-    return true;
+    unsigned long aProcesses[1024], cbNeeded, cProcesses;
+    const std::string pName = "remote-shared-controller.exe";
+
+    if (!EnumProcesses(aProcesses, sizeof(aProcesses), &cbNeeded))
+        return false;
+
+    cProcesses = cbNeeded / sizeof(unsigned long);
+    for (unsigned int i = 0; i < cProcesses; i++)
+    {
+        if (aProcesses[i] == 0) continue;
+
+        HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, aProcesses[i]);
+        char buffer[50];
+        GetModuleBaseName(hProcess, 0, buffer, 50);
+        CloseHandle(hProcess);
+        if (pName == buffer) return true;
+    }
+    return false;
 }
 
 void rscutil::register_pid()

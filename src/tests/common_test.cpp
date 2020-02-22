@@ -112,7 +112,7 @@ TEST_CASE("Combo") {
     auto test = [&name, &description, &action](ComboShortcut& cs) {
       REQUIRE(cs.get_name() == name);
       REQUIRE(cs.get_description() == description);
-      // REQUIRE(cs.to_string() == "LCTRL-R-->");
+      REQUIRE(cs.to_string() == "LCTRL-R-->");
       
       REQUIRE_FALSE(cs.update(KEY_LEFTCTRL,1));
       REQUIRE_FALSE(cs.update(KEY_R,1));
@@ -166,7 +166,7 @@ TEST_CASE("Combo") {
     REQUIRE_FALSE(combo_load.update(KEY_R,0));
     REQUIRE(combo_load.update(KEY_RIGHT,0));
     REQUIRE(action);
-    // REQUIRE(combo_load.to_string() == "LCTRL-R-->-(R)*-(R)*-(R)*");
+    REQUIRE(combo_load.to_string() == "LCTRL-R-->-(R)*-(R)*-(R)*");
   }
   
 #ifndef NO_CURSOR

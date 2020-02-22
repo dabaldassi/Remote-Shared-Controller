@@ -48,7 +48,7 @@ endif()
 if(CMAKE_SYSTEM_NAME STREQUAL Windows)
   find_package(pthreads REQUIRED)
 
-  file(GLOB controller_sources src/controller/windows/*.cpp)
+  file(GLOB controller_sources src/controller/windows/*.cpp src/controller/translate.c)
   file(GLOB network_src src/network/windows/*.c)
   file(GLOB rsclocal_com_src src/rsclocal_com/windows/*.cpp)
 
@@ -73,19 +73,19 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
     if( X11_FOUND AND X11_Xfixes_FOUND)
       message(STATUS "X11 is found, compiling with X11 features")
       set(controller_libs ${X11_LIBRAIRIES} ${X11_X11_LIB} ${X11_Xfixes_LIB})
-      file(GLOB_RECURSE controller_sources src/controller/linux/*.c)
+      file(GLOB_RECURSE controller_sources src/controller/linux/*.c src/controller/translate.c)
     else()
       message(WARNING "X11 is not found, assuming there is no graphic server\n"
 	 "You must install X11 and X11 fixes to use X11 features")
       add_compile_options(-DNO_CURSOR)
       file(GLOB_RECURSE controller_sources
-	src/controller/linux/translate.c
+	src/controller/translate.c
 	src/controller/linux/controller_linux.c)
     endif()
   else()
     file(GLOB_RECURSE controller_sources
       src/controller/linux/controller_linux.c
-      src/controller/linux/translate.c)
+      src/controller/translate.c)
     add_compile_options(-DNO_CURSOR)
   endif()
   

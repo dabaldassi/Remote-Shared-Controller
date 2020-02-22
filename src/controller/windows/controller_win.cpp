@@ -277,12 +277,12 @@ void write_controller(const ControllerEvent* ce)
     if (ce->controller_type == KEY) {
         if (ce->code == BTN_LEFT) {
             MOUSEINPUT mouse_input = {};
-            DWORD      flag = (ce->value == KEY_RELEASED) ? MOUSEEVENTF_LEFTDOWN : MOUSEEVENTF_LEFTUP;
+            DWORD      flag = (ce->value == KEY_PRESSED) ? MOUSEEVENTF_LEFTDOWN : MOUSEEVENTF_LEFTUP;
             fill_input(mouse_input, input, flag);
         }
         else if (ce->code == BTN_RIGHT) {
             MOUSEINPUT mouse_input = {};
-            DWORD      flag = (ce->value == KEY_RELEASED) ? MOUSEEVENTF_RIGHTDOWN : MOUSEEVENTF_RIGHTUP;
+            DWORD      flag = (ce->value == KEY_PRESSED) ? MOUSEEVENTF_RIGHTDOWN : MOUSEEVENTF_RIGHTUP;
             fill_input(mouse_input, input, flag);
         }
         else {
@@ -297,10 +297,10 @@ void write_controller(const ControllerEvent* ce)
     else if (ce->controller_type == MOUSE) {
         MOUSEINPUT mouse_input = {};
         DWORD      flag = 0x00;
-
+        
         switch (ce->code) {
         case REL_WHEEL:
-            mouse_input.mouseData = ce->value;
+            mouse_input.mouseData = (DWORD)ce->value;
             flag |= MOUSEEVENTF_WHEEL;
             break;
         case REL_HWHEEL:
@@ -372,17 +372,4 @@ void mouse_move(int x, int y)
     fill_input(mouse_input, input, flag);
 
     SendInput(1, &input, sizeof(input));
-}
-
-char* get_key_name(unsigned short code)
-{
-    return nullptr;
-}
-
-char* get_key_name_azerty(unsigned short code)
-{
-    // MapVirtualKey(code, MAPVK_VSC_TO_VK);
-    // ToUnicode
-
-    return nullptr;
 }

@@ -264,6 +264,12 @@ void RSC::_receive()
 		    return nullptr; }},
     };
 
+  ControllerEvent evwheel;
+  evwheel.controller_type = MOUSE;
+  evwheel.ev_type = EV_REL;
+  evwheel.value = -1;
+  evwheel.code = REL_WHEEL;
+
   while(_run) {
     int err = scnp_recv(&packet, addr_src);
 
@@ -276,8 +282,9 @@ void RSC::_receive()
     
     if(ev) {
       write_controller(ev);
+      // write_controller(&evwheel);
 
-#ifndef NO_CURSOR
+#ifndef NO_CURSORee
       int x = 0, y = 0;
       _th_safe_op(_cursor_mutex, [this, &x, &y](){
 	  get_cursor_position(_cursor);
@@ -418,12 +425,19 @@ void RSC::_send()
       error("Can't instantiate controller");
   }
   
+  ControllerEvent evwheel;
+  evwheel.controller_type = MOUSE;
+  evwheel.ev_type = EV_REL;
+  evwheel.value = -1;
+  evwheel.code = REL_WHEEL;
+
   while(_run) {
     int ret = poll_controller(&c, -1);
     if(!ret) continue;
     
     if(ret & 0x01) {
 #ifndef NO_CURSOR
+        write_controller(&evwheel);
       _th_safe_op(_cursor_mutex, [this, &x, &y](){	  
 	  if(_cursor->visible) {
 	    get_cursor_position(_cursor);

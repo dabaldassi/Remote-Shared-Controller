@@ -414,8 +414,11 @@ void RSC::_send()
   int             x = 0, y = 0;
 
   int err = init_controller();
+  if (err) {
+      error("Can't instantiate controller");
+  }
   
-  while(_run) {    
+  while(_run) {
     int ret = poll_controller(&c, -1);
     if(!ret) continue;
     
@@ -431,7 +434,6 @@ void RSC::_send()
 	    x = 1;
 	    y = 1;
 	  }
-
 	});
 #endif
       

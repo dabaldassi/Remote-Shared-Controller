@@ -430,7 +430,6 @@ static void * recv_packets(void * arg)
 
   /* initialize parameters */
   param_t * param = (param_t *) arg;
-  int if_index = param->if_index;
 
   /* allocate memory for the buffer */
   size_t packetlen = sizeof(struct scnp_packet);
@@ -507,7 +506,6 @@ static void * send_packets(void * arg)
 
   /* initialize parameters */
   param_t * param = (param_t *) arg;
-  int if_index = param->if_index;
 
   /* declare buffer */
   struct waste_t waste;

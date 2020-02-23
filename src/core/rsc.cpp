@@ -277,7 +277,7 @@ void RSC::_receive()
     if(ev) {
       write_controller(ev);
 
-#ifndef NO_CURSORee
+#ifndef NO_CURSOR
       int x = 0, y = 0;
       _th_safe_op(_cursor_mutex, [this, &x, &y](){
 	  get_cursor_position(_cursor);

@@ -14,6 +14,7 @@ void print_help()
 
 int main(int argc, char *argv[])
 {
+  rscutil::create_base_dir();
   rscutil::register_pid();
   
   RSC rsc;

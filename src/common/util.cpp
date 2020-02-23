@@ -9,9 +9,22 @@
 #include <csignal>
 #include <cstring>
 #include <cerrno>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 void sig_hdl(int)
 {
+}
+
+void rscutil::create_base_dir()
+{
+  umask(0000);
+  int err = mkdir(RSC_BASE_PATH, 0755);
+  if(err && errno != EEXIST) {
+    throw std::runtime_error("Couldn't create rsc base directory : " +
+			     std::string(strerror(errno)));
+  }
 }
 
 bool rscutil::is_core_running()
@@ -42,6 +55,10 @@ void rscutil::register_pid()
   if(is_core_running())
     throw std::runtime_error("Core is already running");
 
+  int fd = creat(RSC_PID_FILE, 0666);
+  if(fd > 0) close(fd);
+  else       perror("Can't open rsc pid file");
+  
   std::ofstream ofs(RSC_PID_FILE);
 
   if(ofs.is_open()) {
@@ -51,35 +68,39 @@ void rscutil::register_pid()
 
     signal(SIGUSR1, sig_hdl);
   }
-  else throw std::runtime_error(std::string("Can't open : ") + RSC_PID_FILE);  
+  else throw std::runtime_error(std::string("Can't open : ") + RSC_PID_FILE);
 }
 
 #else
 
 #include <windows.h>
 #include <psapi.h>
-#include <iostream>
+
+void rscutil::create_base_dir()
+{
+  
+}
 
 bool rscutil::is_core_running()
 {
-    unsigned long aProcesses[1024], cbNeeded, cProcesses;
-    const std::string pName = "remote-shared-controller.exe";
+  unsigned long aProcesses[1024], cbNeeded, cProcesses;
+  const std::string pName = "remote-shared-controller.exe";
 
-    if (!EnumProcesses(aProcesses, sizeof(aProcesses), &cbNeeded))
-        return false;
-
-    cProcesses = cbNeeded / sizeof(unsigned long);
-    for (unsigned int i = 0; i < cProcesses; i++)
-    {
-        if (aProcesses[i] == 0) continue;
-
-        HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, aProcesses[i]);
-        char buffer[50];
-        GetModuleBaseName(hProcess, 0, buffer, 50);
-        CloseHandle(hProcess);
-        if (pName == buffer) return true;
-    }
+  if (!EnumProcesses(aProcesses, sizeof(aProcesses), &cbNeeded))
     return false;
+
+  cProcesses = cbNeeded / sizeof(unsigned long);
+  for (unsigned int i = 0; i < cProcesses; i++)
+    {
+      if (aProcesses[i] == 0) continue;
+
+      HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, aProcesses[i]);
+      char buffer[50];
+      GetModuleBaseName(hProcess, 0, buffer, 50);
+      CloseHandle(hProcess);
+      if (pName == buffer) return true;
+    }
+  return false;
 }
 
 void rscutil::register_pid()

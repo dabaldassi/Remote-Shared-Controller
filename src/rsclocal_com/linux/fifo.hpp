@@ -19,10 +19,10 @@ namespace rsclocalcom {
     int     _fd_cmd, _fd_answer;
     Contact _self;
 
-    static constexpr char CMD_FILE[] = "/var/rsc/localcom/fifo_cmd";
-    static constexpr char ACK_FILE[] = "/var/rsc/localcom/fifo_ack";
+    static constexpr char CMD_FILE[] = "/var/lib/rsc/fifo_cmd";
+    static constexpr char ACK_FILE[] = "/var/lib/rsc/fifo_ack";
     static constexpr int DEFAULT_READ_SIZE = 1024;
-    static constexpr int DEFAULT_MODE = 0755; // Unix permission
+    static constexpr int DEFAULT_MODE = 0666; // Unix permission
 
   public:
   

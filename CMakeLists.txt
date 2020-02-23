@@ -24,7 +24,6 @@ set(CMAKE_C_STANDARD 99)
 
 find_package(Threads REQUIRED)
 
-
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	set(CMAKE_CXX_FLAGS "-fdiagnostics-color=always ${CMAKE_CXX_FLAGS}")
 	if(CMAKE_BUILD_TYPE MATCHES Release)
@@ -131,6 +130,14 @@ target_link_libraries(rsccli
   rsclocal_com
   )
 
+if(CMAKE_SYSTEM_NAME STREQUAL Linux)
+  add_custom_command(TARGET rsccli POST_BUILD
+    COMMAND echo Enter your password to set up rsccli :
+    COMMAND sudo setcap cap_kill+ep rsccli # Add the capabilities to send signal to the service, which is a root process
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  )
+endif()
+
 find_package(Qt5Widgets)
 # find_package(Qt5Widgets CONFIG REQUIRED)
 
@@ -146,6 +153,14 @@ if( ${Qt5Widgets_FOUND} )
   target_link_libraries(rscgui common)
   set_target_properties(rscgui PROPERTIES AUTOMOC TRUE)
   qt5_use_modules(rscgui Widgets)
+
+  if(CMAKE_SYSTEM_NAME STREQUAL Linux)
+    add_custom_command(TARGET rscgui POST_BUILD
+    COMMAND echo Enter your password to set up rscgui :
+    COMMAND sudo setcap cap_kill+ep rscgui # Add the capabilities to send signal to the service, which is a root process
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  )
+  endif()
 else()
   message(WARNING "Qt5 not found.\n"
     "If you want to use rscgui, please install Qt5.")

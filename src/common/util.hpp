@@ -9,6 +9,7 @@ namespace rscutil {
   void register_pid();
   void serialize_string(std::ofstream& ofs, const std::string& str);
   void deserialize_string(std::ifstream& ifs, std::string& str);
+  void create_base_dir();
 
 }  // rscutil
 

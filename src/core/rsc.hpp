@@ -33,6 +33,7 @@ class RSC
   rscutil::PCList                _all_pc_list;
   std::atomic_bool               _run, _pause;
   std::pair<bool, uint8_t[6]>    _waiting_for_egress;
+  std::string                    _key;
   int                            _if;
   int                            _next_pc_id;
   CursorInfo *                   _cursor;
@@ -117,7 +118,7 @@ public:
    *\return 1 if there was an error. 0 otherwise.
    */
   
-  int  init(int if_indexma);
+  int  init(int if_index, const std::string& key);
 
   /**
    *\brief Release everything that need to be in the object

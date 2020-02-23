@@ -33,8 +33,8 @@ void RSC::_th_safe_op(Mutex &m, Lambda &&l)
 }
 
 RSC::RSC(): _if(DEFAULT_IF), _next_pc_id{0},
-	      _com(rsclocalcom::RSCLocalCom::Contact::CORE),
-	      _state(State::HERE)
+	    _com(rsclocalcom::RSCLocalCom::Contact::CORE),
+	    _state(State::HERE)
 {
   using namespace rscutil;
   
@@ -71,10 +71,11 @@ RSC::~RSC()
 #endif
 }
 
-int RSC::init(int if_index)
+int RSC::init(int if_index, const std::string& key)
 {
+  _key = key;
   _if = if_index;
-  int err = scnp_start(_if, nullptr);
+  int err = scnp_start(_if, ((key.empty())? nullptr : key.c_str()));
 
   if(err) error("Cannot start SCNP session");
   
@@ -95,12 +96,12 @@ void RSC::_transit(rscutil::Combo::Way way)
 {
   using Way = rscutil::Combo::Way;
 
-   _th_safe_op(_pc_list_mutex, [this, &way]() {
-       _pc_list.get_current().focus = false;
-       if(way == Way::LEFT)       _pc_list.previous_pc();
-       else if(way == Way::RIGHT) _pc_list.next_pc();
-       _pc_list.get_current().focus = true;	
-     });
+  _th_safe_op(_pc_list_mutex, [this, &way]() {
+      _pc_list.get_current().focus = false;
+      if(way == Way::LEFT)       _pc_list.previous_pc();
+      else if(way == Way::RIGHT) _pc_list.next_pc();
+      _pc_list.get_current().focus = true;	
+    });
   
   grab_controller(!_pc_list.get_current().local);
  
@@ -183,8 +184,8 @@ void RSC::add_pc(const uint8_t *addr, const std::string& hostname)
 {
   using namespace rscutil;
   bool exist = _all_pc_list.exist([&addr](const PC& pc) -> bool {
-				    return !memcmp(addr, pc.address, PC::LEN_ADDR);
-				  });
+      return !memcmp(addr, pc.address, PC::LEN_ADDR);
+    });
   if(!exist) {
     PC pc{ _next_pc_id++, false, false, hostname, {0}, { 0,0 }, { 0,0 }}; 
 
@@ -195,8 +196,8 @@ void RSC::add_pc(const uint8_t *addr, const std::string& hostname)
   }
   else {
     int id = _all_pc_list.get([&addr](const PC& pc) -> bool {
-				    return !memcmp(addr, pc.address, PC::LEN_ADDR);
-			      }).id;
+	return !memcmp(addr, pc.address, PC::LEN_ADDR);
+      }).id;
     _th_safe_op(_alive_mutex, [&id,this]() { _alive[id] = clock_t::now(); } );
   }
 }
@@ -214,54 +215,54 @@ void RSC::_receive()
   rscutil::ComboMouse  mouse(local_pc.resolution.w, local_pc.resolution.h);
   
   mouse.set_action([&](Combo* combo) {
-		     auto way = combo->get_way();
+      auto way = combo->get_way();
 		     
-		     struct scnp_out pkt;
-		     pkt.type = SCNP_OUT;
-		     pkt.side = (Combo::Way::RIGHT == way);
-		     pkt.direction = OUT_EGRESS;
+      struct scnp_out pkt;
+      pkt.type = SCNP_OUT;
+      pkt.side = (Combo::Way::RIGHT == way);
+      pkt.direction = OUT_EGRESS;
 		     
-		     _cursor_mutex.lock();
-		     pkt.height = _cursor->pos_y / (float)_cursor->screen_size.height;
-		     _cursor_mutex.unlock();
+      _cursor_mutex.lock();
+      pkt.height = _cursor->pos_y / (float)_cursor->screen_size.height;
+      _cursor_mutex.unlock();
 		     
-		     scnp_send(reinterpret_cast<struct scnp_packet *>(&pkt), addr_src);
-		   });
+      scnp_send(reinterpret_cast<struct scnp_packet *>(&pkt), addr_src);
+    });
 #endif
 
   std::map<uint8_t, std::function<ControllerEvent *(void)>> on_packet =
     {
-     { SCNP_KEY, [&packet]() { return ConvKey<ControllerEvent,KEY>::get(packet); }},
-     { SCNP_MOV, [&packet]() { return ConvKey<ControllerEvent,MOUSE>::get(packet); }},
-     { SCNP_OUT, [&packet, &addr_src,this]() {
+      { SCNP_KEY, [&packet]() { return ConvKey<ControllerEvent,KEY>::get(packet); }},
+      { SCNP_MOV, [&packet]() { return ConvKey<ControllerEvent,MOUSE>::get(packet); }},
+      { SCNP_OUT, [&packet, &addr_src,this]() {
 #ifndef NO_CURSOR
-		   auto * pkt = reinterpret_cast<struct scnp_out*>(&packet);
+	  auto * pkt = reinterpret_cast<struct scnp_out*>(&packet);
 		   
-		   if(pkt->direction == OUT_EGRESS) {
-		     const int l = rscutil::PC::LEN_ADDR;
+	  if(pkt->direction == OUT_EGRESS) {
+	    const int l = rscutil::PC::LEN_ADDR;
 		     
-		     if(_waiting_for_egress.first &&
-			!memcmp(_waiting_for_egress.second,addr_src,l)) {
-		       _waiting_for_egress.first = false;
-		     }
-		     else return nullptr;
+	    if(_waiting_for_egress.first &&
+	       !memcmp(_waiting_for_egress.second,addr_src,l)) {
+	      _waiting_for_egress.first = false;
+	    }
+	    else return nullptr;
 		     
-		     if(!pkt->side) _transit(Combo::Way::LEFT, pkt->height);
-		     else           _transit(Combo::Way::RIGHT, pkt->height);		     
-		   }
-		   else {
-		     std::unique_lock<std::mutex> lock(_cursor_mutex);
-		     _cursor->pos_x = (pkt->side == OUT_RIGHT)?10:_cursor->screen_size.width-10;
-		     _cursor->pos_y = pkt->height * _cursor->screen_size.height;
-		     set_cursor_position(_cursor);
-		   }
+	    if(!pkt->side) _transit(Combo::Way::LEFT, pkt->height);
+	    else           _transit(Combo::Way::RIGHT, pkt->height);		     
+	  }
+	  else {
+	    std::unique_lock<std::mutex> lock(_cursor_mutex);
+	    _cursor->pos_x = (pkt->side == OUT_RIGHT)?10:_cursor->screen_size.width-10;
+	    _cursor->pos_y = pkt->height * _cursor->screen_size.height;
+	    set_cursor_position(_cursor);
+	  }
 #endif
-		   return nullptr;
-		 }},
-     { SCNP_MNG, [this, &addr_src, &packet]() {
-		    auto * pkt = reinterpret_cast<struct scnp_management*>(&packet);
-		    add_pc(addr_src, pkt->hostname);
-		    return nullptr; }},
+	  return nullptr;
+	}},
+      { SCNP_MNG, [this, &addr_src, &packet]() {
+	  auto * pkt = reinterpret_cast<struct scnp_management*>(&packet);
+	  add_pc(addr_src, pkt->hostname);
+	  return nullptr; }},
     };
 
   while(_run) {
@@ -389,9 +390,9 @@ void RSC::_keep_alive()
 
       if(it != _alive.end()) {
         try {
-            if (_pc_list.get(it->first) == _pc_list.get_current()) {
-                while (!_pc_list.get_current().local) _transit(rscutil::Combo::Way::RIGHT);
-            }
+	  if (_pc_list.get(it->first) == _pc_list.get_current()) {
+	    while (!_pc_list.get_current().local) _transit(rscutil::Combo::Way::RIGHT);
+	  }
         } catch (std::runtime_error&) {
             
         }
@@ -399,7 +400,7 @@ void RSC::_keep_alive()
 	_th_safe_op(_pc_list_mutex, [&it,this]() {_pc_list.remove(it->first); });
 	_th_safe_op(_all_pc_list_mutex, [&it, this]() { _all_pc_list.remove(it->first); });
 	_th_safe_op(_alive_mutex, [&it, this]() { _alive.erase(it); } );
-    it = _alive.begin();
+	it = _alive.begin();
       }
       
     } while(it != _alive.end());
@@ -415,7 +416,7 @@ void RSC::_send()
 
   int err = init_controller();
   if (err) {
-      error("Can't instantiate controller");
+    error("Can't instantiate controller");
   }
 
   while(_run) {
@@ -496,7 +497,9 @@ int RSC::set_interface(int index)
   
   scnp_stop();
   _if = index;
-  if (scnp_start(_if, nullptr)) return -1;
+  int err = scnp_start(_if, ((_key.empty())? nullptr : _key.c_str()));
+  
+  if (err) return -1;
 
   return 0;
 }

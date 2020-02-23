@@ -373,6 +373,43 @@ static void handle_inotify(bool must_grab)
   }
 }
 
+static int handle_touchpad(ControllerEvent * ce, struct input_event* ev)
+{
+  static int touchpad = 0;
+  static int last_x = -1;
+  static int last_y = -1;
+
+  if(ev->code == ABS_MT_TRACKING_ID) {
+    touchpad = ev->value != -1;
+    if(!touchpad) {
+      last_x = -1;
+      last_y = -1;
+    }
+
+    return 0;
+  }
+      
+  if(touchpad && ev->code == ABS_MT_POSITION_X) {
+    if(last_x == -1) last_x = ev->value;
+
+    ce->ev_type = EV_REL;
+    ce->code = REL_X;
+    ce->value = (-last_x + ev->value) / 4;
+    last_x = ev->value;
+  }
+
+  if(touchpad && ev->code == ABS_MT_POSITION_Y) {
+    if(last_y == -1) last_y = ev->value;
+    
+    ce->ev_type = EV_REL;
+    ce->code = REL_Y;
+    ce->value = (ev->value - last_y) / 10;
+    last_y = ev->value;
+  }
+
+  return 1;
+}
+
 int poll_controller(ControllerEvent * ce, int timeout)
 {
   const size_t event_len = event_file_info.size;
@@ -396,12 +433,18 @@ int poll_controller(ControllerEvent * ce, int timeout)
       else {
 	read(event_file_info.pfds[i].fd, &ie, sizeof(ie));
       
-	if(ie.type == EV_KEY || ie.type == EV_REL || ie.type == EV_ABS) {
+	if(ie.type == EV_KEY || ie.type == EV_REL) {
 	  ce->controller_type = (ie.type == EV_KEY)?KEY:MOUSE;
 	  ce->ev_type = ie.type;
 	  ce->code = ie.code;
 	  ce->value = ie.value;
 	  quit |= RCTRL;
+	  --p;
+	}
+	else if(ie.type == EV_ABS) {
+	  ce->controller_type = MOUSE;
+	  int ret = handle_touchpad(ce, &ie);
+	  if(ret) quit |= RCTRL;
 	  --p;
 	}
       }

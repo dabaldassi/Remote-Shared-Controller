@@ -42,7 +42,7 @@ TEST_CASE("put keys") {
 
   char hello[6];
   fgets(hello,6,stdin);
-  hello[6] = 0;
+  hello[5] = 0;
   
   REQUIRE_FALSE(strcmp(hello,"hello"));
   
@@ -118,6 +118,8 @@ TEST_CASE("Mouse")
   
   REQUIRE(cursor->pos_x >= (x*ite/2));
   REQUIRE(cursor->pos_y >= (y*ite/2));
+
+  std::cout << cursor->screen_size.width << " " << cursor->screen_size.height << std::endl;
 
   exit_controller();
   close_cursor_info(cursor);

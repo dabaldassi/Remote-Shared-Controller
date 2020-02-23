@@ -1,11 +1,13 @@
+#include <controller_op.hpp>
+
 #include <QLabel>
 
 #include <power_panel.hpp>
 #include <config-gui.hpp>
 #include <button_switch.hpp>
-#include <controller_op.hpp>
 
 using rscui::PowerPanel;
+using rscui::ControllerOperation;
 
 PowerPanel::PowerPanel(ControllerOperation& op, State state, QWidget * parent)
   : QHBoxLayout(parent), _ops(op)

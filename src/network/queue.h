@@ -5,9 +5,15 @@
 extern "C" {
 #endif
 
+#ifdef __gnu_linux__
 #include <net/ethernet.h>
 #include <pthread.h>
 #include <semaphore.h>
+#else
+#define ETHER_ADDR_LEN 6
+#include <pthread.h>
+#include <semaphore.h>
+#endif
 
 #include "scnp.h"
 

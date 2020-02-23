@@ -1,24 +1,22 @@
 #include <iostream>
 #include <cstring>
-#include <scnp.h>
 #include <rsc.hpp>
+#include <scnp.h>
 #include <util.hpp>
 
-#include <unistd.h>
 
 int main(int argc, char *argv[])
 {
   rscutil::register_pid();
   
   RSC rsc;
-  int if_index = 1;
+  int if_index = 8;
 
   if(argc == 2) {
     if_index = atoi(argv[1]);
   }
   
   rsc.init(if_index);
-  sleep(1);
   
   do {
     rsc.run();

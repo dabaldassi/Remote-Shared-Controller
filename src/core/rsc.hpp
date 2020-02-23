@@ -7,10 +7,10 @@
 #include <mutex>
 #include <thread>
 
+#include <rsclocal_com.hpp>
 #include <combo.hpp>
 #include <pc_list.hpp>
 #include <scnp.h>
-#include <rsclocal_com.hpp>
 
 #ifndef NO_CURSOR
 #include <cursor.h>
@@ -23,7 +23,7 @@ class RSC
   using clock_t = std::chrono::system_clock;
   using timestamp_t = std::chrono::time_point<RSC::clock_t>;
 
-  static constexpr int DEFAULT_IF = 2;
+  static constexpr int DEFAULT_IF = 5;
   static constexpr int ALIVE_TIMEOUT = 5;
   
   std::map<int, timestamp_t> _alive;

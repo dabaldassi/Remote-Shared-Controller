@@ -8,6 +8,7 @@
 
 using rscui::ShortcutWindow;
 using rscui::ShortcutItem;
+using rscui::ControllerOperation;
 
 ///////////////////////////////////////////////////////////////////////////////
 //                                ShortcutItem                               //

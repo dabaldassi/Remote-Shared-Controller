@@ -1,13 +1,15 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
+#include <controller_op.hpp>
+
 #include <QTextStream>
 
 #include <lobby.hpp>
-#include <controller_op.hpp>
 
 using rscui::PCWidgetItem;
 using rscui::Lobby;
+using rscui::ControllerOperation;
 
 ///////////////////////////////////////////////////////////////////////////////
 //                                PCWidgetItem                               //

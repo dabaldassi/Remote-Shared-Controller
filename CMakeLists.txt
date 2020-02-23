@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.1.3)
 
 project(remote-shared-controller)
 
-find_package(Threads REQUIRED)
-
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include_directories(
@@ -23,6 +21,9 @@ option(NOCURSOR OFF)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_C_STANDARD 99)
+
+find_package(Threads REQUIRED)
+
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	set(CMAKE_CXX_FLAGS "-fdiagnostics-color=always ${CMAKE_CXX_FLAGS}")
@@ -45,11 +46,26 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL Windows)
-  message(FATAL_ERROR "${CMAKE_SYSTEM_NAME} is not handled")
-  file(GLOB_RECURSE controller_sources src/controller/windows/*.c)
-  file(GLOB_RECURSE controller_sources src/rsclocal_com/windows/*.cpp)
+  find_package(pthreads REQUIRED)
+
+  file(GLOB controller_sources src/controller/windows/*.cpp src/controller/translate.c)
+  file(GLOB network_src src/network/windows/*.c)
+  file(GLOB rsclocal_com_src src/rsclocal_com/windows/*.cpp)
+
+  include_directories(
+      ${PThreads4W_INCLUDE_DIR}
+      external/npcap/Include
+  )
+
+  set(NETWORK_LIB ${PThreads4W_LIBRARY} wpcap.lib Packet.lib)
+
+  file(COPY external/npcap/Lib/x64/wpcap.lib external/npcap/Lib/x64/Packet.lib DESTINATION ${CMAKE_BINARY_DIR})
+
 elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
-  file(GLOB_RECURSE rsclocal_com_sources src/rsclocal_com/linux/*.cpp)
+
+  file(GLOB_RECURSE rsclocal_com_src src/rsclocal_com/linux/*.cpp)
+  file(GLOB network_src src/network/linux/*.c)
+  set(NETWORK_LIB pthread)
 
   if(NOT NOCURSOR)
     find_package(X11 COMPONENTS Xfixes)
@@ -57,19 +73,19 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
     if( X11_FOUND AND X11_Xfixes_FOUND)
       message(STATUS "X11 is found, compiling with X11 features")
       set(controller_libs ${X11_LIBRAIRIES} ${X11_X11_LIB} ${X11_Xfixes_LIB})
-      file(GLOB_RECURSE controller_sources src/controller/linux/*.c)
+      file(GLOB_RECURSE controller_sources src/controller/linux/*.c src/controller/translate.c)
     else()
       message(WARNING "X11 is not found, assuming there is no graphic server\n"
 	 "You must install X11 and X11 fixes to use X11 features")
       add_compile_options(-DNO_CURSOR)
       file(GLOB_RECURSE controller_sources
-	src/controller/linux/translate.c
+	src/controller/translate.c
 	src/controller/linux/controller_linux.c)
     endif()
   else()
     file(GLOB_RECURSE controller_sources
       src/controller/linux/controller_linux.c
-      src/controller/linux/translate.c)
+      src/controller/translate.c)
     add_compile_options(-DNO_CURSOR)
   endif()
   
@@ -80,14 +96,15 @@ endif()
 add_library(controller ${controller_sources})
 target_link_libraries(controller ${controller_libs})
 
-file(GLOB_RECURSE rsclocal_com_header src/rsclocal_com/*.hpp)
-file(GLOB rsclocal_com_src src/rsclocal_com/*.cpp)
+file(GLOB rsclocal_com_header src/rsclocal_com/*.hpp)
+file(GLOB rsclocal_com_sources src/rsclocal_com/*.cpp)
 list(APPEND rsclocal_com_sources ${rsclocal_com_src})
 add_library(rsclocal_com ${rsclocal_com_sources} ${rsclocal_com_header})
 
-file(GLOB_RECURSE network_sources src/network/*.c)
+file(GLOB network_sources src/network/*.c)
+list(APPEND network_sources ${network_src})
 add_library(network ${network_sources})
-target_link_libraries(network pthread)
+target_link_libraries(network ${NETWORK_LIB})
 
 file(GLOB_RECURSE common_sources src/common/*.cpp)
 file(GLOB_RECURSE common_headers src/common/*.hpp)
@@ -111,9 +128,11 @@ add_executable(rsccli ${rsccli_sources} ${rsccli_headers})
 target_link_libraries(rsccli
   common
   network
+  rsclocal_com
   )
 
 find_package(Qt5Widgets)
+# find_package(Qt5Widgets CONFIG REQUIRED)
 
 if( ${Qt5Widgets_FOUND} )
   message(STATUS "Qt5 found")

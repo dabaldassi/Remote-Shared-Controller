@@ -49,12 +49,18 @@ event_testing:
   script:
     - build/src/tests/event_test
   when: manual # unable to use uinput module
+  except:
+    refs:
+      - windows
 
 network_testing:
   stage: test
   needs: ["build-nox"]
   script:
     - build/src/tests/network_test
+  except:
+    refs:
+      - windows
 
 localcom_testing:
   stage: test
@@ -62,6 +68,9 @@ localcom_testing:
   script:
     - mkdir -p /var/rsc/localcom
     - build/src/tests/localcom_test
+  except:
+    refs:
+      - windows
 
 common_testing:
   stage: test
@@ -69,9 +78,15 @@ common_testing:
   script:
     - mkdir -p /var/rsc/localcom
     - build/src/tests/common_test
+  except:
+    refs:
+      - windows
 
 rsccli_testing:
   stage: test
   needs: ["build-nox"]
   script:
     - build/src/tests/rsccli_test
+  except:
+    refs:
+      - windows

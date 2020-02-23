@@ -210,7 +210,7 @@ TEST_CASE("scnp_packets") {
   REQUIRE(out->height == 0.6f);
 
   /* scnp_movement */
-  uint8_t mov_buf[] = { SCNP_MOV, 0x12, 0x34, 0x56, 0x78, 0x90, 0x12 };
+  uint8_t mov_buf[] = { SCNP_MOV, MOV_REL << 7u, 0x12, 0x34, 0x56, 0x78, 0x90, 0x12 };
 
   b = sendto(fd, mov_buf, MOV_LENGTH, 0, (struct sockaddr *) &addr, addrlen);
   REQUIRE(b == MOV_LENGTH);
@@ -224,6 +224,7 @@ TEST_CASE("scnp_packets") {
   REQUIRE(memcmp(addr_r, loopaddr, ETHER_ADDR_LEN) == 0);
   auto * mov = reinterpret_cast<scnp_movement *>(packet);
   REQUIRE(mov->type == SCNP_MOV);
+  REQUIRE(mov->move_type == MOV_REL);
   REQUIRE(mov->code == 0x1234);
   REQUIRE(mov->value == 0x56789012);
 

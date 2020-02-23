@@ -28,7 +28,7 @@ ComboShortcut::ComboShortcut(const ComboShortcut& other): Combo(Way::RIGHT)
   _current = _shortcut_list.end();
 }
 
-ComboShortcut::ComboShortcut(ComboShortcut&& other) : Combo(Way::RIGHT)
+ComboShortcut::ComboShortcut(ComboShortcut&& other) noexcept : Combo(Way::RIGHT)
 {
   _shortcut_list = std::move(other._shortcut_list);
   _name = std::move(other._name);

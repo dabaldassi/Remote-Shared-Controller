@@ -3,6 +3,7 @@
 
 #include "catch/catch.hpp"
 
+#undef ERROR
 
 TEST_CASE("Message") {
   using namespace rsclocalcom;
@@ -35,7 +36,6 @@ TEST_CASE("Message") {
   SECTION("ACKERROR") {
     std::stringstream ss;
     Message m(Message::ACK);
-
     REQUIRE_THROWS(m.get(ss));
     REQUIRE_NOTHROW(m.add_arg(Message::ERROR, Message::DEFAULT));
     REQUIRE_NOTHROW(m.get(ss));
@@ -131,11 +131,12 @@ TEST_CASE("Com") {
 
   std::stringstream ss;
   RSCLocalCom       com(RSCLocalCom::Contact::CORE);
+  RSCLocalCom       com_client(RSCLocalCom::Contact::CLIENT);
   Message           msg(Message::GETLIST);
 
-  com.send_to(RSCLocalCom::Contact::CORE,msg);
+  com_client.send(msg);
   msg.reset();
-  com.read_from(RSCLocalCom::Contact::CLIENT,msg);
+  com.read(msg);
 
   REQUIRE_NOTHROW(msg.get(ss));
   REQUIRE(ss.str() == "GETLIST");
@@ -144,9 +145,9 @@ TEST_CASE("Com") {
   msg.reset(Message::ACK);
   msg.add_arg(Message::OK, Message::DEFAULT);
 
-  com.send_to(RSCLocalCom::Contact::CLIENT,msg);
+  com.send(msg);
   msg.reset();
-  com.read_from(RSCLocalCom::Contact::CORE,msg);
+  com_client.read(msg);
 
   REQUIRE_NOTHROW(msg.get(ss));
   REQUIRE(ss.str() == "ACK 0 0");

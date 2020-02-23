@@ -1,8 +1,10 @@
 
 message(STATUS "Test will be included")
 
+find_package(Threads REQUIRED)
+
 add_executable(event_test event_test.cpp catch/main_catch.cpp)
-target_link_libraries(event_test controller pthread)
+target_link_libraries(event_test controller Threads::Threads)
 
 add_executable(network_test network_test.cpp catch/main_catch.cpp)
 target_link_libraries(network_test network)

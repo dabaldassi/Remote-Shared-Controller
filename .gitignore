@@ -5,3 +5,5 @@ build/
 buildnocursor/
 .idea/
 doc/
+.vs/
+CMakeSettings.json

@@ -14,6 +14,14 @@ namespace rsclocalcom {
   
 }  // rsclocalcom
 
+#else
+
+#include <windows/fifo.hpp>
+
+namespace rsclocalcom {
+    using IPC = Fifo;
+}
+
 #endif
 
 namespace rsclocalcom {
@@ -34,7 +42,7 @@ namespace rsclocalcom {
      *\param msg The message to send
      */
     
-    void send_to(Contact c, const Message& msg);
+    int send_to(Contact c, const Message& msg);
 
     /**
      *\brief Receive a message from a contact.
@@ -42,65 +50,71 @@ namespace rsclocalcom {
      *\param buffer The buffer in which the message will be stored
      */
     
-    void read_from(Contact c, Message& buffer);
+    int read_from(Contact c, Message& buffer);
 
     /**
      *\brief Send a message to the other pair
      *\param msg The message to send
      */
     
-    void send(const Message& msg);
+    int send(const Message& msg);
 
     /**
      *\brief Receive a message from the other pair..
      *\param buffer The buffer in which the message will be stored
      */
     
-    void read(Message& buffer);
+    int read(Message& buffer);
   
     ~RSCLocalComImpl() { _com_impl.close(); }
   };
 
   template<typename T>
-  void RSCLocalComImpl<T>::send_to(Contact c, const Message& msg)
+  int RSCLocalComImpl<T>::send_to(Contact c, const Message& msg)
   {
     std::stringstream ss;
     
     msg.get(ss);
-    _com_impl.send_to(c, ss.str());
+    return _com_impl.send_to(c, ss.str());
   }
 
   template<typename T>
-  void RSCLocalComImpl<T>::read_from(Contact c, Message& msg)
+  int RSCLocalComImpl<T>::read_from(Contact c, Message& msg)
   {
     std::stringstream ss;
     std::string       buffer;
     
-    _com_impl.read_from(c, buffer);
+    int ret = _com_impl.read_from(c, buffer);
 
     ss.str(buffer);
     msg.set(ss);
+
+    return ret;
   }
 
   template<typename T>
-  void RSCLocalComImpl<T>::send(const Message& msg)
+  int RSCLocalComImpl<T>::send(const Message& msg)
   {
     std::stringstream ss;
     
     msg.get(ss);
-    _com_impl.send(ss.str());
+    return _com_impl.send(ss.str());
   }
 
   template<typename T>
-  void RSCLocalComImpl<T>::read(Message& msg)
+  int RSCLocalComImpl<T>::read(Message& msg)
   {
     std::stringstream ss;
     std::string       buffer;
     
-    _com_impl.read(buffer);
+    int ret = _com_impl.read(buffer);
+
+    if (ret <= 0) return ret;
 
     ss.str(buffer);
     msg.set(ss);
+
+    return ret;
   }
 
   /**

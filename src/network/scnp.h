@@ -7,9 +7,7 @@ extern "C" {
 
 #include <stdint.h>
 #include <stdbool.h>
-
-/* EtherType */
-#define ETH_P_SCNP 0x8888
+#include <scnp_socket.h>
 
 /* Types */
 #define SCNP_KEY 0x01
@@ -20,7 +18,7 @@ extern "C" {
 
 /* Type lengths */
 #define KEY_LENGTH 8
-#define MOV_LENGTH 7
+#define MOV_LENGTH 8
 #define OUT_LENGTH 8
 #define MNG_LENGTH 65
 #define ACK_LENGTH 5
@@ -30,6 +28,10 @@ extern "C" {
 
 /* Hostname length in SCNP management */
 #define HOSTNAME_LENGTH 64
+
+/* SCNP movement flag */
+#define MOV_REL true
+#define MOV_ABS false
 
 /* SCNP out flags */
 #define OUT_EGRESS true
@@ -92,6 +94,7 @@ struct scnp_key
 struct scnp_movement
 {
   uint8_t type;
+  bool move_type;
   uint16_t code;
   int32_t value;
 };

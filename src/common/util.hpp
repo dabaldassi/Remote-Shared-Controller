@@ -1,7 +1,7 @@
 #ifndef RSC_UTIL_H
 #define RSC_UTIL_H
 
-#include <iosfwd>
+#include <string>
 
 namespace rscutil {
 

@@ -6,7 +6,7 @@ char * get_key_name(unsigned short code)
 {
   static char name[100];
 
-  bzero(name, sizeof(name));
+  memset(name, 0, sizeof(name));
 
   switch(code) {
   case KEY_RESERVED: strcpy(name, "RESERVED"); break;
@@ -80,18 +80,24 @@ char * get_key_name(unsigned short code)
   case KEY_F10: strcpy(name, "F10"); break;
   case KEY_NUMLOCK: strcpy(name, "NUMLOCK"); break;
   case KEY_SCROLLLOCK: strcpy(name, "SCROLLLOCK"); break;
+#ifndef _WIN32
   case KEY_KP7: strcpy(name, "KP7"); break;
   case KEY_KP8: strcpy(name, "KP8"); break;
   case KEY_KP9: strcpy(name, "KP9"); break;
+#endif
   case KEY_KPMINUS: strcpy(name, "KP-"); break;
+#ifndef _WIN32
   case KEY_KP4: strcpy(name, "KP4"); break;
   case KEY_KP5: strcpy(name, "KP5"); break;
   case KEY_KP6: strcpy(name, "KP6"); break;
+#endif
   case KEY_KPPLUS: strcpy(name, "KP+"); break;
+#ifndef _WIN32
   case KEY_KP1: strcpy(name, "KP1"); break;
   case KEY_KP2: strcpy(name, "KP2"); break;
   case KEY_KP3: strcpy(name, "KP3"); break;
   case KEY_KP0: strcpy(name, "KP0"); break;
+#endif
   case KEY_KPDOT: strcpy(name, "KP."); break;
   case KEY_ZENKAKUHANKAKU: strcpy(name, "ZENKAKUHANKAKU"); break;
   case KEY_102ND: strcpy(name, "102ND"); break;
@@ -458,7 +464,7 @@ char * get_key_name_azerty(unsigned short code)
 {
   static char name[100];
 
-  bzero(name, sizeof(name));
+  memset(name, 0, sizeof(name));
 
   switch(code) {
   case KEY_RESERVED: strcpy(name, "RESERVED"); break;
@@ -532,18 +538,24 @@ char * get_key_name_azerty(unsigned short code)
   case KEY_F10: strcpy(name, "F10"); break;
   case KEY_NUMLOCK: strcpy(name, "NUMLOCK"); break;
   case KEY_SCROLLLOCK: strcpy(name, "SCROLLLOCK"); break;
+#ifndef _WIN32
   case KEY_KP7: strcpy(name, "KP7"); break;
   case KEY_KP8: strcpy(name, "KP8"); break;
   case KEY_KP9: strcpy(name, "KP9"); break;
+#endif
   case KEY_KPMINUS: strcpy(name, "KP-"); break;
+#ifndef _WIN32
   case KEY_KP4: strcpy(name, "KP4"); break;
   case KEY_KP5: strcpy(name, "KP5"); break;
   case KEY_KP6: strcpy(name, "KP6"); break;
+#endif
   case KEY_KPPLUS: strcpy(name, "KP+"); break;
+#ifndef _WIN32
   case KEY_KP1: strcpy(name, "KP1"); break;
   case KEY_KP2: strcpy(name, "KP2"); break;
   case KEY_KP3: strcpy(name, "KP3"); break;
   case KEY_KP0: strcpy(name, "KP0"); break;
+#endif
   case KEY_KPDOT: strcpy(name, "KP."); break;
   case KEY_ZENKAKUHANKAKU: strcpy(name, "ZENKAKUHANKAKU"); break;
   case KEY_102ND: strcpy(name, "<"); break;

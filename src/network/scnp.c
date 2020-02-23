@@ -1,10 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netpacket/packet.h>
-#include <net/ethernet.h>
-#include <arpa/inet.h>
+
 #include <pthread.h>
 #include <errno.h>
 #include <semaphore.h>
@@ -19,11 +15,15 @@
 #define ACK_MAX_TRIES 3
 #define SESSION_TIMEOUT 1
 
+#ifdef _WIN32
+#pragma comment(lib, "Ws2_32.lib")
+#define sleep(S) Sleep(S * 1000)
+#endif
 
 /* information used by all threads */
 static struct
 {
-  int socket;
+  struct scnp_socket  socket;
   struct scnp_queue * rqueue;
   struct scnp_queue * aqueue;
   struct scnp_queue * squeue;
@@ -33,7 +33,6 @@ static struct
   bool is_sthread_running;
   bool stop_mthread;
 } thread_info = {
-    .socket = -1,
     .rqueue = NULL,
     .aqueue = NULL,
     .squeue = NULL,
@@ -66,7 +65,7 @@ int scnp_start(unsigned int if_index, const char * key)
 {
   /* do not start if it is already started */
   if (
-      thread_info.socket >= 0 ||
+      scnp_socket_opened(&thread_info.socket) ||
       thread_info.is_rthread_running ||
       thread_info.is_sthread_running
       ) {
@@ -81,25 +80,14 @@ int scnp_start(unsigned int if_index, const char * key)
   }
 
   /* open a socket to send and receive SCNP data */
-  thread_info.socket = socket(AF_PACKET, SOCK_DGRAM, htons(ETH_P_SCNP));
-  if (thread_info.socket < 0) {
-    return -1;
-  }
 
-  /* bind the socket to the interface */
-  struct sockaddr_ll addr;
-  socklen_t addrlen = sizeof(struct sockaddr_ll);
-  memset(&addr, 0, addrlen);
-  addr.sll_family = AF_PACKET;
-  addr.sll_protocol = htons(ETH_P_SCNP);
-  addr.sll_ifindex = (int) if_index;
-  if (bind(thread_info.socket, (struct sockaddr *) &addr, addrlen)) {
-    return stop_and_fail();
+  if (scnp_socket_open(&thread_info.socket, if_index)) {
+      return stop_and_fail();
   }
 
   /* initialize the current identifier */
-  srandom(time(NULL));
-  current_id = random();
+  srand((unsigned int)time(NULL));
+  current_id = rand();
 
   /* initialize threads parameters */
   param_t param;
@@ -147,8 +135,7 @@ void scnp_stop(void)
   memset(cypher_key, 0, sizeof(cypher_key));
 
   /* close the socket */
-  if (thread_info.socket >= 0) close(thread_info.socket);
-  thread_info.socket = -1;
+  if (scnp_socket_opened(&thread_info.socket)) scnp_socket_close(&thread_info.socket);
 }
 
 static int is_ack_needed(const struct scnp_packet * packet);
@@ -245,11 +232,13 @@ static int build_mov_packet(struct scnp_packet * packet, const uint8_t * buf)
   struct scnp_movement mov;
   /* type */
   mov.type = SCNP_MOV;
+  /* move_type */
+  mov.move_type = *buf >> 7u;
   /* code */
-  memcpy(&mov.code, buf, sizeof(uint16_t));
+  memcpy(&mov.code, buf + sizeof(uint8_t), sizeof(uint16_t));
   mov.code = ntohs(mov.code);
   /* value */
-  memcpy(&mov.value, buf + sizeof(uint16_t), sizeof(uint32_t));
+  memcpy(&mov.value, buf + sizeof(uint8_t) + sizeof(uint16_t), sizeof(uint32_t));
   mov.value = ntohl(mov.value);
 
   memcpy(packet, &mov, sizeof(struct scnp_movement));
@@ -327,6 +316,7 @@ static uint8_t * alloc_buffer(uint8_t type, size_t * length)
   if (type == SCNP_KEY || type == SCNP_MOV || type == SCNP_OUT || type == SCNP_MNG || type == SCNP_ACK) {
     *length = packet_sizes[map_type(type)];
     buffer = (uint8_t *) malloc(*length);
+    if (buffer == NULL) return NULL;
     memset(buffer, 0, *length);
   } else {
     *length = 0;
@@ -341,7 +331,7 @@ static int build_key_buffer(uint8_t * buf, const struct scnp_packet * packet)
   struct scnp_key * p = (struct scnp_key *) packet;
 
   /* id */
-  uint32_t id = htonl(current_id += random() % ID_MAX_INCR);
+  uint32_t id = htonl(current_id += rand() % ID_MAX_INCR);
   memcpy(buf, &id, sizeof(uint32_t));
   /* code */
   uint16_t code = htons(p->code);
@@ -360,12 +350,15 @@ static int build_mov_buffer(uint8_t * buf, const struct scnp_packet * packet)
   // TODO same as previous function
   struct scnp_movement * p = (struct scnp_movement *) packet;
 
+  /* move_type */
+  uint8_t type_flag = (p->move_type) << 7u;
+  memcpy(buf, &type_flag, sizeof(uint8_t));
   /* code */
   uint16_t code = htons(p->code);
-  memcpy(buf, &code, sizeof(uint16_t));
+  memcpy(buf + sizeof(uint8_t), &code, sizeof(uint16_t));
   /* value */
   uint32_t value = htonl(p->value);
-  memcpy(buf + sizeof(uint16_t), &value, sizeof(uint32_t));
+  memcpy(buf + sizeof(uint8_t) + sizeof(uint16_t), &value, sizeof(uint32_t));
 
   return 0;
 }
@@ -376,7 +369,7 @@ static int build_out_buffer(uint8_t * buf, const struct scnp_packet * packet)
   struct scnp_out * p = (struct scnp_out *) packet;
 
   /* id */
-  uint32_t id = htonl(current_id += random() % ID_MAX_INCR);
+  uint32_t id = htonl(current_id += rand() % ID_MAX_INCR);
   memcpy(buf, &id, sizeof(uint32_t));
   /* flags */
   uint8_t direction_flag = (p->direction) << 7u;
@@ -449,7 +442,6 @@ static void * recv_packets(void * arg)
 
   /* initialize parameters */
   param_t * param = (param_t *) arg;
-  int if_index = param->if_index;
 
   /* allocate memory for the buffer */
   size_t packetlen = sizeof(struct scnp_packet);
@@ -471,29 +463,25 @@ static void * recv_packets(void * arg)
 
   /* initialize the packet and the socket address */
   struct scnp_packet packet;
-  socklen_t addrlen = sizeof(struct sockaddr_ll);
-  struct sockaddr_ll addr;
-  memset(&addr, 0, addrlen);
-  addr.sll_family = AF_PACKET;
-  addr.sll_protocol = htons(ETH_P_SCNP);
-  addr.sll_ifindex = if_index;
+  uint8_t            addr[ETHER_ADDR_LEN];
+
 
   while (!stop) {
     /* reset packet and buffer */
     memset(&packet, 0, sizeof(struct scnp_packet));
     memset(buf, 0, MAX_PACKET_LENGTH);
     /* receive scnp data */
-    if (recvfrom(thread_info.socket, buf, packetlen, 0, (struct sockaddr *) &addr, &addrlen) == -1) {
+    if (scnp_socket_recvfrom(&thread_info.socket, buf, packetlen, 0, addr) == -1) {
       stop = true;
     }
     /* build the packet from buffer data */
     if (build_packet(&packet, buf) == 0) {
       /* push the packet in the corresponding queue */
       if (packet.type == SCNP_ACK) {
-        push(thread_info.aqueue, &packet, addr.sll_addr);
+        push(thread_info.aqueue, &packet, addr);
       }
       else {
-        push(thread_info.rqueue, &packet, addr.sll_addr);
+        push(thread_info.rqueue, &packet, addr);
       }
     }
   }
@@ -530,7 +518,6 @@ static void * send_packets(void * arg)
 
   /* initialize parameters */
   param_t * param = (param_t *) arg;
-  int if_index = param->if_index;
 
   /* declare buffer */
   struct waste_t waste;
@@ -554,20 +541,14 @@ static void * send_packets(void * arg)
 
   /* initialize the packet and the socket address */
   struct scnp_packet packet;
-  socklen_t addrlen = sizeof(struct sockaddr_ll);
-  struct sockaddr_ll addr;
-  memset(&addr, 0, addrlen);
-  addr.sll_family = AF_PACKET;
-  addr.sll_protocol = htons(ETH_P_SCNP);
-  addr.sll_ifindex = if_index;
-  addr.sll_halen = ETHER_ADDR_LEN;
-
+  uint8_t            addr[ETHER_ADDR_LEN];
+  
   /* initialize the queue timeout */
   int64_t timeout = -1;
 
   while(!stop) {
     /* pull packet */
-    if (pull(thread_info.squeue, &packet, addr.sll_addr, timeout)) {
+    if (pull(thread_info.squeue, &packet, addr, timeout)) {
       stop = true;
     }
     /* initialize buffer */
@@ -577,7 +558,7 @@ static void * send_packets(void * arg)
     /* build packet */
     if (waste.buf != NULL && build_buffer(waste.buf, &packet) == 0) {
       /* send packet */
-      if (sendto(thread_info.socket, waste.buf, buf_length, 0, (struct sockaddr *) &addr, addrlen) <= 0) {
+      if (scnp_socket_sendto(&thread_info.socket, waste.buf, buf_length, 0,addr) <= 0) {
         stop = true;
       }
     }
@@ -586,7 +567,7 @@ static void * send_packets(void * arg)
     waste.buf = NULL;
   }
 
-  /* exxecute scleanup */
+  /* execute scleanup */
   pthread_cleanup_pop(1);
 
   return NULL;

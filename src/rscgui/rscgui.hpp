@@ -1,10 +1,11 @@
 #ifndef RSCGUI_H
 #define RSCGUI_H
 
+#include <controller_op.hpp>
+
 #include <QMainWindow>
 
 #include <rscui.hpp>
-#include <controller_op.hpp>
 
 namespace rscui {
 

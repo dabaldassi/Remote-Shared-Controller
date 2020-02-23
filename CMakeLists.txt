@@ -131,11 +131,14 @@ target_link_libraries(rsccli
   )
 
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)
-  add_custom_command(TARGET rsccli POST_BUILD
-    COMMAND echo Enter your password to set up rsccli :
-    COMMAND sudo setcap cap_kill+ep rsccli # Add the capabilities to send signal to the service, which is a root process
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-  )
+  if(NOT $ENV{USER} STREQUAL root)
+    add_custom_command(
+      TARGET rsccli POST_BUILD
+      COMMAND echo Enter your password to set up rsccli :
+      COMMAND sudo setcap cap_kill+ep rsccli # Add the capabilities to send signal to the service, which is a root process
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+      )
+    endif()
 endif()
 
 find_package(Qt5Widgets)
@@ -155,11 +158,14 @@ if( ${Qt5Widgets_FOUND} )
   qt5_use_modules(rscgui Widgets)
 
   if(CMAKE_SYSTEM_NAME STREQUAL Linux)
-    add_custom_command(TARGET rscgui POST_BUILD
-    COMMAND echo Enter your password to set up rscgui :
-    COMMAND sudo setcap cap_kill+ep rscgui # Add the capabilities to send signal to the service, which is a root process
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-  )
+    if(NOT $ENV{USER} STREQUAL root)
+      add_custom_command(
+	TARGET rscgui POST_BUILD
+	COMMAND echo Enter your password to set up rscgui :
+	COMMAND sudo setcap cap_kill+ep rscgui # Add the capabilities to send signal to the service, which is a root process
+	WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+	)
+    endif()
   endif()
 else()
   message(WARNING "Qt5 not found.\n"

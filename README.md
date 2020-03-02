@@ -55,7 +55,9 @@ If you choose to build the tests, you can run all of them from the build directo
 
 ## Launch Remote-Share-Controller service
 
-You need to be root to launch remote-shared-controller.
+On Linux, you need to be root to launch remote-shared-controller.
+
+On Windows, you must install [npcap](https://nmap.org/npcap/) first.
 
 ```bash
 

@@ -7,10 +7,13 @@ Software which allow to share the mouse and keyboard of one computer with severa
 ## Prerequisites
 
 * CMake
-* A c++-14 compiler
+* A c++-14 compiler (GCC or MSVC)
 * libx11-dev and libfixes-dev
+* A Linux kernel version greater than 4.9 or Windows 10
 
 ## Build
+
+### Linux build
 
 ```bash
 
@@ -22,6 +25,26 @@ make
 
 ```
 
+### Windows build
+
+First, you must install Microsoft Visual Studio 2019.
+
+Either you open the CMakeList with visual studio to set up the project and then build from the IDE or you can build from the Microsoft Visual Studio developper command prompt. 
+
+In the last case, open this command prompt and go to the root of the project. Then type : 
+
+```bash
+
+mkdir build && cd build
+
+cmake .. [-DCMAKE_BUILD_TYPE={Release|Debug}]
+
+cmake --build .
+
+```
+
+### CMake options
+
 With the option ``INCLUDE_TEST`` enabled, it will build all the unitary tests.
 
 You can enabled the option ``NO_CURSOR`` if you don't want to use the cursor or if you don't have any graphic environment.
@@ -30,23 +53,13 @@ By default, ``INCLUDE_TEST`` and ``NOCURSOR`` are OFF.
 
 If you choose to build the tests, you can run all of them from the build directory with the command ``ctest``
 
-## Setup
-
-You need to create the base directory first.
-
-```bash
-
-mkdir -p /var/rsc/localcom
-
-```
-
 ## Launch Remote-Share-Controller service
 
 You need to be root to launch remote-shared-controller.
 
 ```bash
 
-./remote-shared-controller [if_index]
+./remote-shared-controller -i if_index -k key
 
 ```
 
@@ -68,8 +81,6 @@ To see all the available commands :
 
 ```
 
-You need to be root to use rsccli.
-
 ## rscgui
 
 rscgui is graphic user interface designed to use remote-shared-controller.
@@ -82,21 +93,9 @@ You can just run rscgui from the build directory with the following :
 
 ```
 
-For now, you will need to do the following in order to have icon (from the build directory):
-
-```
-
-ln -s ../icon
-
-```
+For now, you will need to copy to folder ``icon`` from the root of the project to the rscgui binary directory.
 
 This step will be removed later when the installation wil be automatic.
-
-You need to be root to run rscgui.
-
-## Remarks
-
-This project only works on Linux at the moment.
 
 ## Authors
 

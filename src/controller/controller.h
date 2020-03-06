@@ -8,7 +8,9 @@
 extern "C" {
 #endif
 
-#include <input-event-codes.h>  
+#ifndef NOT_INCLUDE_INPUT_CODE
+#include <input-event-codes.h>
+#endif
 
   /*
    * Id for controller type

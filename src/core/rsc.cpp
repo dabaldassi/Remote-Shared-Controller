@@ -224,6 +224,7 @@ void RSC::_receive()
 		     
       _cursor_mutex.lock();
       pkt.height = _cursor->pos_y / (float)_cursor->screen_size.height;
+      hide_cursor(_cursor);
       _cursor_mutex.unlock();
 		     
       scnp_send(reinterpret_cast<struct scnp_packet *>(&pkt), addr_src);
@@ -281,6 +282,7 @@ void RSC::_receive()
 #ifndef NO_CURSOR
       int x = 0, y = 0;
       _th_safe_op(_cursor_mutex, [this, &x, &y](){
+	  if(!_cursor->visible) show_cursor(_cursor);
 	  get_cursor_position(_cursor);
 	  x = _cursor->pos_x;
 	  y = _cursor->pos_y;
@@ -436,6 +438,7 @@ void RSC::_send()
 	    y = 1;
 	  }
 	});
+      if(c.controller_type == MOUSE && !_cursor->visible) show_cursor(_cursor);
 #endif
       
       for(auto&& s : _shortcut) s->update(c.code, c.value, x, y);

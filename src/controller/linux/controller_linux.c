@@ -9,9 +9,9 @@
 #include <sys/inotify.h>
 #include <errno.h>
 
-#include <linux/input.h>
 #include <linux/uinput.h>
 
+#define NOT_INCLUDE_INPUT_CODE
 #include "controller.h"
 
 #define DEV_INPUT_FILE_NAME "/dev/input/"

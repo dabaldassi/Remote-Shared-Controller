@@ -300,11 +300,15 @@ void write_controller(const ControllerEvent* ce)
         
         switch (ce->code) {
         case REL_WHEEL:
-            mouse_input.mouseData = (DWORD)ce->value;
+            if(ce->value > 0)      mouse_input.mouseData = WHEEL_DELTA;
+            else if(ce->value < 0) mouse_input.mouseData = -WHEEL_DELTA;
+            else                   mouse_input.mouseData = 0;
             flag |= MOUSEEVENTF_WHEEL;
             break;
         case REL_HWHEEL:
-            mouse_input.mouseData = ce->value;
+            if (ce->value > 0)      mouse_input.mouseData = WHEEL_DELTA;
+            else if (ce->value < 0) mouse_input.mouseData = -WHEEL_DELTA;
+            else                    mouse_input.mouseData = 0;
             flag |= MOUSEEVENTF_HWHEEL;
             break;
         case REL_X:

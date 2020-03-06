@@ -72,10 +72,17 @@ RSC::~RSC()
 }
 
 int RSC::init(int if_index, const std::string& key)
-{
+{  
   _key = key;
+
+  if(if_index <= 0) {
+    IF * interfaces = get_interfaces();
+    if_index = interfaces->if_index;
+    free_interfaces(interfaces);
+  }
+
   _if = if_index;
-  int err = scnp_start(_if, ((key.empty())? nullptr : key.c_str()));
+  int err = scnp_start(_if, ((key.empty()) ? nullptr : key.c_str()));
 
   if(err) error("Cannot start SCNP session");
   
@@ -438,7 +445,9 @@ void RSC::_send()
 	    y = 1;
 	  }
 	});
-      if(c.controller_type == MOUSE && !_cursor->visible) show_cursor(_cursor);
+      if(c.controller_type == MOUSE && !_cursor->visible && _state == State::HERE) {
+        show_cursor(_cursor);
+      }
 #endif
       
       for(auto&& s : _shortcut) s->update(c.code, c.value, x, y);

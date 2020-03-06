@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
   rscutil::register_pid();
   
   RSC rsc;
-  int if_index = 8;
+  int if_index = -1;
   std::string key;
 
   for(int i = 1; i < argc; ++i) {

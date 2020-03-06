@@ -150,8 +150,13 @@ if( ${Qt5Widgets_FOUND} )
 
   file(GLOB rscgui_sources src/rscgui/*.cpp)
   file(GLOB rscgui_headers src/rscgui/*.hpp)
+  
+  if(${CMAKE_SYSTEM_NAME} STREQUAL Windows) 
+    add_executable(rscgui WIN32 ${rscgui_sources} ${rscgui_headers} src/icon.rc)
+  else()
+    add_executable(rscgui ${rscgui_sources} ${rscgui_headers} src/icon.rc)
+  endif()
 
-  add_executable(rscgui ${rscgui_sources} ${rscgui_headers})
   target_include_directories(rscgui PUBLIC ${Qt5Widgets_INCLUDE_DIRS})
   target_link_libraries(rscgui common)
   set_target_properties(rscgui PROPERTIES AUTOMOC TRUE)

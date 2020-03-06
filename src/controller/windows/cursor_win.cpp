@@ -10,16 +10,14 @@ CursorInfo* open_cursor_info()
 	if (cursor == NULL) return NULL;
 
 	get_cursor_position(cursor);
-	
-	RECT resolution;
-	GetWindowRect(GetDesktopWindow(), &resolution);
 
 	CURSORINFO cursor_info;
 	cursor_info.cbSize = sizeof(CURSORINFO);
 	GetCursorInfo(&cursor_info);
-
-	cursor->screen_size.width = resolution.right;
-	cursor->screen_size.height = resolution.bottom;
+	int x = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+	
+	cursor->screen_size.width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+	cursor->screen_size.height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
 	cursor->visible = cursor_info.flags & CURSOR_SHOWING;
 	
 	return cursor;

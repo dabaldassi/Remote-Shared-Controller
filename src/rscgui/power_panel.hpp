@@ -3,11 +3,12 @@
 
 #include <QHBoxLayout>
 
+#include <controller_op.hpp>
+
 class QLabel;
+class QCheckBox;
 
 namespace rscui {
-
-  class ControllerOperation;
 
   /**
    *\brief Panel which manage the information about the daemon, 
@@ -22,9 +23,11 @@ namespace rscui {
     enum class State { RUNNING, PAUSED, STOPPED }; // State of the daemon
     
   private:
-    State    _state;
-    QLabel * _led;
-    QLabel * _state_text;
+    State       _state;
+    QLabel    * _led;
+    QLabel    * _state_text;
+    QCheckBox * _option_cb[ControllerOperation::NB_OPTIONS];
+    uint8_t     _options;
 
     ControllerOperation& _ops;
     
@@ -39,6 +42,8 @@ namespace rscui {
     explicit PowerPanel(ControllerOperation&,
 			State state = State::STOPPED,
 			QWidget * parent = nullptr);
+
+    void set_option(ControllerOperation::Option opt, bool state);
 
     /**
      *\brief Update the state of the panel
@@ -61,6 +66,7 @@ namespace rscui {
      */
     
     void on_switch_toggle(bool t);
+    void on_option_clicked();
   
   };
 

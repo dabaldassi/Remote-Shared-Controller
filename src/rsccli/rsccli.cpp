@@ -92,6 +92,8 @@ void RSCCli::display_help()
   StopCommand::print_help();
   PauseCommand::print_help();
   ShortcutCommand::print_help();
+  OptionCommand::print_help();
+  SwapCommand::print_help();
 
   std::cout << "\n";
 }

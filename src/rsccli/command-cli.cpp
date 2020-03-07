@@ -21,6 +21,8 @@ constexpr char StartCommand::_NAME[];
 constexpr char StopCommand::_NAME[];
 constexpr char PauseCommand::_NAME[];
 constexpr char ShortcutCommand::_NAME[];
+constexpr char OptionCommand::_NAME[];
+constexpr char SwapCommand::_NAME[];
 constexpr char Command::_NAME[];
 
 const std::string Command::OPT_DELIM = "-";
@@ -41,6 +43,8 @@ Command::Ptr Command::get_command(const std::string &name)
   else if(name == StartCommand::get_name())   return std::make_unique<StartCommand>();
   else if(name == StopCommand::get_name())    return std::make_unique<StopCommand>();
   else if(name == ShortcutCommand::get_name())return std::make_unique<ShortcutCommand>();
+  else if(name == OptionCommand::get_name())  return std::make_unique<OptionCommand>();
+  else if(name == SwapCommand::get_name())    return std::make_unique<SwapCommand>();
   else                                        return nullptr;
 }
 
@@ -531,4 +535,101 @@ int ShortcutCommand::list(ctrl_op_t & ops)
 {
   if(_args.empty()) return ops.list_shortcut();
   else              return ops.list_shortcut(_args.front());
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//                               OptionCommand                               //
+///////////////////////////////////////////////////////////////////////////////
+
+std::map<std::string, unsigned> OptionCommand::_option_id = {
+  { "circular", ControllerOperation::CIRCULAR },
+};
+
+constexpr char OptionCommand::ENABLED[];
+constexpr char OptionCommand::DISABLED[];
+
+void OptionCommand::print_usage() const
+{
+  std::cout << "Usage : " << RSCCLI_NAME << " " << _NAME << " opt_name {enabled | disabled}\n";
+}
+
+void OptionCommand::add_arg(const std::string& arg)
+{
+  if(_args.size() < _nb_arg) _args.push_back(arg);
+  else throw std::range_error("Too many arguments");
+
+  if(_args.size() == 1) {
+    auto it = _option_id.find(arg);
+    if(it != _option_id.end()) _option_to_set = it->second;
+    else throw std::runtime_error("Not a valid option");
+  }
+  else {
+    if(arg == ENABLED)       _state_to_set = true;
+    else if(arg == DISABLED) _state_to_set = false;
+    else throw std::runtime_error("Not a valid state");
+  }
+}
+
+void OptionCommand::add_opt(const std::string&)
+{
+  throw std::runtime_error(_NAME + std::string(" doesn't take option"));
+}
+
+void OptionCommand::print_help()
+{
+  std::cout << "\t" << _NAME << "\tSet the state of an option.\n";
+  std::cout << "\t\t" << _NAME << " opt_name enabled"
+	    << "\tEnable the option with the name \"opt_name\".\n";
+  std::cout << "\t\t" << _NAME << " opt_name disabled"
+	    << "\tDisable the option with the name \"opt_name\".\n";
+  std::cout << "\n";
+}
+
+int OptionCommand::execute(ctrl_op_t & ops)
+{
+  if(_args.size() < 2) {
+    std::cerr << _NAME << " need exactly two arguments\n";
+    print_usage();
+    return 1;
+  }
+
+  return ops.set_option((ControllerOperation::Option)_option_to_set, _state_to_set);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//                                SwapCommand                                //
+///////////////////////////////////////////////////////////////////////////////
+
+void SwapCommand::print_usage() const
+{
+  std::cout << "Usage : " << RSCCLI_NAME << " " << _NAME << " id1 id2\n";
+}
+
+void SwapCommand::add_arg(const std::string& arg)
+{
+  if(_args.size() < _nb_arg) _args.push_back(arg);
+  else throw std::range_error("Too many arguments");
+}
+
+void SwapCommand::add_opt(const std::string&)
+{
+  throw std::runtime_error(_NAME + std::string(" doesn't take option"));
+}
+
+void SwapCommand::print_help()
+{
+  std::cout << "\t" << _NAME << "\tSwap two PC in the list.\n";
+  std::cout << "\t\t" << _NAME << " id1 id2" << "\t. Swap PC with id1 with PC with id2\n";
+  std::cout << "\n";
+}
+
+int SwapCommand::execute(ctrl_op_t & ops)
+{
+  if(_args.size() < 2) {
+    std::cerr << _NAME << " need exactly two arguments\n";
+    print_usage();
+    return 1;
+  }
+
+  return ops.swap(std::stoi(_args.front()), std::stoi(_args.back()));
 }

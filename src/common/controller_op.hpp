@@ -39,6 +39,9 @@ namespace rscui {
     int _get_shortcut(rscutil::ComboShortcut::ComboShortcutList&);
     
   public:
+    enum Option : unsigned { CIRCULAR };
+    static constexpr size_t NB_OPTIONS = 1;
+
     ControllerOperation(RscUi * ui)
       : _ui(ui) {}
    
@@ -146,6 +149,7 @@ namespace rscui {
     int reset_shortcut();
 
     int swap(int id1, int id2);
+    int set_option(Option opt, bool state);
   };
 
 

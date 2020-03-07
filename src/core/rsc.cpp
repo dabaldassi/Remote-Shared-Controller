@@ -139,16 +139,20 @@ void RSC::_transit(rscutil::Combo::Way way)
 void RSC::_transit(rscutil::Combo::Way way, float height)
 {
   using Way = rscutil::Combo::Way;
+  std::string old_name;
 
-  _th_safe_op(_pc_list_mutex, [this, &way]() {
+  _th_safe_op(_pc_list_mutex, [this, &way, &old_name]() {
+      old_name = _pc_list.get_current().name;
       _pc_list.get_current().focus = false;
+      
       if(way == Way::LEFT)       _pc_list.previous_pc();
       else if(way == Way::RIGHT) _pc_list.next_pc();
-      _pc_list.get_current().focus = true;	
+      
+      _pc_list.get_current().focus = true;
     });
 
   if(_pc_list.get_current().local) {
-    if(_pc_list.size() > 1) {
+    if(_pc_list.size() > 1 &&  _pc_list.get_current().name != old_name) {
       std::unique_lock<std::mutex> lock(_cursor_mutex);
       _cursor->pos_x = (way == Way::RIGHT)?10:_cursor->screen_size.width-10;
       _cursor->pos_y = height * _cursor->screen_size.height;
@@ -159,8 +163,15 @@ void RSC::_transit(rscutil::Combo::Way way, float height)
     struct scnp_out pkt;
     pkt.type = SCNP_OUT;
     pkt.direction = OUT_INGRESS;
-    pkt.side = (way == Way::LEFT)? OUT_LEFT : OUT_RIGHT;
     pkt.height = height;
+
+    if(old_name == _pc_list.get_current().name) {
+      pkt.side = (way == Way::LEFT)? OUT_RIGHT : OUT_LEFT;
+    }
+    else {
+      pkt.side = (way == Way::LEFT)? OUT_LEFT : OUT_RIGHT;
+    }
+
     scnp_send(reinterpret_cast<scnp_packet*>(&pkt),
 	      _pc_list.get_current().address);
 
@@ -362,6 +373,11 @@ void RSC::_local_cmd()
       { Message::LOAD_SHORTCUT, [this, &ack](const Message& msg) {
 	  int arg = std::stoi(msg.get_arg(0));
 	  load_shortcut(arg == Message::LOAD_RESET);
+	  ack.add_arg(Message::OK, Message::DEFAULT);
+	}},
+      { Message::CIRCULAR, [this, &ack](const Message& msg) {
+	  bool arg = std::stoi(msg.get_arg(0));
+	  _pc_list.set_circular(arg);
 	  ack.add_arg(Message::OK, Message::DEFAULT);
 	}},
     };

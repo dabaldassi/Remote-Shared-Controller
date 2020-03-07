@@ -343,3 +343,20 @@ int ControllerOperation::swap(int id1, int id2)
    rsclocalcom::Message msg(rsclocalcom::Message::SETLIST);
    return _send_cmd(msg);
 }
+
+int ControllerOperation::set_option(Option opt, bool state)
+{
+  rsclocalcom::Message msg;
+
+  switch(opt) {
+  case Option::CIRCULAR:
+    msg.reset(rsclocalcom::Message::CIRCULAR);
+    msg.add_arg(state);
+    break;
+  default:
+    _ui->display_error("Not a valid option");
+    return 1;
+  }
+  
+  return _send_cmd(msg);
+}

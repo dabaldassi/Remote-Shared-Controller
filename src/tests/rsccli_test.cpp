@@ -9,7 +9,8 @@
 #include <controller_op.hpp>
 
 enum { LISTALL, LISTCURRENT, LISTREFRESH, ADD, ADD2, REMOVE, SETIF, LISTIF, VERSION, HELP,
-       START, STOP, PAUSE, GETIF, SET_SHORTCUT, LISTALL_SHORTCUT, LIST_SHORTCUT, RESET_SHORTCUT};
+       START, STOP, PAUSE, GETIF, SET_SHORTCUT, LISTALL_SHORTCUT, LIST_SHORTCUT, RESET_SHORTCUT,
+       SWAP, OPTION};
 
 using namespace rscui;
 
@@ -99,6 +100,16 @@ int ControllerOperation::set_shortcut(const std::string&)
 int ControllerOperation::reset_shortcut()
 {
   return RESET_SHORTCUT;
+}
+
+int ControllerOperation::swap(int, int)
+{
+  return SWAP;
+}
+
+int ControllerOperation::set_option(Option, bool)
+{
+  return OPTION;
 }
 
 

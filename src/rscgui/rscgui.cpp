@@ -76,6 +76,10 @@ RSCGui::RSCGui(QWidget * parent) : QMainWindow(parent),
 
   connect(timer, &QTimer::timeout, this, &RSCGui::on_timeout);
 
+  auto * pcwidget = new PCWidget(0, "localhost", nullptr);
+  pcwidget->focus(true);
+  _pc_panel->add_pc(pcwidget);
+  
   on_timeout();
 }
 
@@ -83,6 +87,8 @@ void RSCGui::display_current_pc(rscutil::PCList& list, bool)
 {
   QLayoutItem * child;
 
+  _power_panel->set_option(ControllerOperation::Option::CIRCULAR, list.is_circular());
+  
   if(PCWidget::can_update) {
   
     while((child = _pc_panel->takeAt(0))) {

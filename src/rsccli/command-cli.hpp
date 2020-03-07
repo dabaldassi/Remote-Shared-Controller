@@ -316,6 +316,52 @@ namespace rscui {
     static void print_help();
     static std::string get_name() { return _NAME; }
   };
+
+  // OptionCommand ////////////////////////////////////////////////////////////
+
+  class OptionCommand : public Command
+  {
+    static constexpr char _NAME[] = "set";
+
+    static constexpr char ENABLED[] = "enabled";
+    static constexpr char DISABLED[] = "disabled";
+
+    static std::map<std::string, unsigned> _option_id;
+
+    unsigned _option_to_set;
+    bool     _state_to_set;
+    
+  public:
+    OptionCommand()
+      : Command(2,0) {}
+
+    void print_usage() const override;
+    void add_arg(const std::string& arg) override;
+    void add_opt(const std::string& opt) override;
+    int  execute(ctrl_op_t & ops) override;
+    
+    static void print_help();
+    static std::string get_name() { return _NAME; }
+  };
+
+  // SwapCommand //////////////////////////////////////////////////////////////
+  
+  class SwapCommand : public Command
+  {
+    static constexpr char _NAME[] = "swap";
+    
+  public:
+    SwapCommand()
+      : Command(2,0) {}
+
+    void print_usage() const override;
+    void add_arg(const std::string& arg) override;
+    void add_opt(const std::string& opt) override;
+    int  execute(ctrl_op_t & ops) override;
+    
+    static void print_help();
+    static std::string get_name() { return _NAME; }
+  };
   
 }  // rscui
 

@@ -14,6 +14,7 @@ std::vector<std::tuple<std::string,size_t>> Message::_commands =
     std::make_tuple("PAUSE",0),
     std::make_tuple("LOAD_SHORTCUT",1),
     std::make_tuple("SAVE_SHORTCUT",0),
+    std::make_tuple("CIRCULAR",1),
   };
 
 Message::Message(Command c): _cmd(c)

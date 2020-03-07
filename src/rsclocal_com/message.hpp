@@ -11,7 +11,7 @@ namespace rsclocalcom {
   {
   public:
     enum Command : unsigned { IF, GETIF, GETLIST, SETLIST, ACK, START, STOP, PAUSE,
-			      LOAD_SHORTCUT, SAVE_SHORTCUT, NA };
+			      LOAD_SHORTCUT, SAVE_SHORTCUT, CIRCULAR, NA };
     enum AckType { OK, ERROR };
     enum AckCode : unsigned { DEFAULT, STARTED, PAUSED, FUTURE, IF_EXIST };
 

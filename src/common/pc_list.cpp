@@ -81,6 +81,8 @@ void PCList::save(const std::string& file_name) const
 
   if(ofs.is_open()) {
     size_t len = _pc_list.size();
+
+    ofs.write((char*)&_circular, sizeof(_circular));
     ofs.write((char*)&len, sizeof(size_t));
     for(const PC& pc : _pc_list) pc.save(ofs);
     ofs.close();
@@ -95,6 +97,7 @@ void PCList::load(const std::string &file_name)
 
   if(ifs.is_open()) {
     _pc_list.clear();
+    ifs.read((char*)&_circular, sizeof(_circular));
     ifs.read((char*)&len, sizeof(size_t));
     
     while(i < len && !ifs.eof()) {

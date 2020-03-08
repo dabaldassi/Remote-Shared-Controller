@@ -10,7 +10,7 @@
 
 enum { LISTALL, LISTCURRENT, LISTREFRESH, ADD, ADD2, REMOVE, SETIF, LISTIF, VERSION, HELP,
        START, STOP, PAUSE, GETIF, SET_SHORTCUT, LISTALL_SHORTCUT, LIST_SHORTCUT, RESET_SHORTCUT,
-       SWAP, OPTION};
+       SWAP, OPTION, KEY};
 
 using namespace rscui;
 
@@ -110,6 +110,11 @@ int ControllerOperation::swap(int, int)
 int ControllerOperation::set_option(Option, bool)
 {
   return OPTION;
+}
+
+int ControllerOperation::set_key(const std::string&)
+{
+  return KEY;
 }
 
 

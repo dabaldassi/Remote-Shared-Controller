@@ -360,3 +360,17 @@ int ControllerOperation::set_option(Option opt, bool state)
   
   return _send_cmd(msg);
 }
+
+int ControllerOperation::set_key(const std::string& key)
+{
+  rsclocalcom::Message msg(rsclocalcom::Message::PASSWD);
+
+  if(key.empty())          msg.add_arg(rsclocalcom::Message::NO_PASSWD);
+  else if(key.size() >= 2) msg.add_arg(key);
+  else {
+    _ui->display_error("The key must have at least 2 characters");
+    return 1;
+  }
+  
+  return _send_cmd(msg);
+}

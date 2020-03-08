@@ -61,6 +61,12 @@ static void * recv_packets(void * arg);
 static void * send_packets(void * arg);
 static void * manage(void * arg);
 
+void scnp_set_key(const char * key)
+{
+  if(key) memcpy(cypher_key, key, sizeof(cypher_key));
+  else    memset(cypher_key, 0, sizeof(cypher_key));
+}
+
 int scnp_start(unsigned int if_index, const char * key)
 {
   /* do not start if it is already started */

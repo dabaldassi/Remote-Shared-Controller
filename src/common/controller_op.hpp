@@ -150,6 +150,7 @@ namespace rscui {
 
     int swap(int id1, int id2);
     int set_option(Option opt, bool state);
+    int set_key(const std::string & key = std::string{});
   };
 
 

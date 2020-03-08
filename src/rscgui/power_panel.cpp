@@ -2,6 +2,7 @@
 
 #include <QLabel>
 #include <QCheckBox>
+#include <QLineEdit>
 
 #include <power_panel.hpp>
 #include <config-gui.hpp>
@@ -30,6 +31,10 @@ PowerPanel::PowerPanel(ControllerOperation& op, State state, QWidget * parent)
   for(size_t i = 0; i < ControllerOperation::NB_OPTIONS; ++i) {
     connect(_option_cb[i], &QCheckBox::clicked, this, &PowerPanel::on_option_clicked);
   }
+
+  _key = new QLineEdit(parent);
+  _key->setEchoMode(QLineEdit::Password);
+  connect(_key, &QLineEdit::returnPressed, this, &PowerPanel::on_key_set);
   
   setSpacing(20);
   setContentsMargins(0,0,0,0);
@@ -39,6 +44,7 @@ PowerPanel::PowerPanel(ControllerOperation& op, State state, QWidget * parent)
   led_layout->addWidget(_state_text, 1, Qt::AlignTop);
   addLayout(led_layout);
   addWidget(_option_cb[ControllerOperation::CIRCULAR], 1, Qt::AlignTop | Qt::AlignHCenter);
+  addWidget(_key, 1, Qt::AlignTop | Qt::AlignHCenter);
   addWidget(sw, 0, Qt::AlignTop | Qt::AlignRight);
 }
 
@@ -107,4 +113,11 @@ void PowerPanel::on_option_clicked()
     }
     ++i;
   }
+}
+
+void PowerPanel::on_key_set()
+{
+  QString key = _key->text();
+  _ops.set_key(key.toStdString());
+  _key->clear();
 }

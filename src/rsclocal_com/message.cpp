@@ -3,6 +3,8 @@
 
 using rsclocalcom::Message;
 
+constexpr char Message::NO_PASSWD[];
+
 std::vector<std::tuple<std::string,size_t>> Message::_commands =
   { std::make_tuple("IF",1),
     std::make_tuple("GETIF", 0),
@@ -15,6 +17,7 @@ std::vector<std::tuple<std::string,size_t>> Message::_commands =
     std::make_tuple("LOAD_SHORTCUT",1),
     std::make_tuple("SAVE_SHORTCUT",0),
     std::make_tuple("CIRCULAR",1),
+    std::make_tuple("PASSWD",1),
   };
 
 Message::Message(Command c): _cmd(c)

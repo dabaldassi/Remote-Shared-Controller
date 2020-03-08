@@ -14,7 +14,7 @@ _rsccli_completions()
     
     if [ "${#COMP_WORDS[@]}" == "2" ]
     then
-	COMPREPLY=($(compgen -W "help list add remove version if start stop pause shortcut set swap" -- "${COMP_WORDS[1]}"))
+	COMPREPLY=($(compgen -W "help list add remove version if start stop pause shortcut set swap key" -- "${COMP_WORDS[1]}"))
     elif [ "${#COMP_WORDS[@]}" == "3" ]
     then
 	case "${COMP_WORDS[1]}" in

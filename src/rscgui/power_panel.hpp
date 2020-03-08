@@ -7,6 +7,7 @@
 
 class QLabel;
 class QCheckBox;
+class QLineEdit;
 
 namespace rscui {
 
@@ -26,6 +27,7 @@ namespace rscui {
     State       _state;
     QLabel    * _led;
     QLabel    * _state_text;
+    QLineEdit * _key;
     QCheckBox * _option_cb[ControllerOperation::NB_OPTIONS];
     uint8_t     _options;
 
@@ -67,6 +69,7 @@ namespace rscui {
     
     void on_switch_toggle(bool t);
     void on_option_clicked();
+    void on_key_set();
   
   };
 

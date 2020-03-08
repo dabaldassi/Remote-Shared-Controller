@@ -380,6 +380,11 @@ void RSC::_local_cmd()
 	  _pc_list.set_circular(arg);
 	  ack.add_arg(Message::OK, Message::DEFAULT);
 	}},
+      { Message::PASSWD, [&ack](const Message& msg) {
+	  std::string arg = msg.get_arg(0);
+	  scnp_set_key((arg == Message::NO_PASSWD)? NULL : arg.c_str());
+	  ack.add_arg(Message::OK, Message::DEFAULT);
+	}},
     };
 
   while(_run) {

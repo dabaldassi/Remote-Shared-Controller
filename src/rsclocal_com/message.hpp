@@ -11,12 +11,13 @@ namespace rsclocalcom {
   {
   public:
     enum Command : unsigned { IF, GETIF, GETLIST, SETLIST, ACK, START, STOP, PAUSE,
-			      LOAD_SHORTCUT, SAVE_SHORTCUT, CIRCULAR, NA };
+			      LOAD_SHORTCUT, SAVE_SHORTCUT, CIRCULAR, PASSWD, NA };
     enum AckType { OK, ERROR };
     enum AckCode : unsigned { DEFAULT, STARTED, PAUSED, FUTURE, IF_EXIST };
 
     static constexpr int LOAD_DEFAULT = 0;
     static constexpr int LOAD_RESET = 1;
+    static constexpr char NO_PASSWD[] = "0";
     
   private:
     Command                  _cmd;

@@ -241,6 +241,8 @@ int scnp_send(struct scnp_packet * packet, const uint8_t * dest_addr);
 
 int scnp_recv(struct scnp_packet * packet, uint8_t * src_addr);
 
+void scnp_set_key(const char * key);
+
 #ifdef __cplusplus
 }
 #endif

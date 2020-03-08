@@ -23,6 +23,7 @@ constexpr char PauseCommand::_NAME[];
 constexpr char ShortcutCommand::_NAME[];
 constexpr char OptionCommand::_NAME[];
 constexpr char SwapCommand::_NAME[];
+constexpr char KeyCommand::_NAME[];
 constexpr char Command::_NAME[];
 
 const std::string Command::OPT_DELIM = "-";
@@ -45,6 +46,7 @@ Command::Ptr Command::get_command(const std::string &name)
   else if(name == ShortcutCommand::get_name())return std::make_unique<ShortcutCommand>();
   else if(name == OptionCommand::get_name())  return std::make_unique<OptionCommand>();
   else if(name == SwapCommand::get_name())    return std::make_unique<SwapCommand>();
+  else if(name == KeyCommand::get_name())     return std::make_unique<KeyCommand>();
   else                                        return nullptr;
 }
 
@@ -632,4 +634,38 @@ int SwapCommand::execute(ctrl_op_t & ops)
   }
 
   return ops.swap(std::stoi(_args.front()), std::stoi(_args.back()));
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//                                 KeyCommand                                //
+///////////////////////////////////////////////////////////////////////////////
+
+void KeyCommand::print_usage() const
+{
+  std::cout << "Usage : " << RSCCLI_NAME << " " << _NAME << " your_key\n";
+}
+
+void KeyCommand::add_arg(const std::string& arg)
+{
+  if(_args.size() < _nb_arg) _args.push_back(arg);
+  else throw std::range_error("Too many arguments");
+}
+
+void KeyCommand::add_opt(const std::string&)
+{
+  throw std::runtime_error(_NAME + std::string(" doesn't take option"));
+}
+
+void KeyCommand::print_help()
+{
+  std::cout << "\t" << _NAME << "\tSwap two PC in the list.\n";
+  std::cout << "\t\t" << _NAME << " id1 id2" << "\t. Swap PC with id1 with PC with id2\n";
+  std::cout << "\n";
+}
+
+int KeyCommand::execute(ctrl_op_t & ops)
+{
+  if(_args.empty()) return ops.set_key();
+  
+  return ops.set_key(_args.front());
 }

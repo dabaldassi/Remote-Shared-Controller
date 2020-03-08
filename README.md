@@ -4,12 +4,16 @@
 
 Software which allow to share the mouse and keyboard of one computer with several others.
 
+You can download the Windows version [here](https://drive.google.com/open?id=1K1KrCmf863JrMlhXsjX24yzHQBPvRG0H)
+
 ## Prerequisites
 
 * CMake
 * A c++-14 compiler (GCC or MSVC)
-* libx11-dev and libfixes-dev
+* libx11-dev libfixes-dev for Linux (graphical mode)
 * A Linux kernel version greater than 4.9 or Windows 10
+* Qt5 for the graphical user interface
+* npcap for Windows
 
 ## Build
 
@@ -23,6 +27,12 @@ cmake .. [-DCMAKE_BUILD_TYPE={Release|Debug}] [-DINCLUDE_TEST={ON|OFF}] [-DNOCUR
 
 make
 
+```
+
+If you want to install, then :
+
+```
+sudo cmake install
 ```
 
 ### Windows build
@@ -85,7 +95,7 @@ To see all the available commands :
 
 ## rscgui
 
-rscgui is graphic user interface designed to use remote-shared-controller.
+rscgui is a graphic user interface designed to use remote-shared-controller.
 
 You can just run rscgui from the build directory with the following :
 
@@ -94,10 +104,6 @@ You can just run rscgui from the build directory with the following :
 ./rscgui
 
 ```
-
-For now, you will need to copy to folder ``icon`` from the root of the project to the rscgui binary directory.
-
-This step will be removed later when the installation wil be automatic.
 
 ## Authors
 

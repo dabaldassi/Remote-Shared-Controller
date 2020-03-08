@@ -166,6 +166,8 @@ else()
   message(STATUS "Tests will not be included")
 endif()
 
+include(InstallRequiredSystemLibraries)
+
 install(TARGETS rsccli remote-shared-controller
   RUNTIME
   DESTINATION bin)

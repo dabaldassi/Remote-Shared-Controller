@@ -1,0 +1,9 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource>
+    <file>icon/greenled.png</file>
+    <file>icon/orangeled.png</file>
+    <file>icon/quit.jpg</file>
+    <file>icon/redled.png</file>
+    <file>icon/logo-rsc.png</file>
+</qresource>
+</RCC>

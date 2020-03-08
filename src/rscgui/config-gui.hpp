@@ -3,11 +3,11 @@
 
 // Icon path //////////////////////////////////////////////////////////////////
 
-#define RUNNING_LED "icon/greenled.png"
-#define PAUSED_LED "icon/orangeled.png"
-#define STOPPED_LED "icon/redled.png"
-#define LOGO_RSC "icon/logo-rsc.png"
-#define QUIT_ICON "icon/quit.jpg"
+#define RUNNING_LED ":icon/greenled.png"
+#define PAUSED_LED ":icon/orangeled.png"
+#define STOPPED_LED ":icon/redled.png"
+#define LOGO_RSC ":icon/logo-rsc.png"
+#define QUIT_ICON ":icon/quit.jpg"
 
 // Shortcut gui ///////////////////////////////////////////////////////////////
 

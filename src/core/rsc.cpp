@@ -39,7 +39,6 @@ RSC::RSC(): _if(DEFAULT_IF), _next_pc_id{0},
   using namespace rscutil;
   
   load_shortcut(false);
-  
   PC local_pc { _next_pc_id++, true, true, "localhost", {0}, {0,0}, {0,0}};
 
 #ifndef NO_CURSOR

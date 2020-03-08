@@ -13,10 +13,10 @@ void print_help()
 }
 
 int main(int argc, char *argv[])
-{
+{  
   rscutil::create_base_dir();
   rscutil::register_pid();
-  
+
   RSC rsc;
   int if_index = -1;
   std::string key;
@@ -49,7 +49,6 @@ int main(int argc, char *argv[])
   }
 
   rsc.init(if_index, key);
-  
   do {
     rsc.run();
     if(rsc.is_paused()) rsc.wait_for_wakeup();

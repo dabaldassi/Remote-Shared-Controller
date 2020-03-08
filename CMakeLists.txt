@@ -130,19 +130,7 @@ target_link_libraries(rsccli
   rsclocal_com
   )
 
-if(CMAKE_SYSTEM_NAME STREQUAL Linux)
-  if(NOT $ENV{USER} STREQUAL root)
-    add_custom_command(
-      TARGET rsccli POST_BUILD
-      COMMAND echo Enter your password to set up rsccli :
-      COMMAND sudo setcap cap_kill+ep rsccli # Add the capabilities to send signal to the service, which is a root process
-      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-      )
-    endif()
-endif()
-
 find_package(Qt5Widgets)
-# find_package(Qt5Widgets CONFIG REQUIRED)
 
 if( ${Qt5Widgets_FOUND} )
   message(STATUS "Qt5 found")
@@ -152,26 +140,20 @@ if( ${Qt5Widgets_FOUND} )
   file(GLOB rscgui_headers src/rscgui/*.hpp)
   
   if(${CMAKE_SYSTEM_NAME} STREQUAL Windows) 
-    add_executable(rscgui WIN32 ${rscgui_sources} ${rscgui_headers} src/icon.rc)
+    add_executable(rscgui WIN32 ${rscgui_sources} ${rscgui_headers} resource/icon.rc resource/res.qrc)
   else()
-    add_executable(rscgui ${rscgui_sources} ${rscgui_headers} src/icon.rc)
+    add_executable(rscgui ${rscgui_sources} ${rscgui_headers} resource/res.qrc)
   endif()
 
   target_include_directories(rscgui PUBLIC ${Qt5Widgets_INCLUDE_DIRS})
   target_link_libraries(rscgui common)
   set_target_properties(rscgui PROPERTIES AUTOMOC TRUE)
+  set_target_properties(rscgui PROPERTIES AUTORCC TRUE)
   qt5_use_modules(rscgui Widgets)
 
-  if(CMAKE_SYSTEM_NAME STREQUAL Linux)
-    if(NOT $ENV{USER} STREQUAL root)
-      add_custom_command(
-	TARGET rscgui POST_BUILD
-	COMMAND echo Enter your password to set up rscgui :
-	COMMAND sudo setcap cap_kill+ep rscgui # Add the capabilities to send signal to the service, which is a root process
-	WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-	)
-    endif()
-  endif()
+  install(TARGETS rscgui
+    RUNTIME
+    DESTINATION bin)
 else()
   message(WARNING "Qt5 not found.\n"
     "If you want to use rscgui, please install Qt5.")
@@ -182,4 +164,16 @@ if(INCLUDE_TEST)
   add_subdirectory(src/tests)
 else()
   message(STATUS "Tests will not be included")
+endif()
+
+install(TARGETS rsccli remote-shared-controller
+  RUNTIME
+  DESTINATION bin)
+
+if(${CMAKE_SYSTEM_NAME} STREQUAL Linux)
+  install(FILES completion/rsccli_completion.bash completion/rsc_completion.bash
+    DESTINATION /etc/bash_completion.d/)
+  
+  file(GLOB install_script install_linux.sh)
+  install(CODE "execute_process(COMMAND ${install_script} ${CMAKE_INSTALL_PREFIX}/bin)")
 endif()
